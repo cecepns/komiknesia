@@ -8,7 +8,10 @@ import {
   Eye, 
   Bookmark,
   Search,
-  ChevronDown
+  ChevronDown,
+  Grid3x3,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 
@@ -21,6 +24,7 @@ const MangaDetail = () => {
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('list'); // 'horizontal', 'grid', or 'list'
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -187,11 +191,11 @@ const MangaDetail = () => {
 
                 {/* Info */}
                 <div className="flex-1 pb-2">
-                  <h1 className="text-lg md:text-3xl md:text-4xl font-bold text-white mb-2 line-clamp-3">
+                  <h1 className="text-md md:text-3xl md:text-4xl font-bold text-white mb-2 line-clamp-3">
                     {manga.title}
                   </h1>
                   {manga.alternative_name && (
-                    <p className="text-gray-300 mb-4 line-clamp-3">{manga.alternative_name}</p>
+                    <p className="text-xs md:text-sm text-gray-300 mb-4 line-clamp-2">{manga.alternative_name}</p>
                   )}
                   
                   {/* Stats */}
@@ -214,7 +218,7 @@ const MangaDetail = () => {
                   <button 
                     onClick={() => {
                       if (chapters.length > 0) {
-                        navigate(`/manga/${slug}/chapter/${chapters[0].slug}`);
+                        navigate(`/komik/${slug}/chapter/${chapters[0].slug}`);
                       }
                     }}
                     className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -330,56 +334,185 @@ const MangaDetail = () => {
           {/* Tab Content */}
           {activeTab === 'chapters' && (
             <div>
-              {/* Search Bar */}
-              <div className="mb-6 relative">
-                <input
-                  type="text"
-                  placeholder="Cari Chapter, Contoh: 69 atau 76"
-                  value={searchChapter}
-                  onChange={(e) => setSearchChapter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 border border-primary-800 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-primary-900 text-gray-100 placeholder:text-gray-500"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <ChevronDown className="h-5 w-5 text-gray-400" />
-                </button>
+              {/* Search Bar and View Toggle */}
+              <div className="mb-6 flex gap-3">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Cari Chapter, Contoh: 69 atau 76"
+                    value={searchChapter}
+                    onChange={(e) => setSearchChapter(e.target.value)}
+                    className="w-full pl-10 pr-10 py-3 border border-primary-800 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-primary-900 text-gray-100 placeholder:text-gray-500"
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+                
+                {/* View Mode Toggle */}
+                <div className="flex gap-2 bg-primary-900 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('horizontal')}
+                    className={`p-2 rounded transition-all duration-300 ${
+                      viewMode === 'horizontal'
+                        ? 'bg-primary-700 text-white'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Horizontal View"
+                  >
+                    <LayoutGrid className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded transition-all duration-300 ${
+                      viewMode === 'grid'
+                        ? 'bg-primary-700 text-white'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Grid View"
+                  >
+                    <Grid3x3 className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded transition-all duration-300 ${
+                      viewMode === 'list'
+                        ? 'bg-primary-700 text-white'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="List View"
+                  >
+                    <List className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
-              {/* Chapters Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {filteredChapters.map((chapter) => (
-                  <div
-                    key={chapter.id}
-                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
-                    onClick={() => navigate(`/manga/${slug}/chapter/${chapter.slug}`)}
-                  >
-                    {/* Thumbnail */}
-                    <div className="relative aspect-[3/4] overflow-hidden">
-                      <LazyImage
-                        src={chapter.thumbnail}
-                        alt={chapter.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        wrapperClassName="w-full h-full"
-                      />
-                      {chapter.isNew && (
-                        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                          UP
-                        </div>
-                      )}
-                    </div>
+              {/* Horizontal Scroll View */}
+              {viewMode === 'horizontal' && (
+                <div className="relative">
+                  <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-primary-700 scrollbar-track-primary-900">
+                    <div className="flex gap-4 min-w-max">
+                      {filteredChapters.map((chapter) => (
+                        <div
+                          key={chapter.id}
+                          className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex-shrink-0 w-48"
+                          onClick={() => navigate(`/komik/${slug}/chapter/${chapter.slug}`)}
+                        >
+                          {/* Thumbnail */}
+                          <div className="relative aspect-[3/4] overflow-hidden">
+                            <LazyImage
+                              src={chapter.thumbnail}
+                              alt={chapter.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              wrapperClassName="w-full h-full"
+                            />
+                            {chapter.isNew && (
+                              <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                                UP
+                              </div>
+                            )}
+                            {/* Play overlay */}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                              <Play className="h-12 w-12 text-white fill-white" />
+                            </div>
+                          </div>
 
-                    {/* Info */}
-                    <div className="p-3">
-                      <h3 className="font-semibold text-sm mb-1 text-gray-100 line-clamp-1">
-                        {chapter.title}
-                      </h3>
-                      <p className="text-xs text-gray-400">
-                        {formatTimeAgo(chapter.uploadedAt)}
-                      </p>
+                          {/* Info */}
+                          <div className="p-3">
+                            <h3 className="font-semibold text-sm mb-1 text-gray-100 line-clamp-1">
+                              {chapter.title}
+                            </h3>
+                            <p className="text-xs text-gray-400">
+                              {formatTimeAgo(chapter.uploadedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* Grid View */}
+              {viewMode === 'grid' && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {filteredChapters.map((chapter) => (
+                    <div
+                      key={chapter.id}
+                      className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                      onClick={() => navigate(`/komik/${slug}/chapter/${chapter.slug}`)}
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative aspect-[3/4] overflow-hidden">
+                        <LazyImage
+                          src={chapter.thumbnail}
+                          alt={chapter.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          wrapperClassName="w-full h-full"
+                        />
+                        {chapter.isNew && (
+                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                            UP
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-3">
+                        <h3 className="font-semibold text-sm mb-1 text-gray-100 line-clamp-1">
+                          {chapter.title}
+                        </h3>
+                        <p className="text-xs text-gray-400">
+                          {formatTimeAgo(chapter.uploadedAt)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* List View */}
+              {viewMode === 'list' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {filteredChapters.map((chapter) => (
+                    <div
+                      key={chapter.id}
+                      className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
+                      onClick={() => navigate(`/komik/${slug}/chapter/${chapter.slug}`)}
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
+                        <LazyImage
+                          src={chapter.thumbnail}
+                          alt={chapter.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          wrapperClassName="w-full h-full aspect-[3/4]"
+                        />
+                        {chapter.isNew && (
+                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                            UP
+                          </div>
+                        )}
+                        {/* Play overlay */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                          <Play className="h-10 w-10 text-white fill-white" />
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 p-4 flex flex-col justify-center">
+                        <h3 className="font-semibold text-base md:text-lg mb-2 text-gray-100 line-clamp-2">
+                          {chapter.title}
+                        </h3>
+                        <p className="text-sm text-gray-400">
+                          {formatTimeAgo(chapter.uploadedAt)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {filteredChapters.length === 0 && (
                 <div className="text-center py-12">

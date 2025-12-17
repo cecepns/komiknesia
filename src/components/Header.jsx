@@ -59,7 +59,7 @@ const Header = () => {
   }, [searchQuery]);
 
   const handleMangaClick = (manga) => {
-    navigate(`/manga/${manga.slug}`);
+    navigate(`/komik/${manga.slug}`);
     setSearchQuery('');
     setShowResults(false);
   };

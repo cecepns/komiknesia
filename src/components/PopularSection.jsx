@@ -109,7 +109,7 @@ const PopularSection = () => {
           {filteredManga.map((manga) => (
             <div
               key={manga.id}
-              onClick={() => navigate(`/manga/${manga.slug}`)}
+              onClick={() => navigate(`/komik/${manga.slug}`)}
               className="bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
             >
               {/* Cover Image */}

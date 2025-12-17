@@ -7,7 +7,9 @@ import {
   ChevronRight,
   List,
   X,
-  ChevronDown
+  ChevronDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 
@@ -19,6 +21,7 @@ const ChapterReader = () => {
   const [error, setError] = useState(null);
   const [showChapterList, setShowChapterList] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
+  const [showScrollButtons, setShowScrollButtons] = useState(false);
   const topRef = useRef(null);
 
   // Fetch chapter content (includes all data we need)
@@ -70,24 +73,54 @@ const ChapterReader = () => {
   const handlePrevChapter = () => {
     if (currentChapterIndex < allChapters.length - 1) {
       const prevChapter = allChapters[currentChapterIndex + 1];
-      navigate(`/manga/${mangaSlug}/chapter/${prevChapter.slug}`);
+      navigate(`/komik/${mangaSlug}/chapter/${prevChapter.slug}`);
     }
   };
 
   const handleNextChapter = () => {
     if (currentChapterIndex > 0) {
       const nextChapter = allChapters[currentChapterIndex - 1];
-      navigate(`/manga/${mangaSlug}/chapter/${nextChapter.slug}`);
+      navigate(`/komik/${mangaSlug}/chapter/${nextChapter.slug}`);
     }
   };
 
   const handleChapterSelect = (chapter) => {
-    navigate(`/manga/${mangaSlug}/chapter/${chapter.slug}`);
+    navigate(`/komik/${mangaSlug}/chapter/${chapter.slug}`);
     setShowChapterList(false);
   };
 
   const hasPrevChapter = currentChapterIndex < allChapters.length - 1;
   const hasNextChapter = currentChapterIndex > 0;
+
+  // Handle scroll detection for showing scroll buttons
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollButtons(scrollTop > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll functions - scroll incrementally for better reading experience
+  const scrollUp = () => {
+    const scrollAmount = 600; // Scroll 600px at a time
+    const currentPosition = window.pageYOffset || document.documentElement.scrollTop;
+    window.scrollTo({ 
+      top: Math.max(0, currentPosition - scrollAmount), 
+      behavior: 'smooth' 
+    });
+  };
+
+  const scrollDown = () => {
+    const scrollAmount = 600; // Scroll 600px at a time
+    const currentPosition = window.pageYOffset || document.documentElement.scrollTop;
+    window.scrollTo({ 
+      top: currentPosition + scrollAmount, 
+      behavior: 'smooth' 
+    });
+  };
 
   if (loading) {
     return (
@@ -106,7 +139,7 @@ const ChapterReader = () => {
         <div className="text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <button
-            onClick={() => navigate(`/manga/${mangaSlug}`)}
+            onClick={() => navigate(`/komik/${mangaSlug}`)}
             className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
             Kembali ke Detail Manga
@@ -137,7 +170,7 @@ const ChapterReader = () => {
             {/* Left Section */}
             <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
               <button
-                onClick={() => navigate(`/manga/${mangaSlug}`)}
+                onClick={() => navigate(`/komik/${mangaSlug}`)}
                 className="p-1.5 sm:p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
                 title="Kembali ke detail manga"
               >
@@ -338,6 +371,26 @@ const ChapterReader = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Scroll Buttons (Desktop Only) */}
+      <div className={`hidden md:flex fixed right-6 bottom-20 flex-col gap-2 z-50 transition-all duration-300 ${
+        showScrollButtons ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+      }`}>
+        <button
+          onClick={scrollUp}
+          className="p-3 bg-primary-800 hover:bg-primary-700 text-white rounded-full shadow-lg transition-all duration-300 hover:scale-110 group"
+          title="Scroll ke atas"
+        >
+          <ArrowUp className="h-5 w-5 group-hover:animate-bounce" />
+        </button>
+        <button
+          onClick={scrollDown}
+          className="p-3 bg-primary-800 hover:bg-primary-700 text-white rounded-full shadow-lg transition-all duration-300 hover:scale-110 group"
+          title="Scroll ke bawah"
+        >
+          <ArrowDown className="h-5 w-5 group-hover:animate-bounce" />
+        </button>
       </div>
     </div>
   );

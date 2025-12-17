@@ -46,7 +46,7 @@ const Home = () => {
       <div className="bg-gray-900 py-12 mb-12" data-aos="fade-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-5xl md:text-7xl font-black text-white mb-3 tracking-tight">
-            KOMIKNESIA
+            KomikNesia
           </h1>
           <h2 className="text-2xl md:text-4xl font-bold text-white mb-6">
             Baca Komik, Manga, Manhwa & Manhua.
@@ -146,7 +146,7 @@ const Home = () => {
                       
                       <div className="hidden md:flex items-center gap-4">
                         <Link
-                          to={`/manga/${item.slug}`}
+                          to={`/komik/${item.slug}`}
                           className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center"
                         >
                           Baca Sekarang
