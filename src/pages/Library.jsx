@@ -295,7 +295,7 @@ const Library = () => {
                   {historyList.map((item, index) => (
                     <div
                       key={index}
-                      onClick={() => navigate(`/komik/${item.mangaSlug}/chapter/${item.chapterSlug}`)}
+                      onClick={() => navigate(`/view/${item.chapterSlug}`)}
                       className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
                     >
                       <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">

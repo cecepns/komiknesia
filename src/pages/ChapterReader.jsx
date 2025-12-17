@@ -15,7 +15,7 @@ import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
 
 const ChapterReader = () => {
-  const { mangaSlug, chapterSlug } = useParams();
+  const { chapterSlug } = useParams();
   const navigate = useNavigate();
   const [chapterData, setChapterData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +23,7 @@ const ChapterReader = () => {
   const [showChapterList, setShowChapterList] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
   const [showScrollButtons, setShowScrollButtons] = useState(false);
+  const [mangaSlug, setMangaSlug] = useState(null);
   const topRef = useRef(null);
 
   // Fetch chapter content (includes all data we need)
@@ -43,6 +44,10 @@ const ChapterReader = () => {
         if (result.status && result.data) {
           setChapterData(result.data);
           
+          // Extract manga slug from API response (assuming it exists in content.slug or derive from data)
+          const extractedMangaSlug = result.data.content?.slug || result.data.content?.id;
+          setMangaSlug(extractedMangaSlug);
+          
           // Set current chapter index from chapters list
           if (result.data.chapters && result.data.chapters.length > 0) {
             const index = result.data.chapters.findIndex(ch => ch.slug === chapterSlug);
@@ -52,7 +57,7 @@ const ChapterReader = () => {
             const currentChapter = result.data.chapters[index];
             if (currentChapter && result.data.content) {
               saveToHistory({
-                mangaSlug: mangaSlug,
+                mangaSlug: extractedMangaSlug,
                 mangaTitle: result.data.content.title,
                 chapterSlug: chapterSlug,
                 chapterNumber: currentChapter.number,
@@ -78,7 +83,7 @@ const ChapterReader = () => {
         topRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }
-  }, [chapterSlug, mangaSlug]);
+  }, [chapterSlug]);
 
   const allChapters = chapterData?.chapters || [];
   const mangaData = chapterData?.content || null;
@@ -86,19 +91,19 @@ const ChapterReader = () => {
   const handlePrevChapter = () => {
     if (currentChapterIndex < allChapters.length - 1) {
       const prevChapter = allChapters[currentChapterIndex + 1];
-      navigate(`/komik/${mangaSlug}/chapter/${prevChapter.slug}`);
+      navigate(`/view/${prevChapter.slug}`);
     }
   };
 
   const handleNextChapter = () => {
     if (currentChapterIndex > 0) {
       const nextChapter = allChapters[currentChapterIndex - 1];
-      navigate(`/komik/${mangaSlug}/chapter/${nextChapter.slug}`);
+      navigate(`/view/${nextChapter.slug}`);
     }
   };
 
   const handleChapterSelect = (chapter) => {
-    navigate(`/komik/${mangaSlug}/chapter/${chapter.slug}`);
+    navigate(`/view/${chapter.slug}`);
     setShowChapterList(false);
   };
 
@@ -152,10 +157,10 @@ const ChapterReader = () => {
         <div className="text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <button
-            onClick={() => navigate(`/komik/${mangaSlug}`)}
+            onClick={() => navigate(mangaSlug ? `/komik/${mangaSlug}` : '/')}
             className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
-            Kembali ke Detail Manga
+            {mangaSlug ? 'Kembali ke Detail Manga' : 'Kembali ke Beranda'}
           </button>
         </div>
       </div>
@@ -183,7 +188,7 @@ const ChapterReader = () => {
             {/* Left Section */}
             <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
               <button
-                onClick={() => navigate(`/komik/${mangaSlug}`)}
+                onClick={() => navigate(mangaSlug ? `/komik/${mangaSlug}` : '/')}
                 className="p-1.5 sm:p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
                 title="Kembali ke detail manga"
               >

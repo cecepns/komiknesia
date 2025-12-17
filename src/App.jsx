@@ -15,7 +15,7 @@ function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/admin/*" element={<Admin />} />
-        <Route path="/komik/:mangaSlug/chapter/:chapterSlug" element={<ChapterReader />} />
+        <Route path="/view/:chapterSlug" element={<ChapterReader />} />
         <Route path="/komik/:slug" element={<MangaDetail />} />
         <Route path="/library" element={
           <>

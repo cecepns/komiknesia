@@ -219,7 +219,7 @@ const MangaDetail = () => {
                   <button 
                     onClick={() => {
                       if (chapters.length > 0) {
-                        navigate(`/komik/${slug}/chapter/${chapters[0].slug}`);
+                        navigate(`/view/${chapters[0].slug}`);
                       }
                     }}
                     className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -398,10 +398,10 @@ const MangaDetail = () => {
                         <div
                           key={chapter.id}
                           className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex-shrink-0 w-48"
-                          onClick={() => navigate(`/komik/${slug}/chapter/${chapter.slug}`)}
+                          onClick={() => navigate(`/view/${chapter.slug}`)}
                         >
                           {/* Thumbnail */}
-                          <div className="relative aspect-[3/4] overflow-hidden">
+                          <div className="relative aspect-square overflow-hidden">
                             <LazyImage
                               src={chapter.thumbnail}
                               alt={chapter.title}
@@ -442,10 +442,10 @@ const MangaDetail = () => {
                     <div
                       key={chapter.id}
                       className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
-                      onClick={() => navigate(`/komik/${slug}/chapter/${chapter.slug}`)}
+                      onClick={() => navigate(`/view/${chapter.slug}`)}
                     >
                       {/* Thumbnail */}
-                      <div className="relative aspect-[3/4] overflow-hidden">
+                      <div className="relative aspect-square overflow-hidden">
                         <LazyImage
                           src={chapter.thumbnail}
                           alt={chapter.title}
@@ -480,7 +480,7 @@ const MangaDetail = () => {
                     <div
                       key={chapter.id}
                       className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
-                      onClick={() => navigate(`/komik/${slug}/chapter/${chapter.slug}`)}
+                      onClick={() => navigate(`/view/${chapter.slug}`)}
                     >
                       {/* Thumbnail */}
                       <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
@@ -488,7 +488,7 @@ const MangaDetail = () => {
                           src={chapter.thumbnail}
                           alt={chapter.title}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          wrapperClassName="w-full h-full aspect-[3/4]"
+                          wrapperClassName="w-full h-full aspect-square"
                         />
                         {chapter.isNew && (
                           <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
