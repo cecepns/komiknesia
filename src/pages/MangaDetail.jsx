@@ -482,3 +482,4 @@ const MangaDetail = () => {
 
 export default MangaDetail;
 
+
