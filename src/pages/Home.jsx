@@ -45,10 +45,10 @@ const Home = () => {
       {/* Hero Section with Dark Background */}
       <div className="bg-gray-900 py-12 mb-12" data-aos="fade-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl md:text-7xl font-black text-white mb-3 tracking-tight">
+          <h1 className="text-xl md:text-7xl font-black text-white mb-3 tracking-tight">
             KomikNesia
           </h1>
-          <h2 className="text-2xl md:text-4xl font-bold text-white mb-6">
+          <h2 className="text-md md:text-4xl font-bold text-white mb-6">
             Baca Komik, Manga, Manhwa & Manhua.
           </h2>
           
@@ -61,7 +61,7 @@ const Home = () => {
             </div>
           </div>
           
-          <p className="text-base md:text-lg text-white leading-relaxed max-w-4xl mx-auto">
+          <p className="text-xs md:text-lg text-white leading-relaxed max-w-4xl mx-auto">
             KomikNesia merupakan situs baca komik online dengan koleksi terlengkap dan terupdate. 
             Kamu bisa membaca berbagai macam koleksi komik yang kami update setiap hari secara gratis. 
             Website ini adalah tempat terbaik untuk kalian yang ingin Baca Manga (komik Jepang), 
