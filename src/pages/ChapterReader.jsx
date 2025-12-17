@@ -1,0 +1,347 @@
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  ArrowLeft, 
+  Home, 
+  ChevronLeft, 
+  ChevronRight,
+  List,
+  X,
+  ChevronDown
+} from 'lucide-react';
+import LazyImage from '../components/LazyImage';
+
+const ChapterReader = () => {
+  const { mangaSlug, chapterSlug } = useParams();
+  const navigate = useNavigate();
+  const [chapterData, setChapterData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showChapterList, setShowChapterList] = useState(false);
+  const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
+  const topRef = useRef(null);
+
+  // Fetch chapter content (includes all data we need)
+  useEffect(() => {
+    const fetchChapterData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(`https://data.westmanga.me/api/v/${chapterSlug}`);
+        
+        if (!response.ok) {
+          throw new Error('Chapter tidak ditemukan');
+        }
+        
+        const result = await response.json();
+        
+        if (result.status && result.data) {
+          setChapterData(result.data);
+          
+          // Set current chapter index from chapters list
+          if (result.data.chapters && result.data.chapters.length > 0) {
+            const index = result.data.chapters.findIndex(ch => ch.slug === chapterSlug);
+            setCurrentChapterIndex(index);
+          }
+        } else {
+          throw new Error('Data chapter tidak valid');
+        }
+      } catch (err) {
+        console.error('Error fetching chapter:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (chapterSlug) {
+      fetchChapterData();
+      // Scroll to top when chapter changes
+      if (topRef.current) {
+        topRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [chapterSlug]);
+
+  const allChapters = chapterData?.chapters || [];
+  const mangaData = chapterData?.content || null;
+
+  const handlePrevChapter = () => {
+    if (currentChapterIndex < allChapters.length - 1) {
+      const prevChapter = allChapters[currentChapterIndex + 1];
+      navigate(`/manga/${mangaSlug}/chapter/${prevChapter.slug}`);
+    }
+  };
+
+  const handleNextChapter = () => {
+    if (currentChapterIndex > 0) {
+      const nextChapter = allChapters[currentChapterIndex - 1];
+      navigate(`/manga/${mangaSlug}/chapter/${nextChapter.slug}`);
+    }
+  };
+
+  const handleChapterSelect = (chapter) => {
+    navigate(`/manga/${mangaSlug}/chapter/${chapter.slug}`);
+    setShowChapterList(false);
+  };
+
+  const hasPrevChapter = currentChapterIndex < allChapters.length - 1;
+  const hasNextChapter = currentChapterIndex > 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"></div>
+          <p className="text-gray-400">Loading chapter...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => navigate(`/manga/${mangaSlug}`)}
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Kembali ke Detail Manga
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!chapterData) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-400">Chapter tidak ditemukan</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentChapter = allChapters[currentChapterIndex];
+
+  return (
+    <div ref={topRef} className="min-h-screen bg-gray-950 text-gray-100">
+      {/* Fixed Header */}
+      <header className="bg-gray-900 shadow-lg fixed top-0 left-0 right-0 z-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-2.5 sm:py-3">
+            {/* Left Section */}
+            <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+              <button
+                onClick={() => navigate(`/manga/${mangaSlug}`)}
+                className="p-1.5 sm:p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+                title="Kembali ke detail manga"
+              >
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+              
+              <button
+                onClick={() => navigate('/')}
+                className="p-1.5 sm:p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+                title="Ke beranda"
+              >
+                <Home className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+            </div>
+
+            {/* Center Section - Chapter Info */}
+            <div className="flex-1 mx-2 sm:mx-4 text-center min-w-0">
+              <h1 className="text-xs sm:text-sm md:text-base font-semibold line-clamp-1">
+                {mangaData?.title || 'Loading...'}
+              </h1>
+              <p className="text-[10px] sm:text-xs text-gray-400">
+                Chapter {currentChapter?.number || chapterData?.number}
+              </p>
+            </div>
+
+            {/* Right Section */}
+            <button
+              onClick={() => setShowChapterList(!showChapterList)}
+              className="p-1.5 sm:p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors flex-shrink-0"
+              title="Daftar chapter"
+            >
+              <List className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Chapter List Modal */}
+      {showChapterList && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-gray-900 rounded-lg max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-800">
+              <h2 className="text-lg sm:text-xl font-bold">Daftar Chapter</h2>
+              <button
+                onClick={() => setShowChapterList(false)}
+                className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Chapter List */}
+            <div className="overflow-y-auto flex-1 p-3 sm:p-4">
+              <div className="space-y-2">
+                {allChapters.map((chapter, index) => (
+                  <button
+                    key={chapter.id}
+                    onClick={() => handleChapterSelect(chapter)}
+                    className={`w-full text-left p-3 sm:p-4 rounded-lg transition-colors ${
+                      chapter.slug === chapterSlug
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm sm:text-base">Chapter {chapter.number}</span>
+                      {index === 0 && (
+                        <span className="text-[10px] sm:text-xs bg-red-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                          NEW
+                        </span>
+                      )}
+                    </div>
+                    {chapter.title && chapter.title !== `Chapter ${chapter.number}` && (
+                      <p className="text-xs sm:text-sm text-gray-400 mt-1 line-clamp-1">{chapter.title}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="pt-16 sm:pt-20 pb-20 sm:pb-24">
+        <div className="max-w-4xl mx-auto">
+          {/* Chapter Title */}
+          <div className="px-3 sm:px-4 py-4 sm:py-6 text-center">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-1 sm:mb-2 line-clamp-2">
+              {mangaData?.title || chapterData?.title}
+            </h2>
+            <p className="text-sm sm:text-base md:text-lg text-gray-400">
+              Chapter {currentChapter?.number || chapterData?.number}
+            </p>
+          </div>
+
+          {/* Chapter Images */}
+          <div className="space-y-0">
+            {chapterData?.images && chapterData.images.length > 0 ? (
+              chapterData.images.map((image, index) => (
+                <div key={index} className="w-full">
+                  <LazyImage
+                    src={image}
+                    alt={`Page ${index + 1}`}
+                    className="w-full h-auto"
+                    wrapperClassName="w-full"
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12 px-4 text-gray-400 text-sm sm:text-base">
+                Tidak ada gambar tersedia untuk chapter ini
+              </div>
+            )}
+          </div>
+
+          {/* Navigation Buttons (Bottom) */}
+          <div className="px-3 sm:px-4 py-6 sm:py-8">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
+              <button
+                onClick={handlePrevChapter}
+                disabled={!hasPrevChapter}
+                className={`flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
+                  hasPrevChapter
+                    ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 sm:mr-2" />
+                <span className="hidden sm:inline">Prev Chapter</span>
+                <span className="sm:hidden">Prev</span>
+              </button>
+
+              <button
+                onClick={() => setShowChapterList(true)}
+                className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-sm sm:text-base bg-gray-800 hover:bg-gray-700 text-white transition-colors"
+              >
+                <List className="h-4 w-4 sm:h-5 sm:w-5 sm:mr-2" />
+                <span className="hidden sm:inline">Chapters</span>
+                <span className="sm:hidden">List</span>
+              </button>
+
+              <button
+                onClick={handleNextChapter}
+                disabled={!hasNextChapter}
+                className={`flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
+                  hasNextChapter
+                    ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                <span className="hidden sm:inline">Next Chapter</span>
+                <span className="sm:hidden">Next</span>
+                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 sm:ml-2" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Fixed Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-40">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={handlePrevChapter}
+              disabled={!hasPrevChapter}
+              className={`flex items-center justify-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base transition-colors min-w-0 ${
+                hasPrevChapter
+                  ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                  : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+              }`}
+            >
+              <ChevronLeft className="h-4 w-4 sm:mr-1" />
+              <span className="hidden xs:inline">Prev</span>
+            </button>
+
+            <button
+              onClick={() => setShowChapterList(true)}
+              className="flex items-center justify-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base bg-primary-600 hover:bg-primary-700 text-white transition-colors flex-shrink-0"
+            >
+              <span className="mr-1 sm:mr-2">Ch. {currentChapter?.number || chapterData?.number}</span>
+              <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
+            </button>
+
+            <button
+              onClick={handleNextChapter}
+              disabled={!hasNextChapter}
+              className={`flex items-center justify-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base transition-colors min-w-0 ${
+                hasNextChapter
+                  ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                  : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+              }`}
+            >
+              <span className="hidden xs:inline">Next</span>
+              <ChevronRight className="h-4 w-4 sm:ml-1" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChapterReader;
+
