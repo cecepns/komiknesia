@@ -1,0 +1,1494 @@
+{
+  "data": [
+    {
+      "color": false,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/a5df0750-b416-407c-b652-9687fddc6361.jpg",
+      "hot": false,
+      "id": 362817,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 362817,
+          "created_at": {
+            "formatted": "17 Dec 2025 02:30",
+            "time": 1765956640
+          },
+          "id": 705027,
+          "number": "17",
+          "slug": "jako-ni-wa-kaji-ga-oniaida-www-to-iwareta-kaji-level-9999-no-ore-tsuihousareta-no-de-boukensha-ni-tenshoku-suru-saikyou-de-musou-shinagara-guild-de-tanoshiku-kurashimasu-chapter-17-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 02:30",
+            "time": 1765956640
+          }
+        },
+        {
+          "content_id": 362817,
+          "created_at": {
+            "formatted": "23 Nov 2025 07:15",
+            "time": 1763900113
+          },
+          "id": 701371,
+          "number": "16",
+          "slug": "jako-ni-wa-kaji-ga-oniaida-www-to-iwareta-kaji-level-9999-no-ore-tsuihousareta-no-de-boukensha-ni-tenshoku-suru-saikyou-de-musou-shinagara-guild-de-tanoshiku-kurashimasu-chapter-16-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "23 Nov 2025 07:15",
+            "time": 1763900113
+          }
+        },
+        {
+          "content_id": 362817,
+          "created_at": {
+            "formatted": "12 Nov 2025 08:07",
+            "time": 1762952830
+          },
+          "id": 699754,
+          "number": "15",
+          "slug": "jako-ni-wa-kaji-ga-oniaida-www-to-iwareta-kaji-level-9999-no-ore-tsuihousareta-no-de-boukensha-ni-tenshoku-suru-saikyou-de-musou-shinagara-guild-de-tanoshiku-kurashimasu-chapter-15-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "12 Nov 2025 08:07",
+            "time": 1762952830
+          }
+        }
+      ],
+      "rating": 7.2,
+      "slug": "jako-ni-wa-kaji-ga-oniaida-www-to-iwareta-kaji-level-9999-no-ore-tsuihousareta-no-de-boukensha-ni-tenshoku-suru-saikyou-de-musou-shinagara-guild-de-tanoshiku-kurashimasu",
+      "status": "ongoing",
+      "title": "“Jako ni wa Kaji ga Oniaida www” to Iwareta Kaji Level 9999 no Ore, Tsuihousareta no de Boukensha ni Tenshoku suru – Saikyou de Musou Shinagara Guild de Tanoshiku Kurashimasu",
+      "total_views": 324855
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "CN",
+      "cover": "https://storage.westmanga.me/west/images/covers/0aabd8af-e7f9-4ea2-8581-f08a51c0cd83.jpg",
+      "hot": false,
+      "id": 193847,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 193847,
+          "created_at": {
+            "formatted": "17 Dec 2025 02:30",
+            "time": 1765956633
+          },
+          "id": 705026,
+          "number": "158",
+          "slug": "im-really-not-the-villain-chapter-158-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 02:30",
+            "time": 1765956633
+          }
+        },
+        {
+          "content_id": 193847,
+          "created_at": {
+            "formatted": "15 Dec 2025 03:19",
+            "time": 1765786745
+          },
+          "id": 704755,
+          "number": "157",
+          "slug": "im-really-not-the-villain-chapter-157-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "15 Dec 2025 03:19",
+            "time": 1765786745
+          }
+        },
+        {
+          "content_id": 193847,
+          "created_at": {
+            "formatted": "14 Dec 2025 01:39",
+            "time": 1765694349
+          },
+          "id": 704549,
+          "number": "156",
+          "slug": "im-really-not-the-villain-chapter-156-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "14 Dec 2025 01:39",
+            "time": 1765694349
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "im-really-not-the-villain",
+      "status": "ongoing",
+      "title": "I’m Really Not The Villain",
+      "total_views": 1698374
+    },
+    {
+      "color": false,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/3754cda3-c005-49fc-9970-ef42a1f17cc4.jpg",
+      "hot": false,
+      "id": 350501,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 350501,
+          "created_at": {
+            "formatted": "17 Dec 2025 02:28",
+            "time": 1765956538
+          },
+          "id": 705025,
+          "number": "50",
+          "slug": "gal-yome-no-himitsua-chapter-50-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 02:28",
+            "time": 1765956538
+          }
+        },
+        {
+          "content_id": 350501,
+          "created_at": {
+            "formatted": "19 Nov 2025 02:12",
+            "time": 1763536335
+          },
+          "id": 700670,
+          "number": "49",
+          "slug": "gal-yome-no-himitsua-chapter-49-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "19 Nov 2025 02:12",
+            "time": 1763536335
+          }
+        },
+        {
+          "content_id": 350501,
+          "created_at": {
+            "formatted": "5 Nov 2025 20:14",
+            "time": 1762391683
+          },
+          "id": 698720,
+          "number": "48",
+          "slug": "gal-yome-no-himitsua-chapter-48-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "5 Nov 2025 20:14",
+            "time": 1762391683
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "gal-yome-no-himitsua",
+      "status": "ongoing",
+      "title": "Gal Yome no Himitsua",
+      "total_views": 734314
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/baf66a00-db16-11f0-8585-1505b503d27b.jpg",
+      "hot": false,
+      "id": 670145,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 670145,
+          "created_at": {
+            "formatted": "17 Dec 2025 02:05",
+            "time": 1765955156
+          },
+          "id": 705024,
+          "number": "05",
+          "slug": "bill-the-blacksmith-chapter-05-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 02:05",
+            "time": 1765955156
+          }
+        },
+        {
+          "content_id": 670145,
+          "created_at": {
+            "formatted": "17 Dec 2025 02:05",
+            "time": 1765955146
+          },
+          "id": 705023,
+          "number": "04",
+          "slug": "bill-the-blacksmith-chapter-04-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 02:05",
+            "time": 1765955146
+          }
+        },
+        {
+          "content_id": 670145,
+          "created_at": {
+            "formatted": "17 Dec 2025 02:05",
+            "time": 1765955136
+          },
+          "id": 705022,
+          "number": "03",
+          "slug": "bill-the-blacksmith-chapter-03-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 02:05",
+            "time": 1765955136
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "bill-the-blacksmith",
+      "status": "ongoing",
+      "title": "Bill The Blacksmith",
+      "total_views": 464
+    },
+    {
+      "color": false,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/6cf5d9ed-f4c7-4c8f-b6c3-15c3aee8726a.jpg",
+      "hot": false,
+      "id": 185692,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 185692,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:48",
+            "time": 1765954088
+          },
+          "id": 705019,
+          "number": "37",
+          "slug": "the-incompetent-prince-who-has-been-banished-wants-to-hide-his-abilities-chapter-37-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:48",
+            "time": 1765954088
+          }
+        },
+        {
+          "content_id": 185692,
+          "created_at": {
+            "formatted": "5 Dec 2025 01:13",
+            "time": 1764915194
+          },
+          "id": 703247,
+          "number": "36",
+          "slug": "the-incompetent-prince-who-has-been-banished-wants-to-hide-his-abilities-chapter-36-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "5 Dec 2025 01:13",
+            "time": 1764915194
+          }
+        },
+        {
+          "content_id": 185692,
+          "created_at": {
+            "formatted": "17 Nov 2025 04:01",
+            "time": 1763370060
+          },
+          "id": 700407,
+          "number": "35",
+          "slug": "the-incompetent-prince-who-has-been-banished-wants-to-hide-his-abilities-chapter-35-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Nov 2025 04:01",
+            "time": 1763370060
+          }
+        }
+      ],
+      "rating": 7.5,
+      "slug": "the-incompetent-prince-who-has-been-banished-wants-to-hide-his-abilities",
+      "status": "ongoing",
+      "title": "The Incompetent Prince Who Has Been Banished Wants To Hide His Abilities",
+      "total_views": 638852
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "CN",
+      "cover": "https://storage.westmanga.me/west/images/covers/678ec0e0-b818-11f0-8a6c-37d699a16902.png",
+      "hot": false,
+      "id": 670031,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 670031,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:46",
+            "time": 1765953966
+          },
+          "id": 705018,
+          "number": "08",
+          "slug": "city-of-sin-chapter-08-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:46",
+            "time": 1765953966
+          }
+        },
+        {
+          "content_id": 670031,
+          "created_at": {
+            "formatted": "9 Dec 2025 10:15",
+            "time": 1765293339
+          },
+          "id": 703884,
+          "number": "07",
+          "slug": "city-of-sin-chapter-07-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "9 Dec 2025 10:15",
+            "time": 1765293339
+          }
+        },
+        {
+          "content_id": 670031,
+          "created_at": {
+            "formatted": "3 Dec 2025 10:00",
+            "time": 1764774046
+          },
+          "id": 703049,
+          "number": "06",
+          "slug": "city-of-sin-chapter-06-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "3 Dec 2025 10:00",
+            "time": 1764774046
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "city-of-sin",
+      "status": "ongoing",
+      "title": "City of Sin",
+      "total_views": 11232
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "CN",
+      "cover": "https://storage.westmanga.me/west/images/covers/5c8fa900-960f-11f0-8158-d388274f8ee8.png",
+      "hot": false,
+      "id": 669960,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 669960,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:46",
+            "time": 1765953961
+          },
+          "id": 705017,
+          "number": "44",
+          "slug": "infinite-evolution-starting-from-zero-chapter-44-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:46",
+            "time": 1765953961
+          }
+        },
+        {
+          "content_id": 669960,
+          "created_at": {
+            "formatted": "13 Dec 2025 23:23",
+            "time": 1765686239
+          },
+          "id": 704536,
+          "number": "43",
+          "slug": "infinite-evolution-starting-from-zero-chapter-43-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "13 Dec 2025 23:23",
+            "time": 1765686239
+          }
+        },
+        {
+          "content_id": 669960,
+          "created_at": {
+            "formatted": "10 Dec 2025 02:17",
+            "time": 1765351036
+          },
+          "id": 703953,
+          "number": "42",
+          "slug": "infinite-evolution-starting-from-zero-chapter-42-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "10 Dec 2025 02:17",
+            "time": 1765351036
+          }
+        }
+      ],
+      "rating": 0,
+      "slug": "infinite-evolution-starting-from-zero",
+      "status": "ongoing",
+      "title": "Infinite Evolution Starting From Zero",
+      "total_views": 105849
+    },
+    {
+      "color": false,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/dd8ebf69-4d17-4118-a13f-2bb4cc6765ab.jpg",
+      "hot": false,
+      "id": 188453,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 188453,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953956
+          },
+          "id": 705016,
+          "number": "35",
+          "slug": "marriagetoxin-chapter-35-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953956
+          }
+        },
+        {
+          "content_id": 188453,
+          "created_at": {
+            "formatted": "16 Dec 2025 04:38",
+            "time": 1765877907
+          },
+          "id": 704875,
+          "number": "34",
+          "slug": "marriagetoxin-chapter-34-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "16 Dec 2025 04:38",
+            "time": 1765877907
+          }
+        },
+        {
+          "content_id": 188453,
+          "created_at": {
+            "formatted": "15 Dec 2025 03:18",
+            "time": 1765786737
+          },
+          "id": 704754,
+          "number": "33",
+          "slug": "marriagetoxin-chapter-33-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "15 Dec 2025 03:18",
+            "time": 1765786737
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "marriagetoxin",
+      "status": "ongoing",
+      "title": "Marriagetoxin",
+      "total_views": 136843
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/3b74ddc0-944e-11f0-b530-2f62dfe3aebb.jpg",
+      "hot": false,
+      "id": 669954,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 669954,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953951
+          },
+          "id": 705015,
+          "number": "22",
+          "slug": "off-work-today-too-chapter-22-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953951
+          }
+        },
+        {
+          "content_id": 669954,
+          "created_at": {
+            "formatted": "10 Dec 2025 05:50",
+            "time": 1765363817
+          },
+          "id": 703987,
+          "number": "21",
+          "slug": "off-work-today-too-chapter-21-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "10 Dec 2025 05:50",
+            "time": 1765363817
+          }
+        },
+        {
+          "content_id": 669954,
+          "created_at": {
+            "formatted": "10 Dec 2025 05:50",
+            "time": 1765363810
+          },
+          "id": 703986,
+          "number": "20",
+          "slug": "off-work-today-too-chapter-20-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "10 Dec 2025 05:50",
+            "time": 1765363810
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "off-work-today-too",
+      "status": "ongoing",
+      "title": "Off Work Today Too",
+      "total_views": 22068
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "CN",
+      "cover": "https://storage.westmanga.me/west/images/covers/a0df8f60-c393-11f0-a19e-2742b2f69225.webp",
+      "hot": false,
+      "id": 670074,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 670074,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953945
+          },
+          "id": 705014,
+          "number": "17",
+          "slug": "sister-in-law-im-really-not-a-fool-anymore-chapter-17-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953945
+          }
+        },
+        {
+          "content_id": 670074,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953941
+          },
+          "id": 705013,
+          "number": "16",
+          "slug": "sister-in-law-im-really-not-a-fool-anymore-chapter-16-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953941
+          }
+        },
+        {
+          "content_id": 670074,
+          "created_at": {
+            "formatted": "16 Dec 2025 08:04",
+            "time": 1765890252
+          },
+          "id": 704899,
+          "number": "15",
+          "slug": "sister-in-law-im-really-not-a-fool-anymore-chapter-15-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "16 Dec 2025 08:04",
+            "time": 1765890252
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "sister-in-law-im-really-not-a-fool-anymore",
+      "status": "ongoing",
+      "title": "Sister-in-Law: I’m Really Not a Fool Anymore",
+      "total_views": 25683
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/0f3ed680-1982-4c42-b6cd-61692d912490.png",
+      "hot": false,
+      "id": 635242,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 635242,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953905
+          },
+          "id": 705012,
+          "number": "46",
+          "slug": "the-art-student-who-lived-twice-chapter-46-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:45",
+            "time": 1765953905
+          }
+        },
+        {
+          "content_id": 635242,
+          "created_at": {
+            "formatted": "10 Dec 2025 10:30",
+            "time": 1765380610
+          },
+          "id": 704022,
+          "number": "45",
+          "slug": "the-art-student-who-lived-twice-chapter-45-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "10 Dec 2025 10:30",
+            "time": 1765380610
+          }
+        },
+        {
+          "content_id": 635242,
+          "created_at": {
+            "formatted": "6 Dec 2025 09:52",
+            "time": 1765032727
+          },
+          "id": 703416,
+          "number": "44",
+          "slug": "the-art-student-who-lived-twice-chapter-44-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "6 Dec 2025 09:52",
+            "time": 1765032727
+          }
+        }
+      ],
+      "rating": 8.11,
+      "slug": "the-art-student-who-lived-twice",
+      "status": "ongoing",
+      "title": "The Art Student Who Lived Twice",
+      "total_views": 102004
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/6adce4fb-88a1-42dc-8d27-68323922b7da.jpg",
+      "hot": false,
+      "id": 651324,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 651324,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:44",
+            "time": 1765953896
+          },
+          "id": 705011,
+          "number": "35",
+          "slug": "the-demon-slayers-restaurant-chapter-35-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:44",
+            "time": 1765953896
+          }
+        },
+        {
+          "content_id": 651324,
+          "created_at": {
+            "formatted": "10 Dec 2025 19:11",
+            "time": 1765411896
+          },
+          "id": 704065,
+          "number": "34",
+          "slug": "the-demon-slayers-restaurant-chapter-34-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "10 Dec 2025 19:11",
+            "time": 1765411896
+          }
+        },
+        {
+          "content_id": 651324,
+          "created_at": {
+            "formatted": "4 Dec 2025 03:07",
+            "time": 1764835639
+          },
+          "id": 703130,
+          "number": "33",
+          "slug": "the-demon-slayers-restaurant-chapter-33-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "4 Dec 2025 03:07",
+            "time": 1764835639
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "the-demon-slayers-restaurant",
+      "status": "ongoing",
+      "title": "The Demon Slayer’s Restaurant",
+      "total_views": 1793567
+    },
+    {
+      "color": false,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/de153a00-db13-11f0-8585-1505b503d27b.jpg",
+      "hot": false,
+      "id": 670144,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 670144,
+          "created_at": {
+            "formatted": "17 Dec 2025 01:44",
+            "time": 1765953891
+          },
+          "id": 705010,
+          "number": "01",
+          "slug": "genkai-jk-kirimi-san-juuni-sai-chapter-01-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 01:44",
+            "time": 1765953891
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "genkai-jk-kirimi-san-juuni-sai",
+      "status": "ongoing",
+      "title": "Genkai JK Kirimi-san Juuni-sai",
+      "total_views": 1170
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/a632a18a-21cc-4db6-869b-56a895e29588.jpg",
+      "hot": false,
+      "id": 206365,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 206365,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:08",
+            "time": 1765948081
+          },
+          "id": 705009,
+          "number": "142",
+          "slug": "my-school-life-pretending-to-be-a-worthless-person-chapter-142-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:08",
+            "time": 1765948081
+          }
+        },
+        {
+          "content_id": 206365,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948079
+          },
+          "id": 705008,
+          "number": "141",
+          "slug": "my-school-life-pretending-to-be-a-worthless-person-chapter-141-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948079
+          }
+        },
+        {
+          "content_id": 206365,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948077
+          },
+          "id": 705007,
+          "number": "140",
+          "slug": "my-school-life-pretending-to-be-a-worthless-person-chapter-140-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948077
+          }
+        }
+      ],
+      "rating": 7.11,
+      "slug": "my-school-life-pretending-to-be-a-worthless-person",
+      "status": "ongoing",
+      "title": "My School Life Pretending to Be a Worthless Person",
+      "total_views": 554041
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/ae112d36-07dc-4033-96e2-39f72c656c9a.jpg",
+      "hot": false,
+      "id": 596100,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 596100,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948066
+          },
+          "id": 705005,
+          "number": "65",
+          "slug": "im-going-to-destroy-this-country-chapter-65-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948066
+          }
+        },
+        {
+          "content_id": 596100,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948065
+          },
+          "id": 705004,
+          "number": "64",
+          "slug": "im-going-to-destroy-this-country-chapter-64-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948065
+          }
+        },
+        {
+          "content_id": 596100,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948063
+          },
+          "id": 705003,
+          "number": "63",
+          "slug": "im-going-to-destroy-this-country-chapter-63-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948063
+          }
+        }
+      ],
+      "rating": 8,
+      "slug": "im-going-to-destroy-this-country",
+      "status": "ongoing",
+      "title": "I’m Going To Destroy This Country",
+      "total_views": 773047
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/aeff2ba4-9e17-4557-b490-e2258db11b6c.jpg",
+      "hot": true,
+      "id": 404767,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 404767,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948051
+          },
+          "id": 705002,
+          "number": "293",
+          "slug": "omniscient-readers-viewpoint-chapter-293-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948051
+          }
+        },
+        {
+          "content_id": 404767,
+          "created_at": {
+            "formatted": "10 Dec 2025 22:04",
+            "time": 1765422296
+          },
+          "id": 704077,
+          "number": "292",
+          "slug": "omniscient-readers-viewpoint-chapter-292-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "10 Dec 2025 22:04",
+            "time": 1765422296
+          }
+        },
+        {
+          "content_id": 404767,
+          "created_at": {
+            "formatted": "2 Dec 2025 21:15",
+            "time": 1764728115
+          },
+          "id": 702885,
+          "number": "291",
+          "slug": "omniscient-readers-viewpoint-chapter-291-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "2 Dec 2025 21:15",
+            "time": 1764728115
+          }
+        }
+      ],
+      "rating": 8.2,
+      "slug": "omniscient-readers-viewpoint",
+      "status": "ongoing",
+      "title": "Omniscient Reader’s Viewpoint",
+      "total_views": 1677031
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/50b32668-df09-4abd-ab45-d1d5f802d931.jpg",
+      "hot": false,
+      "id": 386658,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 386658,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948044
+          },
+          "id": 705001,
+          "number": "112",
+          "slug": "regressor-of-the-fallen-family-chapter-112-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:07",
+            "time": 1765948044
+          }
+        },
+        {
+          "content_id": 386658,
+          "created_at": {
+            "formatted": "12 Dec 2025 11:40",
+            "time": 1765557607
+          },
+          "id": 704305,
+          "number": "111",
+          "slug": "regressor-of-the-fallen-family-chapter-111-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "12 Dec 2025 11:40",
+            "time": 1765557607
+          }
+        },
+        {
+          "content_id": 386658,
+          "created_at": {
+            "formatted": "2 Dec 2025 10:45",
+            "time": 1764690306
+          },
+          "id": 702844,
+          "number": "110",
+          "slug": "regressor-of-the-fallen-family-chapter-110-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "2 Dec 2025 10:45",
+            "time": 1764690306
+          }
+        }
+      ],
+      "rating": 7.3,
+      "slug": "regressor-of-the-fallen-family",
+      "status": "ongoing",
+      "title": "Regressor Of The Fallen Family",
+      "total_views": 596708
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "CN",
+      "cover": "https://storage.westmanga.me/west/images/covers/b4129570-6f7c-11f0-82d6-134ec2eed667.jpg",
+      "hot": false,
+      "id": 669853,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 669853,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765948000
+          },
+          "id": 705000,
+          "number": "21",
+          "slug": "the-butcher-blade-that-pierces-all-realms-chapter-21-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765948000
+          }
+        },
+        {
+          "content_id": 669853,
+          "created_at": {
+            "formatted": "6 Dec 2025 11:11",
+            "time": 1765037466
+          },
+          "id": 703437,
+          "number": "20",
+          "slug": "the-butcher-blade-that-pierces-all-realms-chapter-20-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "6 Dec 2025 11:11",
+            "time": 1765037466
+          }
+        },
+        {
+          "content_id": 669853,
+          "created_at": {
+            "formatted": "25 Nov 2025 22:46",
+            "time": 1764128789
+          },
+          "id": 701790,
+          "number": "19",
+          "slug": "the-butcher-blade-that-pierces-all-realms-chapter-19-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "25 Nov 2025 22:46",
+            "time": 1764128789
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "the-butcher-blade-that-pierces-all-realms",
+      "status": "ongoing",
+      "title": "The Butcher Blade That Pierces All Realms",
+      "total_views": 52798
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/f922f37e-71c2-4641-9dd7-270ff32cca16.jpg",
+      "hot": true,
+      "id": 162657,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 162657,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947993
+          },
+          "id": 704999,
+          "number": "213",
+          "slug": "the-world-after-the-fall-chapter-213-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947993
+          }
+        },
+        {
+          "content_id": 162657,
+          "created_at": {
+            "formatted": "11 Dec 2025 19:42",
+            "time": 1765500148
+          },
+          "id": 704176,
+          "number": "212",
+          "slug": "the-world-after-the-fall-chapter-212-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "11 Dec 2025 19:42",
+            "time": 1765500148
+          }
+        },
+        {
+          "content_id": 162657,
+          "created_at": {
+            "formatted": "7 Dec 2025 22:33",
+            "time": 1765164807
+          },
+          "id": 703602,
+          "number": "211",
+          "slug": "the-world-after-the-fall-chapter-211-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "7 Dec 2025 22:33",
+            "time": 1765164807
+          }
+        }
+      ],
+      "rating": 8.7,
+      "slug": "the-world-after-the-fall",
+      "status": "ongoing",
+      "title": "The World After the Fall",
+      "total_views": 1554769
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "CN",
+      "cover": "https://storage.westmanga.me/west/images/covers/2ea32c1b-4e0b-447f-9b2f-c94534629504.png",
+      "hot": false,
+      "id": 538786,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 538786,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947980
+          },
+          "id": 704998,
+          "number": "197",
+          "slug": "it-all-starts-with-trillions-of-nether-currency-chapter-197-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947980
+          }
+        },
+        {
+          "content_id": 538786,
+          "created_at": {
+            "formatted": "15 Dec 2025 09:26",
+            "time": 1765808791
+          },
+          "id": 704797,
+          "number": "196",
+          "slug": "it-all-starts-with-trillions-of-nether-currency-chapter-196-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "15 Dec 2025 09:26",
+            "time": 1765808791
+          }
+        },
+        {
+          "content_id": 538786,
+          "created_at": {
+            "formatted": "15 Dec 2025 09:26",
+            "time": 1765808789
+          },
+          "id": 704796,
+          "number": "195",
+          "slug": "it-all-starts-with-trillions-of-nether-currency-chapter-195-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "15 Dec 2025 09:26",
+            "time": 1765808789
+          }
+        }
+      ],
+      "rating": 8.13,
+      "slug": "it-all-starts-with-trillions-of-nether-currency",
+      "status": "ongoing",
+      "title": "It All Starts With Trillions Of Nether Currency",
+      "total_views": 757438
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/55b8fff0-593d-11f0-b2eb-596936bbdc8f.jpg",
+      "hot": false,
+      "id": 669773,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 669773,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947972
+          },
+          "id": 704997,
+          "number": "42",
+          "slug": "magic-lord-chapter-42-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947972
+          }
+        },
+        {
+          "content_id": 669773,
+          "created_at": {
+            "formatted": "9 Dec 2025 00:16",
+            "time": 1765257406
+          },
+          "id": 703819,
+          "number": "41",
+          "slug": "magic-lord-chapter-41-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "9 Dec 2025 00:16",
+            "time": 1765257406
+          }
+        },
+        {
+          "content_id": 669773,
+          "created_at": {
+            "formatted": "3 Dec 2025 02:24",
+            "time": 1764746680
+          },
+          "id": 702932,
+          "number": "40",
+          "slug": "magic-lord-chapter-40-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "3 Dec 2025 02:24",
+            "time": 1764746680
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "magic-lord",
+      "status": "ongoing",
+      "title": "Magic Lord",
+      "total_views": 71122
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/03dccf60-b39f-11f0-93b5-59a67d084fbd.jpg",
+      "hot": false,
+      "id": 670025,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 670025,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947963
+          },
+          "id": 704996,
+          "number": "35",
+          "slug": "mr-war-the-strongest-ex-soldier-chapter-35-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947963
+          }
+        },
+        {
+          "content_id": 670025,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947961
+          },
+          "id": 704995,
+          "number": "34",
+          "slug": "mr-war-the-strongest-ex-soldier-chapter-34-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:06",
+            "time": 1765947961
+          }
+        },
+        {
+          "content_id": 670025,
+          "created_at": {
+            "formatted": "13 Dec 2025 22:05",
+            "time": 1765681541
+          },
+          "id": 704506,
+          "number": "33",
+          "slug": "mr-war-the-strongest-ex-soldier-chapter-33-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "13 Dec 2025 22:05",
+            "time": 1765681541
+          }
+        }
+      ],
+      "rating": 0,
+      "slug": "mr-war-the-strongest-ex-soldier",
+      "status": "ongoing",
+      "title": "Mr. War꞉ The Strongest Ex-Soldier",
+      "total_views": 18149
+    },
+    {
+      "color": false,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/fe28ebe4-dff8-4bb3-ac19-1e40e3984b21.jpg",
+      "hot": true,
+      "id": 22072,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 22072,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:05",
+            "time": 1765947954
+          },
+          "id": 704994,
+          "number": "112",
+          "slug": "shuumatsu-no-valkyrie-chapter-112-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:05",
+            "time": 1765947954
+          }
+        },
+        {
+          "content_id": 22072,
+          "created_at": {
+            "formatted": "24 Nov 2025 23:32",
+            "time": 1764045121
+          },
+          "id": 701652,
+          "number": "111",
+          "slug": "shuumatsu-no-valkyrie-chapter-111-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "24 Nov 2025 23:32",
+            "time": 1764045121
+          }
+        },
+        {
+          "content_id": 22072,
+          "created_at": {
+            "formatted": "4 Nov 2025 01:54",
+            "time": 1762239264
+          },
+          "id": 698516,
+          "number": "110",
+          "slug": "shuumatsu-no-valkyrie-chapter-110-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "4 Nov 2025 01:54",
+            "time": 1762239264
+          }
+        }
+      ],
+      "rating": 0,
+      "slug": "shuumatsu-no-valkyrie",
+      "status": "ongoing",
+      "title": "Shuumatsu no Valkyrie",
+      "total_views": 645818
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "JP",
+      "cover": "https://storage.westmanga.me/west/images/covers/e8dc9420-b39e-11f0-93b5-59a67d084fbd.webp",
+      "hot": false,
+      "id": 670024,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 670024,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:05",
+            "time": 1765947935
+          },
+          "id": 704993,
+          "number": "35",
+          "slug": "the-rise-of-the-bottom-ranked-spirit-user-chapter-35-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:05",
+            "time": 1765947935
+          }
+        },
+        {
+          "content_id": 670024,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:05",
+            "time": 1765947932
+          },
+          "id": 704992,
+          "number": "34",
+          "slug": "the-rise-of-the-bottom-ranked-spirit-user-chapter-34-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:05",
+            "time": 1765947932
+          }
+        },
+        {
+          "content_id": 670024,
+          "created_at": {
+            "formatted": "13 Dec 2025 22:04",
+            "time": 1765681455
+          },
+          "id": 704498,
+          "number": "33",
+          "slug": "the-rise-of-the-bottom-ranked-spirit-user-chapter-33-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "13 Dec 2025 22:04",
+            "time": 1765681455
+          }
+        }
+      ],
+      "rating": 0,
+      "slug": "the-rise-of-the-bottom-ranked-spirit-user",
+      "status": "ongoing",
+      "title": "The Rise of the Bottom Ranked Spirit User",
+      "total_views": 13848
+    },
+    {
+      "color": true,
+      "content_type": "comic",
+      "country_id": "KR",
+      "cover": "https://storage.westmanga.me/west/images/covers/e6642eb0-d70c-11f0-949e-4fcf986357cd.jpg",
+      "hot": false,
+      "id": 670139,
+      "is_project": false,
+      "lastChapters": [
+        {
+          "content_id": 670139,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:04",
+            "time": 1765947896
+          },
+          "id": 704991,
+          "number": "20",
+          "slug": "the-vehement-emperor-of-steel-chapter-20-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:04",
+            "time": 1765947896
+          }
+        },
+        {
+          "content_id": 670139,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:04",
+            "time": 1765947894
+          },
+          "id": 704990,
+          "number": "19",
+          "slug": "the-vehement-emperor-of-steel-chapter-19-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:04",
+            "time": 1765947894
+          }
+        },
+        {
+          "content_id": 670139,
+          "created_at": {
+            "formatted": "17 Dec 2025 00:04",
+            "time": 1765947892
+          },
+          "id": 704989,
+          "number": "18",
+          "slug": "the-vehement-emperor-of-steel-chapter-18-bahasa-indonesia",
+          "updated_at": {
+            "formatted": "17 Dec 2025 00:04",
+            "time": 1765947892
+          }
+        }
+      ],
+      "rating": 7,
+      "slug": "the-vehement-emperor-of-steel",
+      "status": "ongoing",
+      "title": "The Vehement Emperor of Steel",
+      "total_views": 5435
+    }
+  ],
+  "message": "Request Accepted",
+  "paginator": {
+    "base_url": "https://data.westmanga.me",
+    "current_page": 1,
+    "from": 1,
+    "last_page": 249,
+    "links": [
+      {
+        "active": false,
+        "label": "« Previous",
+        "page": null,
+        "url": null
+      },
+      {
+        "active": true,
+        "label": "1",
+        "page": 1,
+        "url": "https://data.westmanga.me/api/contents?page=1"
+      },
+      {
+        "active": false,
+        "label": "2",
+        "page": 2,
+        "url": "https://data.westmanga.me/api/contents?page=2"
+      },
+      {
+        "active": false,
+        "label": "3",
+        "page": 3,
+        "url": "https://data.westmanga.me/api/contents?page=3"
+      },
+      {
+        "active": false,
+        "label": "4",
+        "page": 4,
+        "url": "https://data.westmanga.me/api/contents?page=4"
+      },
+      {
+        "active": false,
+        "label": "...",
+        "page": null,
+        "url": null
+      },
+      {
+        "active": false,
+        "label": "248",
+        "page": 248,
+        "url": "https://data.westmanga.me/api/contents?page=248"
+      },
+      {
+        "active": false,
+        "label": "249",
+        "page": 249,
+        "url": "https://data.westmanga.me/api/contents?page=249"
+      },
+      {
+        "active": false,
+        "label": "Next »",
+        "page": 2,
+        "url": "https://data.westmanga.me/api/contents?page=2"
+      }
+    ],
+    "path": "https://data.westmanga.me/api/contents",
+    "per_page": 25,
+    "to": 25,
+    "total": 6206
+  },
+  "status": true
+}

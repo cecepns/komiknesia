@@ -6,11 +6,16 @@ import { Link } from 'react-router-dom';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import homepageData from '../mockdata/homepage-manga.json';
+import ListManga from '../mockdata/list-manga.json';
+
 
 const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   
   const popularDaily = homepageData.data?.popular?.daily?.slice(0, 5) || []; // Get first 5 manga
+
+
+  console.log(ListManga.data);
 
   useEffect(() => {
     AOS.init({

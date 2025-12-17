@@ -9,12 +9,18 @@ import {
   Bookmark,
   Search,
   ChevronDown,
-  Grid3x3,
-  LayoutGrid,
-  List
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
+
+// Import vote assets
+import senangImg from '../assets/votes/senang.jpg';
+import biasaAjaImg from '../assets/votes/biasa-aja.jpg';
+import puasImg from '../assets/votes/puas.jpg';
+import marahImg from '../assets/votes/marah.jpg';
+import sedihImg from '../assets/votes/sedih.jpg';
 
 const MangaDetail = () => {
   const { slug } = useParams();
@@ -25,7 +31,17 @@ const MangaDetail = () => {
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState('list'); // 'horizontal', 'grid', or 'list'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' (from chapter 1) or 'desc' (from last chapter)
+  
+  // Vote states
+  const [voteData, setVoteData] = useState({
+    senang: 653,
+    biasaAja: 26,
+    puas: 53,
+    marah: 12,
+    sedih: 8
+  });
+  const [selectedVote, setSelectedVote] = useState(null);
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -94,11 +110,59 @@ const MangaDetail = () => {
     return 'Baru saja';
   };
 
-  const filteredChapters = chapters.filter(chapter =>
-    searchChapter === '' || 
-    chapter.title.toLowerCase().includes(searchChapter.toLowerCase()) ||
-    chapter.number.toString().includes(searchChapter)
-  );
+  const filteredChapters = chapters
+    .filter(chapter =>
+      searchChapter === '' || 
+      chapter.title.toLowerCase().includes(searchChapter.toLowerCase()) ||
+      chapter.number.toString().includes(searchChapter)
+    )
+    .sort((a, b) => {
+      // Sort by chapter number
+      const numA = parseFloat(a.number);
+      const numB = parseFloat(b.number);
+      
+      if (sortOrder === 'asc') {
+        return numA - numB; // Ascending: chapter 1 first
+      } else {
+        return numB - numA; // Descending: last chapter first
+      }
+    });
+
+  const voteOptions = [
+    { id: 'senang', label: 'Senang', image: senangImg, count: voteData.senang },
+    { id: 'biasaAja', label: 'Biasa Aja', image: biasaAjaImg, count: voteData.biasaAja },
+    { id: 'puas', label: 'Puas', image: puasImg, count: voteData.puas },
+    { id: 'marah', label: 'Marah', image: marahImg, count: voteData.marah },
+    { id: 'sedih', label: 'Sedih', image: sedihImg, count: voteData.sedih }
+  ];
+
+  const totalVotes = Object.values(voteData).reduce((sum, val) => sum + val, 0);
+
+  const handleVote = (voteId) => {
+    if (selectedVote === voteId) {
+      // Unvote if clicking the same vote
+      setVoteData(prev => ({
+        ...prev,
+        [voteId]: prev[voteId] - 1
+      }));
+      setSelectedVote(null);
+    } else if (selectedVote) {
+      // Change vote
+      setVoteData(prev => ({
+        ...prev,
+        [selectedVote]: prev[selectedVote] - 1,
+        [voteId]: prev[voteId] + 1
+      }));
+      setSelectedVote(voteId);
+    } else {
+      // New vote
+      setVoteData(prev => ({
+        ...prev,
+        [voteId]: prev[voteId] + 1
+      }));
+      setSelectedVote(voteId);
+    }
+  };
 
   if (loading) {
     return (
@@ -335,7 +399,7 @@ const MangaDetail = () => {
           {/* Tab Content */}
           {activeTab === 'chapters' && (
             <div>
-              {/* Search Bar and View Toggle */}
+              {/* Search Bar and Sort Toggle */}
               <div className="mb-6 flex gap-3">
                 <div className="flex-1 relative">
                   <input
@@ -351,169 +415,65 @@ const MangaDetail = () => {
                   </button>
                 </div>
                 
-                {/* View Mode Toggle */}
-                <div className="flex gap-2 bg-primary-900 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('horizontal')}
-                    className={`p-2 rounded transition-all duration-300 ${
-                      viewMode === 'horizontal'
-                        ? 'bg-primary-700 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                    title="Horizontal View"
-                  >
-                    <LayoutGrid className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded transition-all duration-300 ${
-                      viewMode === 'grid'
-                        ? 'bg-primary-700 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                    title="Grid View"
-                  >
-                    <Grid3x3 className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded transition-all duration-300 ${
-                      viewMode === 'list'
-                        ? 'bg-primary-700 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                    title="List View"
-                  >
-                    <List className="h-5 w-5" />
-                  </button>
-                </div>
+                {/* Sort Toggle */}
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="flex items-center gap-2 px-4 py-3 bg-primary-900 rounded-lg hover:bg-primary-800 transition-all duration-300 border border-primary-800"
+                  title={sortOrder === 'asc' ? 'Urut dari Chapter 1' : 'Urut dari Chapter Terakhir'}
+                >
+                  {sortOrder === 'asc' ? (
+                    <>
+                      <ArrowUp className="h-5 w-5 text-green-400" />
+                      <span className="text-sm text-gray-300 hidden sm:inline">Ch 1</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDown className="h-5 w-5 text-blue-400" />
+                      <span className="text-sm text-gray-300 hidden sm:inline">Ch Terakhir</span>
+                    </>
+                  )}
+                </button>
               </div>
 
-              {/* Horizontal Scroll View */}
-              {viewMode === 'horizontal' && (
-                <div className="relative">
-                  <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-primary-700 scrollbar-track-primary-900">
-                    <div className="flex gap-4 min-w-max">
-                      {filteredChapters.map((chapter) => (
-                        <div
-                          key={chapter.id}
-                          className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex-shrink-0 w-48"
-                          onClick={() => navigate(`/view/${chapter.slug}`)}
-                        >
-                          {/* Thumbnail */}
-                          <div className="relative aspect-square overflow-hidden">
-                            <LazyImage
-                              src={chapter.thumbnail}
-                              alt={chapter.title}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                              wrapperClassName="w-full h-full"
-                            />
-                            {chapter.isNew && (
-                              <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                                UP
-                              </div>
-                            )}
-                            {/* Play overlay */}
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                              <Play className="h-12 w-12 text-white fill-white" />
-                            </div>
-                          </div>
-
-                          {/* Info */}
-                          <div className="p-3">
-                            <h3 className="font-semibold text-sm mb-1 text-gray-100 line-clamp-1">
-                              {chapter.title}
-                            </h3>
-                            <p className="text-xs text-gray-400">
-                              {formatTimeAgo(chapter.uploadedAt)}
-                            </p>
-                          </div>
+              {/* List View */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {filteredChapters.map((chapter) => (
+                  <div
+                    key={chapter.id}
+                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
+                    onClick={() => navigate(`/view/${chapter.slug}`)}
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
+                      <LazyImage
+                        src={chapter.thumbnail}
+                        alt={chapter.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        wrapperClassName="w-full h-full aspect-square"
+                      />
+                      {chapter.isNew && (
+                        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                          UP
                         </div>
-                      ))}
+                      )}
+                      {/* Play overlay */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <Play className="h-10 w-10 text-white fill-white" />
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 p-4 flex flex-col justify-center">
+                      <h3 className="font-semibold text-base md:text-lg mb-2 text-gray-100 line-clamp-2">
+                        {chapter.title}
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        {formatTimeAgo(chapter.uploadedAt)}
+                      </p>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Grid View */}
-              {viewMode === 'grid' && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {filteredChapters.map((chapter) => (
-                    <div
-                      key={chapter.id}
-                      className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
-                      onClick={() => navigate(`/view/${chapter.slug}`)}
-                    >
-                      {/* Thumbnail */}
-                      <div className="relative aspect-square overflow-hidden">
-                        <LazyImage
-                          src={chapter.thumbnail}
-                          alt={chapter.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          wrapperClassName="w-full h-full"
-                        />
-                        {chapter.isNew && (
-                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                            UP
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="p-3">
-                        <h3 className="font-semibold text-sm mb-1 text-gray-100 line-clamp-1">
-                          {chapter.title}
-                        </h3>
-                        <p className="text-xs text-gray-400">
-                          {formatTimeAgo(chapter.uploadedAt)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* List View */}
-              {viewMode === 'list' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {filteredChapters.map((chapter) => (
-                    <div
-                      key={chapter.id}
-                      className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
-                      onClick={() => navigate(`/view/${chapter.slug}`)}
-                    >
-                      {/* Thumbnail */}
-                      <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
-                        <LazyImage
-                          src={chapter.thumbnail}
-                          alt={chapter.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          wrapperClassName="w-full h-full aspect-square"
-                        />
-                        {chapter.isNew && (
-                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                            UP
-                          </div>
-                        )}
-                        {/* Play overlay */}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                          <Play className="h-10 w-10 text-white fill-white" />
-                        </div>
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 p-4 flex flex-col justify-center">
-                        <h3 className="font-semibold text-base md:text-lg mb-2 text-gray-100 line-clamp-2">
-                          {chapter.title}
-                        </h3>
-                        <p className="text-sm text-gray-400">
-                          {formatTimeAgo(chapter.uploadedAt)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
 
               {filteredChapters.length === 0 && (
                 <div className="text-center py-12">
@@ -608,6 +568,79 @@ const MangaDetail = () => {
               </div>
             </div>
           )}
+
+          {/* Vote Section */}
+          <div className="mt-8 bg-primary-900 rounded-lg p-6">
+            <div className="text-center mb-6">
+              <h3 className="text-2xl md:text-3xl font-bold mb-2">Vote Manga</h3>
+              <p className="text-xl md:text-2xl text-gray-300 font-semibold">
+                {totalVotes} <span className="text-base text-gray-400 font-normal">Reactions</span>
+              </p>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-4 md:gap-8">
+              {voteOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => handleVote(option.id)}
+                  className={`flex flex-col items-center group transition-all duration-300 hover:scale-110 ${
+                    selectedVote === option.id ? 'scale-110' : ''
+                  }`}
+                >
+                  {/* Vote Count Badge */}
+                  <div className={`mb-2 px-4 py-1 rounded-full font-bold text-sm transition-all duration-300 ${
+                    selectedVote === option.id 
+                      ? 'bg-purple-600 text-white ring-2 ring-purple-400' 
+                      : 'bg-primary-800 text-gray-300 group-hover:bg-purple-600 group-hover:text-white'
+                  }`}>
+                    {option.count}
+                  </div>
+
+                  {/* Character Avatar */}
+                  <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden transition-all duration-300 ${
+                    selectedVote === option.id 
+                      ? 'ring-4 ring-purple-500 shadow-lg shadow-purple-500/50' 
+                      : 'ring-2 ring-primary-700 group-hover:ring-4 group-hover:ring-purple-400'
+                  }`}>
+                    <img 
+                      src={option.image} 
+                      alt={option.label}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Label */}
+                  <p className={`mt-2 text-sm md:text-base font-medium transition-colors duration-300 ${
+                    selectedVote === option.id 
+                      ? 'text-purple-400' 
+                      : 'text-gray-300 group-hover:text-purple-400'
+                  }`}>
+                    {option.label}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 text-center text-xs text-gray-500">
+              Klik untuk memberikan vote atau mengubah pilihan
+            </div>
+          </div>
+
+          {/* Comment Section */}
+          <div className="mt-8 bg-primary-900 rounded-lg p-6">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <span>Komentar</span>
+              <span className="text-sm font-normal text-gray-400">(Coming Soon)</span>
+            </h3>
+            <div className="text-center py-12 border-2 border-dashed border-primary-700 rounded-lg">
+              <p className="text-gray-400 mb-2">
+                Fitur komentar akan segera hadir
+              </p>
+              <p className="text-sm text-gray-500">
+                Anda akan dapat berbagi pendapat dan diskusi tentang manga ini
+              </p>
+            </div>
+          </div>
         </div>
       </main>
 
