@@ -6,8 +6,7 @@ import LazyImage from './LazyImage';
 
 const UpdateSection = () => {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState('today');
-  const [filteredManga, setFilteredManga] = useState([]);
+  const [mangaList, setMangaList] = useState([]);
 
   const countryFlags = {
     'JP': '🇯🇵',
@@ -16,12 +15,6 @@ const UpdateSection = () => {
     'US': '🇺🇸',
     'ID': '🇮🇩'
   };
-
-  const filters = [
-    { id: 'today', label: 'Hari ini' },
-    { id: 'week', label: 'Minggu ini' },
-    { id: 'month', label: 'Bulan ini' }
-  ];
 
   // Adjust mock data timestamps to be relative to current time
   const adjustMangaTimestamps = useCallback((mangaList) => {
@@ -57,53 +50,35 @@ const UpdateSection = () => {
     });
   }, []);
 
-  const filterManga = useCallback((filter) => {
-    const now = Math.floor(Date.now() / 1000); // Current time in seconds
-    const oneDayAgo = now - (24 * 60 * 60);
-    const oneWeekAgo = now - (7 * 24 * 60 * 60);
-    const oneMonthAgo = now - (30 * 24 * 60 * 60);
-
-    let filtered = [];
+  const loadManga = useCallback(() => {
+    let result = [];
 
     if (homepageMangaData?.data?.mirror_update) {
       // Adjust timestamps to be relative to current time
       const adjustedManga = adjustMangaTimestamps(homepageMangaData.data.mirror_update);
       
-      filtered = adjustedManga.filter(manga => {
-        if (!manga.lastChapters || manga.lastChapters.length === 0) return false;
-        
-        const lastUpdateTime = manga.lastChapters[0]?.created_at?.time;
-        if (!lastUpdateTime) return false;
-
-        switch (filter) {
-          case 'today':
-            return lastUpdateTime >= oneDayAgo;
-          case 'week':
-            return lastUpdateTime >= oneWeekAgo;
-          case 'month':
-            return lastUpdateTime >= oneMonthAgo;
-          default:
-            return false;
-        }
+      // Filter out manga without chapters
+      result = adjustedManga.filter(manga => {
+        return manga.lastChapters && manga.lastChapters.length > 0;
       });
 
       // Sort by latest update
-      filtered.sort((a, b) => {
+      result.sort((a, b) => {
         const timeA = a.lastChapters[0]?.created_at?.time || 0;
         const timeB = b.lastChapters[0]?.created_at?.time || 0;
         return timeB - timeA;
       });
 
       // Limit to top 20
-      filtered = filtered.slice(0, 20);
+      result = result.slice(0, 20);
     }
 
-    setFilteredManga(filtered);
+    setMangaList(result);
   }, [adjustMangaTimestamps]);
 
   useEffect(() => {
-    filterManga(activeFilter);
-  }, [activeFilter, filterManga]);
+    loadManga();
+  }, [loadManga]);
 
   const getTimeAgo = (timestamp) => {
     const now = Math.floor(Date.now() / 1000);
@@ -133,37 +108,20 @@ const UpdateSection = () => {
         </div>
       </div>
 
-      {/* Filter Buttons */}
-      <div className="flex space-x-3 mb-6">
-        {filters.map((filter) => (
-          <button
-            key={filter.id}
-            onClick={() => setActiveFilter(filter.id)}
-            className={`px-6 py-2 text-xs md:text-lg rounded-lg font-medium transition-all duration-300 ${
-              activeFilter === filter.id
-                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 shadow-lg'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-            }`}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
-
       {/* Manga Grid */}
-      {filteredManga.length === 0 ? (
-        <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
+      {mangaList.length === 0 ? (
+        <div className="text-center py-12 bg-gray-100 dark:bg-primary-900 rounded-lg">
           <p className="text-gray-500 dark:text-gray-400">
-            Tidak ada manga untuk filter ini
+            Tidak ada manga update terbaru
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredManga.map((manga) => (
+          {mangaList.map((manga) => (
             <div
               key={manga.id}
               onClick={() => navigate(`/manga/${manga.slug}`)}
-              className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+              className="bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
             >
               {/* Cover Image */}
               <div className="relative aspect-[3/4] overflow-hidden">
@@ -178,7 +136,7 @@ const UpdateSection = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 
                 {/* Country Flag */}
-                <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
+                <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
                   {countryFlags[manga.country_id] || '🌍'}
                 </div>
                 

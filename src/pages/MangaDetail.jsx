@@ -97,7 +97,7 @@ const MangaDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-primary-950 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-400">Loading...</p>
         </div>
@@ -107,7 +107,7 @@ const MangaDetail = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-primary-950 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <button
@@ -123,7 +123,7 @@ const MangaDetail = () => {
 
   if (!manga) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-primary-950 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-400">Manga tidak ditemukan</p>
         </div>
@@ -140,21 +140,21 @@ const MangaDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
+    <div className="min-h-screen bg-primary-950 text-gray-100">
       {/* Header */}
-      <header className="bg-gray-950 shadow-md fixed top-0 left-0 right-0 z-50">
+      <header className="bg-primary-950 shadow-md fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <button
               onClick={() => navigate(-1)}
-              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+              className="p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             
             <button
               onClick={() => navigate('/')}
-              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+              className="p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
             >
               <Home className="h-5 w-5" />
             </button>
@@ -171,7 +171,7 @@ const MangaDetail = () => {
               className="absolute inset-0 bg-cover bg-center blur-xl scale-110"
               style={{ backgroundImage: `url(${manga.cover})` }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/50 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary-950 via-primary-950/50 to-transparent" />
             
             <div className="relative h-full flex items-end p-6">
               <div className="flex items-end space-x-6 w-full">
@@ -229,7 +229,7 @@ const MangaDetail = () => {
           </div>
 
           {/* Synopsis */}
-          <div className="bg-gray-900 rounded-lg p-6 mb-6">
+          <div className="bg-primary-900 rounded-lg p-6 mb-6">
             <div 
               className="text-gray-300 leading-relaxed prose prose-sm max-w-none prose-invert"
               dangerouslySetInnerHTML={{ __html: manga.sinopsis || 'Tidak ada sinopsis tersedia.' }}
@@ -253,7 +253,7 @@ const MangaDetail = () => {
             
             {/* Author */}
             {manga.author && (
-              <div className="px-4 py-2 bg-gray-800 rounded-lg">
+              <div className="px-4 py-2 bg-primary-800 rounded-lg">
                 <span className="text-sm font-medium text-gray-300">
                   <span className="text-gray-400">Author:</span> {manga.author}
                 </span>
@@ -261,14 +261,14 @@ const MangaDetail = () => {
             )}
             
             {/* Content Type */}
-            <div className="px-4 py-2 bg-gray-800 rounded-lg">
+            <div className="px-4 py-2 bg-primary-800 rounded-lg">
               <span className="text-sm font-medium text-gray-300">
                 <span className="text-gray-400">Type:</span> {manga.content_type || 'Comic'}
               </span>
             </div>
             
             {/* Status */}
-            <div className="px-4 py-2 bg-gray-800 rounded-lg">
+            <div className="px-4 py-2 bg-primary-800 rounded-lg">
               <span className="text-sm font-medium text-gray-300">
                 <span className="text-gray-400">Status:</span> {manga.status === 'ongoing' ? 'Ongoing' : 'Completed'}
               </span>
@@ -276,7 +276,7 @@ const MangaDetail = () => {
             
             {/* Release Year */}
             {manga.release && (
-              <div className="px-4 py-2 bg-gray-800 rounded-lg">
+              <div className="px-4 py-2 bg-primary-800 rounded-lg">
                 <span className="text-sm font-medium text-gray-300">
                   <span className="text-gray-400">Release:</span> {manga.release}
                 </span>
@@ -294,12 +294,12 @@ const MangaDetail = () => {
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-1 mb-6 bg-gray-900 p-1 rounded-lg">
+          <div className="flex space-x-1 mb-6 bg-primary-900 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('chapters')}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
                 activeTab === 'chapters'
-                  ? 'bg-gray-800 text-gray-100 shadow'
+                  ? 'bg-primary-800 text-gray-100 shadow'
                   : 'text-gray-400 hover:text-gray-100'
               }`}
             >
@@ -309,7 +309,7 @@ const MangaDetail = () => {
               onClick={() => setActiveTab('info')}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
                 activeTab === 'info'
-                  ? 'bg-gray-800 text-gray-100 shadow'
+                  ? 'bg-primary-800 text-gray-100 shadow'
                   : 'text-gray-400 hover:text-gray-100'
               }`}
             >
@@ -319,7 +319,7 @@ const MangaDetail = () => {
               onClick={() => setActiveTab('novel')}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
                 activeTab === 'novel'
-                  ? 'bg-gray-800 text-gray-100 shadow'
+                  ? 'bg-primary-800 text-gray-100 shadow'
                   : 'text-gray-400 hover:text-gray-100'
               }`}
             >
@@ -337,7 +337,7 @@ const MangaDetail = () => {
                   placeholder="Cari Chapter, Contoh: 69 atau 76"
                   value={searchChapter}
                   onChange={(e) => setSearchChapter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-gray-900 text-gray-100 placeholder:text-gray-500"
+                  className="w-full pl-10 pr-10 py-3 border border-primary-800 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-primary-900 text-gray-100 placeholder:text-gray-500"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -350,7 +350,7 @@ const MangaDetail = () => {
                 {filteredChapters.map((chapter) => (
                   <div
                     key={chapter.id}
-                    className="bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
                     onClick={() => navigate(`/manga/${slug}/chapter/${chapter.slug}`)}
                   >
                     {/* Thumbnail */}
@@ -392,7 +392,7 @@ const MangaDetail = () => {
           )}
 
           {activeTab === 'info' && (
-            <div className="bg-gray-900 rounded-lg p-6">
+            <div className="bg-primary-900 rounded-lg p-6">
               <h3 className="text-xl font-bold mb-4">Informasi Manga</h3>
               <div className="space-y-3">
                 <div className="flex">
@@ -466,7 +466,7 @@ const MangaDetail = () => {
           )}
 
           {activeTab === 'novel' && (
-            <div className="bg-gray-900 rounded-lg p-6">
+            <div className="bg-primary-900 rounded-lg p-6">
               <div className="text-center py-12">
                 <p className="text-gray-400">
                   Novel belum tersedia untuk manga ini

@@ -89,7 +89,7 @@ const PopularSection = () => {
             className={`px-6 text-xs md:text-lg py-2 rounded-lg font-medium transition-all duration-300 ${
               activeFilter === filter.id
                 ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 shadow-lg'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                : 'bg-gray-200 dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-primary-600'
             }`}
           >
             {filter.label}
@@ -99,7 +99,7 @@ const PopularSection = () => {
 
       {/* Manga Grid */}
       {filteredManga.length === 0 ? (
-        <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
+        <div className="text-center py-12 bg-gray-100 dark:bg-primary-900 rounded-lg">
           <p className="text-gray-500 dark:text-gray-400">
             Tidak ada manga untuk filter ini
           </p>
@@ -110,7 +110,7 @@ const PopularSection = () => {
             <div
               key={manga.id}
               onClick={() => navigate(`/manga/${manga.slug}`)}
-              className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+              className="bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
             >
               {/* Cover Image */}
               <div className="relative aspect-[3/4] overflow-hidden">
@@ -125,7 +125,7 @@ const PopularSection = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 
                 {/* Country Flag */}
-                <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
+                <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
                   {countryFlags[manga.country_id] || '🌍'}
                 </div>
                 

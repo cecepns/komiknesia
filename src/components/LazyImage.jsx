@@ -66,6 +66,7 @@ const LazyImage = ({
           src={src}
           alt={alt}
           className={className}
+          wrapperProps={{ className: 'w-full' }}
           effect={effect}
           threshold={threshold}
           placeholderSrc={placeholderSrc}

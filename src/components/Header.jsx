@@ -71,7 +71,7 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-950 shadow-md fixed top-0 left-0 right-0 z-50">
+    <header className="bg-white dark:bg-primary-950 shadow-md fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4 gap-4">
           {/* Logo */}
@@ -141,7 +141,7 @@ const Header = () => {
                       <button
                         key={manga.id}
                         onClick={() => handleMangaClick(manga)}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-primary-800 transition-colors text-left"
                       >
                         {/* Cover Image */}
                         <LazyImage
@@ -188,7 +188,7 @@ const Header = () => {
           <div className="flex items-center space-x-4 flex-shrink-0">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
             >
               {theme === 'light' ? (
                 <Moon className="h-5 w-5" />

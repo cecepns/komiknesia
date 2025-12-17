@@ -16,9 +16,9 @@ export default {
           400: '#60a5fa',
           500: '#3b82f6',
           600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          700: '#1e293b', // Dark mode lighter backgrounds
+          800: '#0f172a', // Dark mode medium backgrounds
+          900: '#0a0e1a', // Dark mode card/section backgrounds
           950: '#09090b', // Dark mode primary background
         },
         secondary: {

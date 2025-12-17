@@ -30,7 +30,7 @@ const MangaCard = ({ manga, onVoteUpdate }) => {
   return (
     <div 
       onClick={() => navigate(`/manga/${manga.slug}`)}
-      className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group cursor-pointer"
+      className="bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group cursor-pointer"
     >
       <div className="relative aspect-[3/4] overflow-hidden">
         <LazyImage
