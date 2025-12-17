@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, Bookmark, History, LogIn } from 'lucide-react';
 import homepageMangaData from '../mockdata/homepage-manga.json';
 import LazyImage from '../components/LazyImage';
-import comingSoonImage from '../assets/coming-soon.jpg';
+import comingSoonImage from '../assets/coming-soon.png';
+import Header from '../components/Header';
 
 const Library = () => {
   const navigate = useNavigate();
@@ -114,8 +115,11 @@ const Library = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      {/* Header */}
+      <Header />
+      
       {/* Tabs */}
-      <div className="sticky top-0 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 pt-2">
+      <div className="sticky top-20 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 py-2">
             {tabs.map((tab) => {
@@ -141,7 +145,7 @@ const Library = () => {
       </div>
 
       {/* Main Content */}
-      <main className="pt-4 pb-24">
+      <main className="pt-6 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* New Update Tab */}
           {activeTab === 'new-update' && (
@@ -236,28 +240,29 @@ const Library = () => {
           {activeTab === 'bookmark' && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="max-w-md w-full bg-gray-900 dark:bg-gray-950 rounded-2xl overflow-hidden shadow-2xl">
-                <div className="relative aspect-[4/3]">
+                {/* Image Section */}
+                <div className="aspect-[4/3]">
                   <img
                     src={comingSoonImage}
                     alt="Login Required"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                </div>
+                
+                {/* Content Section */}
+                <div className="p-6 text-center">
+                  <h2 className="text-2xl font-bold text-white mb-2">Bookmark</h2>
+                  <p className="text-gray-300 mb-6 text-sm">
+                    Silakan login untuk melihat daftar bookmark kamu
+                  </p>
                   
-                  <div className="absolute bottom-0 left-0 right-0 p-6 text-center">
-                    <h2 className="text-2xl font-bold text-white mb-2">Bookmark</h2>
-                    <p className="text-gray-300 mb-6 text-sm">
-                      Silakan login untuk melihat daftar bookmark kamu
-                    </p>
-                    
-                    <button
-                      onClick={() => navigate('/akun')}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg flex items-center justify-center space-x-2"
-                    >
-                      <LogIn className="h-5 w-5" />
-                      <span>LOGIN</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => navigate('/akun')}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg flex items-center justify-center space-x-2"
+                  >
+                    <LogIn className="h-5 w-5" />
+                    <span>LOGIN</span>
+                  </button>
                 </div>
               </div>
             </div>
