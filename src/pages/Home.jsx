@@ -43,7 +43,7 @@ const Home = () => {
   return (
     <div className="pt-20 pb-4">
       {/* Hero Section with Dark Background */}
-      <div className="bg-gray-900 py-12 mb-12" data-aos="fade-up">
+      <div className="bg-gray-900 py-4 mb-12" data-aos="fade-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-xl md:text-7xl font-black text-white mb-3 tracking-tight">
             KomikNesia
@@ -119,9 +119,11 @@ const Home = () => {
                   <div className="grid md:grid-cols-2 gap-8 items-center">
                     {/* Content */}
                     <div className="text-white space-y-3 md:space-y-6">
-                      <h2 className="text-2xl md:text-5xl font-bold leading-tight line-clamp-2">
-                        {item.title}
-                      </h2>
+                      <Link to={`/komik/${item.slug}`}>
+                        <h2 className="text-2xl md:text-5xl font-bold leading-tight line-clamp-2 cursor-pointer hover:text-gray-200 transition-colors">
+                          {item.title}
+                        </h2>
+                      </Link>
                       
                       <div className="flex items-center gap-2 md:gap-4 flex-wrap">
                         <div className="flex items-center bg-white/20 backdrop-blur-sm px-2.5 py-1 md:px-3 md:py-1.5 rounded-full">
