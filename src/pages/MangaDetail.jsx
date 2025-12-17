@@ -191,7 +191,7 @@ const MangaDetail = () => {
                     {manga.title}
                   </h1>
                   {manga.alternative_name && (
-                    <p className="text-gray-300 mb-4">{manga.alternative_name}</p>
+                    <p className="text-gray-300 mb-4 line-clamp-3">{manga.alternative_name}</p>
                   )}
                   
                   {/* Stats */}
