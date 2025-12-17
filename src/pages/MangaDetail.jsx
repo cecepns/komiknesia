@@ -14,6 +14,7 @@ import {
   List
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
+import BottomNavigation from '../components/BottomNavigation';
 
 const MangaDetail = () => {
   const { slug } = useParams();
@@ -167,7 +168,7 @@ const MangaDetail = () => {
       </header>
 
       {/* Main Content */}
-      <main className="pt-20 pb-8">
+      <main className="pt-20 pb-24 md:pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero Section with Cover */}
           <div className="relative h-80 md:h-96 rounded-xl overflow-hidden mb-8">
@@ -609,6 +610,9 @@ const MangaDetail = () => {
           )}
         </div>
       </main>
+
+      {/* Bottom Navigation - Mobile */}
+      <BottomNavigation />
     </div>
   );
 };

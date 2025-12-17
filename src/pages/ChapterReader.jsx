@@ -12,6 +12,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
+import { saveToHistory } from '../utils/historyManager';
 
 const ChapterReader = () => {
   const { mangaSlug, chapterSlug } = useParams();
@@ -46,6 +47,18 @@ const ChapterReader = () => {
           if (result.data.chapters && result.data.chapters.length > 0) {
             const index = result.data.chapters.findIndex(ch => ch.slug === chapterSlug);
             setCurrentChapterIndex(index);
+            
+            // Save to reading history
+            const currentChapter = result.data.chapters[index];
+            if (currentChapter && result.data.content) {
+              saveToHistory({
+                mangaSlug: mangaSlug,
+                mangaTitle: result.data.content.title,
+                chapterSlug: chapterSlug,
+                chapterNumber: currentChapter.number,
+                cover: result.data.content.cover
+              });
+            }
           }
         } else {
           throw new Error('Data chapter tidak valid');
@@ -65,7 +78,7 @@ const ChapterReader = () => {
         topRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }
-  }, [chapterSlug]);
+  }, [chapterSlug, mangaSlug]);
 
   const allChapters = chapterData?.chapters || [];
   const mangaData = chapterData?.content || null;
