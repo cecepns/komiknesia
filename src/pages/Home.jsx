@@ -41,7 +41,7 @@ const Home = () => {
   };
 
   return (
-    <div className="pt-20 pb-4">
+    <div className="pt-5 md:pt-20 pb-4">
       {/* Hero Section with Dark Background */}
       <div className="bg-gray-900 py-4 mb-12" data-aos="fade-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
