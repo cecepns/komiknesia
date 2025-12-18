@@ -106,6 +106,12 @@ const UpdateSection = () => {
             Update Terbaru
           </h2>
         </div>
+        <button
+          onClick={() => navigate('/content')}
+          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-300"
+        >
+          View All
+        </button>
       </div>
 
       {/* Manga Grid */}

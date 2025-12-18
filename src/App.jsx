@@ -5,6 +5,7 @@ import Admin from './pages/Admin';
 import MangaDetail from './pages/MangaDetail';
 import ChapterReader from './pages/ChapterReader';
 import Library from './pages/Library';
+import Content from './pages/Content';
 import ComingSoon from './pages/ComingSoon';
 import ScrollToTop from './components/ScrollToTop';
 import BottomNavigation from './components/BottomNavigation';
@@ -20,6 +21,12 @@ function App() {
         <Route path="/library" element={
           <>
             <Library />
+            <BottomNavigation />
+          </>
+        } />
+        <Route path="/content" element={
+          <>
+            <Content />
             <BottomNavigation />
           </>
         } />
