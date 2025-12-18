@@ -243,7 +243,7 @@ const ChapterReader = () => {
 
             {/* Chapter List */}
             <div className="overflow-y-auto flex-1 p-3 sm:p-4">
-              <div>
+              <div className="space-y-2">
                 {allChapters.map((chapter, index) => (
                   <button
                     key={chapter.id}
@@ -290,12 +290,12 @@ const ChapterReader = () => {
           <div className="space-y-0">
             {chapterData?.images && chapterData.images.length > 0 ? (
               chapterData.images.map((image, index) => (
-                <div key={index} className="w-full">
+                <div key={index} className="w-full leading-[0]">
                   <LazyImage
                     src={image}
                     alt={`Page ${index + 1}`}
-                    className="w-full h-auto"
-                    wrapperClassName="w-full"
+                    className="w-full h-auto block"
+                    wrapperClassName="w-full block"
                   />
                 </div>
               ))
