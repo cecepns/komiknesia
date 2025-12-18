@@ -243,7 +243,7 @@ const ChapterReader = () => {
 
             {/* Chapter List */}
             <div className="overflow-y-auto flex-1 p-3 sm:p-4">
-              <div className="space-y-2">
+              <div>
                 {allChapters.map((chapter, index) => (
                   <button
                     key={chapter.id}
@@ -433,5 +433,6 @@ const ChapterReader = () => {
 };
 
 export default ChapterReader;
+
 
 

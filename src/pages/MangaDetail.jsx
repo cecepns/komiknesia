@@ -10,17 +10,19 @@ import {
   Search,
   ChevronDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
 
 // Import vote assets
-import senangImg from '../assets/votes/senang.jpg';
-import biasaAjaImg from '../assets/votes/biasa-aja.jpg';
-import puasImg from '../assets/votes/puas.jpg';
-import marahImg from '../assets/votes/marah.jpg';
-import sedihImg from '../assets/votes/sedih.jpg';
+import senangImg from '../assets/votes/senang.png';
+import biasaAjaImg from '../assets/votes/biasa-aja.png';
+import kecewaImg from '../assets/votes/kecewa.png';
+import marahImg from '../assets/votes/marah.png';
+import sedihImg from '../assets/votes/sedih.png';
 
 const MangaDetail = () => {
   const { slug } = useParams();
@@ -32,12 +34,14 @@ const MangaDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' (from chapter 1) or 'desc' (from last chapter)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
   // Vote states
   const [voteData, setVoteData] = useState({
     senang: 653,
     biasaAja: 26,
-    puas: 53,
+    kecewa: 53,
     marah: 12,
     sedih: 8
   });
@@ -128,10 +132,21 @@ const MangaDetail = () => {
       }
     });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredChapters.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedChapters = filteredChapters.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search or sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchChapter, sortOrder]);
+
   const voteOptions = [
     { id: 'senang', label: 'Senang', image: senangImg, count: voteData.senang },
     { id: 'biasaAja', label: 'Biasa Aja', image: biasaAjaImg, count: voteData.biasaAja },
-    { id: 'puas', label: 'Puas', image: puasImg, count: voteData.puas },
+    { id: 'kecewa', label: 'Kecewa', image: kecewaImg, count: voteData.kecewa },
     { id: 'marah', label: 'Marah', image: marahImg, count: voteData.marah },
     { id: 'sedih', label: 'Sedih', image: sedihImg, count: voteData.sedih }
   ];
@@ -436,40 +451,31 @@ const MangaDetail = () => {
               </div>
 
               {/* List View */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {filteredChapters.map((chapter) => (
+              <div className="space-y-3">
+                {paginatedChapters.map((chapter) => (
                   <div
                     key={chapter.id}
-                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
+                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between p-4"
                     onClick={() => navigate(`/view/${chapter.slug}`)}
                   >
-                    {/* Thumbnail */}
-                    <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
-                      <LazyImage
-                        src={chapter.thumbnail}
-                        alt={chapter.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        wrapperClassName="w-full h-full aspect-square"
-                      />
-                      {chapter.isNew && (
-                        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                          UP
-                        </div>
-                      )}
-                      {/* Play overlay */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <Play className="h-10 w-10 text-white fill-white" />
-                      </div>
-                    </div>
-
                     {/* Info */}
-                    <div className="flex-1 p-4 flex flex-col justify-center">
-                      <h3 className="font-semibold text-base md:text-lg mb-2 text-gray-100 line-clamp-2">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-base md:text-lg mb-1 text-gray-100">
                         {chapter.title}
                       </h3>
                       <p className="text-sm text-gray-400">
                         {formatTimeAgo(chapter.uploadedAt)}
                       </p>
+                    </div>
+
+                    {/* Badges and Icon */}
+                    <div className="flex items-center gap-3">
+                      {chapter.isNew && (
+                        <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                          UP
+                        </div>
+                      )}
+                      <Play className="h-6 w-6 text-gray-400 group-hover:text-purple-400 transition-colors duration-300" />
                     </div>
                   </div>
                 ))}
@@ -480,6 +486,76 @@ const MangaDetail = () => {
                   <p className="text-gray-400">
                     Tidak ada chapter yang ditemukan
                   </p>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {filteredChapters.length > 0 && (
+                <div className="mt-8 flex flex-col items-center gap-4">
+                  {/* Page Info */}
+                  <div className="text-sm text-gray-400">
+                    Menampilkan {startIndex + 1}-{Math.min(endIndex, filteredChapters.length)} dari {filteredChapters.length} chapter
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center gap-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-lg bg-primary-900 hover:bg-primary-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-primary-800"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-2">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                        // Show first page, last page, current page, and pages around current
+                        const showPage = 
+                          page === 1 || 
+                          page === totalPages || 
+                          (page >= currentPage - 1 && page <= currentPage + 1);
+                        
+                        // Show ellipsis
+                        const showEllipsisBefore = page === currentPage - 2 && currentPage > 3;
+                        const showEllipsisAfter = page === currentPage + 2 && currentPage < totalPages - 2;
+
+                        if (showEllipsisBefore || showEllipsisAfter) {
+                          return (
+                            <span key={page} className="px-2 text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+
+                        if (!showPage) return null;
+
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`min-w-[40px] px-3 py-2 rounded-lg transition-all duration-300 font-medium ${
+                              currentPage === page
+                                ? 'bg-purple-600 text-white shadow-lg'
+                                : 'bg-primary-900 text-gray-300 hover:bg-primary-800 border border-primary-800'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-lg bg-primary-900 hover:bg-primary-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-primary-800"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -605,7 +681,7 @@ const MangaDetail = () => {
                     <img 
                       src={option.image} 
                       alt={option.label}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                   </div>
 
@@ -651,5 +727,6 @@ const MangaDetail = () => {
 };
 
 export default MangaDetail;
+
 
 
