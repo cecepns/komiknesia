@@ -70,6 +70,14 @@ const Header = () => {
     setShowResults(false);
   };
 
+  const handleSearchSubmit = (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      navigate(`/content?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      setShowResults(false);
+    }
+  };
+
   return (
     <header className="bg-white dark:bg-primary-950 shadow-md fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -99,7 +107,7 @@ const Header = () => {
               Library
             </button>
             <button
-              onClick={() => navigate('/daftar-komik')}
+              onClick={() => navigate('/content')}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Daftar Komik
@@ -114,6 +122,7 @@ const Header = () => {
                 placeholder="Cari manga..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchSubmit}
                 onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
                 className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
               />
@@ -204,6 +213,9 @@ const Header = () => {
 };
 
 export default Header;
+
+
+
 
 
 

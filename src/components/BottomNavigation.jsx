@@ -8,7 +8,7 @@ const BottomNavigation = () => {
   const navigationItems = [
     { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
     { id: 'library', label: 'Library', icon: FolderIcon, path: '/library' },
-    { id: 'list', label: 'Daftar Komik', icon: List, path: '/daftar-komik' },
+    { id: 'list', label: 'Daftar Komik', icon: List, path: '/content' },
     { id: 'account', label: 'Akun', icon: UserCircle, path: '/akun', comingSoon: false },
   ];
 

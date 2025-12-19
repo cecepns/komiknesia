@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
+import Header from '../components/Header';
 
 const countryFlags = {
   'JP': '🇯🇵',
@@ -22,6 +23,8 @@ const orderOptions = ['Az', 'Za', 'Update', 'Added', 'Popular'];
 
 const Content = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
   
   const [mangaList, setMangaList] = useState([]);
   const [genres, setGenres] = useState([]);
@@ -71,30 +74,39 @@ const Content = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('page', currentPage);
-      params.append('per_page', '40');
-      params.append('project', 'true');
+      
+      // If search query exists, use it and skip other filters
+      if (searchQuery.trim()) {
+        params.append('q', searchQuery.trim());
+        params.append('page', currentPage);
+        params.append('per_page', '40');
+      } else {
+        // Normal filtering when no search query
+        params.append('page', currentPage);
+        params.append('per_page', '40');
+        params.append('project', 'true');
 
-      // Add genre filters
-      selectedGenres.forEach(genreId => {
-        params.append('genre[]', genreId);
-      });
+        // Add genre filters
+        selectedGenres.forEach(genreId => {
+          params.append('genre[]', genreId);
+        });
 
-      // Add status filter
-      if (selectedStatus !== 'All') {
-        params.append('status', selectedStatus);
-      }
+        // Add status filter
+        if (selectedStatus !== 'All') {
+          params.append('status', selectedStatus);
+        }
 
-      // Add type/country filter
-      const typeOption = typeOptions.find(t => t.value === selectedType);
-      if (typeOption && typeOption.country) {
-        params.append('country', typeOption.country);
-        params.append('type', 'Comic');
-      }
+        // Add type/country filter
+        const typeOption = typeOptions.find(t => t.value === selectedType);
+        if (typeOption && typeOption.country) {
+          params.append('country', typeOption.country);
+          params.append('type', 'Comic');
+        }
 
-      // Add order filter
-      if (selectedOrder !== 'Update') {
-        params.append('orderBy', selectedOrder);
+        // Add order filter
+        if (selectedOrder !== 'Update') {
+          params.append('orderBy', selectedOrder);
+        }
       }
 
       const response = await fetch(`https://data.westmanga.me/api/contents?${params.toString()}`);
@@ -111,7 +123,12 @@ const Content = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, selectedGenres, selectedStatus, selectedType, selectedOrder]);
+  }, [currentPage, selectedGenres, selectedStatus, selectedType, selectedOrder, searchQuery]);
+
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   // Load manga based on filters
   useEffect(() => {
@@ -153,6 +170,15 @@ const Content = () => {
     setSelectedStatus('All');
     setSelectedType('All');
     setSelectedOrder('Update');
+    setCurrentPage(1);
+    // Clear search query
+    if (searchQuery) {
+      setSearchParams({});
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchParams({});
     setCurrentPage(1);
   };
 
@@ -267,13 +293,27 @@ const Content = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-primary-950">
-      {/* Header */}
-      <div className="bg-white dark:bg-primary-900 shadow-md sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
+      {/* Main Navigation Header */}
+      <Header />
+      
+      {/* Page Header */}
+      <div className="bg-white dark:bg-primary-900 shadow-md sticky top-16 z-40">
+        <div className="container mx-auto px-4 py-12">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Daftar Komik
-            </h1>
+            <div className="flex-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {searchQuery ? `Hasil Pencarian: &quot;${searchQuery}&quot;` : 'Daftar Komik'}
+              </h1>
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="mt-2 flex items-center space-x-1 text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  <X className="h-4 w-4" />
+                  <span>Hapus pencarian</span>
+                </button>
+              )}
+            </div>
             <button
               onClick={clearAllFilters}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-300"
@@ -565,9 +605,20 @@ const Content = () => {
           {/* Main Content */}
           <div className="flex-1">
             {/* Active Filters */}
-            {(selectedGenres.length > 0 || selectedStatus !== 'All' || selectedType !== 'All' || selectedOrder !== 'Update') && (
+            {(searchQuery || selectedGenres.length > 0 || selectedStatus !== 'All' || selectedType !== 'All' || selectedOrder !== 'Update') && (
               <div className="mb-6 bg-white dark:bg-primary-900 rounded-lg shadow-md p-4">
                 <div className="flex flex-wrap gap-2">
+                  {searchQuery && (
+                    <span className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                      <span>Pencarian: &quot;{searchQuery}&quot;</span>
+                      <button
+                        onClick={clearSearch}
+                        className="hover:text-blue-900 dark:hover:text-blue-100"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </span>
+                  )}
                   {selectedGenres.map(genreId => {
                     const genre = genres.find(g => g.id === genreId);
                     return genre ? (

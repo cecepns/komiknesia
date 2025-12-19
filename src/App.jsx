@@ -30,12 +30,12 @@ function App() {
             <BottomNavigation />
           </>
         } />
-        <Route path="/daftar-komik" element={
+        {/* <Route path="/daftar-komik" element={
           <>
             <ComingSoon title="Daftar Komik" />
             <BottomNavigation />
           </>
-        } />
+        } /> */}
         <Route path="/akun" element={
           <>
             <ComingSoon title="Akun" />

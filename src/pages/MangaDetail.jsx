@@ -230,7 +230,7 @@ const MangaDetail = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/')}
               className="p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -727,6 +727,9 @@ const MangaDetail = () => {
 };
 
 export default MangaDetail;
+
+
+
 
 
 
