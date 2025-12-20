@@ -1,15 +1,21 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3 } from 'lucide-react';
 
-const AdminLayout = ({ children, activePage, onPageChange }) => {
+const AdminLayout = ({ children }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'categories', label: 'Kategori', icon: List },
-    { id: 'manga', label: 'Manga', icon: BookOpen },
-    { id: 'ads', label: 'Iklan', icon: FileText },
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/admin/dashboard' },
+    { id: 'categories', label: 'Kategori', icon: List, path: '/admin/categories' },
+    { id: 'manga', label: 'Manga', icon: BookOpen, path: '/admin/manga' },
+    { id: 'ads', label: 'Iklan', icon: FileText, path: '/admin/ads' },
   ];
+
+  // Get active page from current location
+  const activePage = menuItems.find(item => location.pathname === item.path)?.id || 'dashboard';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -44,7 +50,7 @@ const AdminLayout = ({ children, activePage, onPageChange }) => {
               <button
                 key={item.id}
                 onClick={() => {
-                  onPageChange(item.id);
+                  navigate(item.path);
                   setSidebarOpen(false);
                 }}
                 className={`w-full flex items-center px-6 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 ${

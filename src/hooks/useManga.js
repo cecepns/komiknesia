@@ -11,7 +11,7 @@ export const useManga = (page = 1, search = '', category = '') => {
     const fetchManga = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.getManga(page, 12, search, category);
+        const response = await apiClient.getManga(page, 10, search, category);
         setManga(response.manga);
         setTotalPages(response.totalPages);
         setError(null);

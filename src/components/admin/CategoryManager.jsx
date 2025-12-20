@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, CreditCard as Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, Trash2, Save, X, PencilIcon } from 'lucide-react';
 import { apiClient } from '../../utils/api';
 
 const CategoryManager = () => {
@@ -184,7 +184,7 @@ const CategoryManager = () => {
                         onClick={() => setEditingCategory(category.id)}
                         className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <PencilIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(category.id)}

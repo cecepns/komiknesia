@@ -159,6 +159,23 @@ class APIClient {
       method: 'DELETE',
     });
   }
+
+  // WestManga Sync
+  syncWestManga(page = 1, limit = 25) {
+    return this.request('/westmanga/sync', {
+      method: 'POST',
+      body: { page, limit },
+    });
+  }
+
+  // Search Manga
+  searchManga(query, source = 'all') {
+    const params = new URLSearchParams({
+      query,
+      source,
+    });
+    return this.request(`/manga/search?${params}`);
+  }
 }
 
 export const apiClient = new APIClient();

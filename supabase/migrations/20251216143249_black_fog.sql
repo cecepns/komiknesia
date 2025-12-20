@@ -36,7 +36,7 @@ CREATE TABLE manga (
     rating DECIMAL(3,1) DEFAULT 0,
     bookmark_count INT DEFAULT 0,
     views INT DEFAULT 0,
-    release INT,
+    `release` INT,
     status ENUM('ongoing', 'completed', 'hiatus') DEFAULT 'ongoing',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

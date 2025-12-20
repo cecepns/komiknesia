@@ -142,7 +142,7 @@ app.delete('/api/categories/:id', async (req, res) => {
 // Manga Routes
 app.get('/api/manga', async (req, res) => {
   try {
-    const { page = 1, limit = 12, search = '', category = '', source = 'all' } = req.query;
+    const { page = 1, limit = 10, search = '', category = '', source = 'all' } = req.query;
     const offset = (page - 1) * limit;
     
     let query = `
@@ -311,7 +311,7 @@ app.post('/api/manga', upload.fields([
     const [result] = await db.execute(`
       INSERT INTO manga (
         title, slug, author, synopsis, category_id, thumbnail, cover_background,
-        alternative_name, content_type, country_id, release, status, is_input_manual
+        alternative_name, content_type, country_id, \`release\`, status, is_input_manual
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       title, slug, author, synopsis, category_id, thumbnail, cover_background,
@@ -359,7 +359,7 @@ app.put('/api/manga/:id', upload.fields([
     
     let query = `UPDATE manga SET 
       title = ?, slug = ?, author = ?, synopsis = ?, category_id = ?,
-      alternative_name = ?, content_type = ?, country_id = ?, release = ?, status = ?`;
+      alternative_name = ?, content_type = ?, country_id = ?, \`release\` = ?, status = ?`;
     let params = [
       title, slug, author, synopsis, category_id,
       alternative_name || null, content_type || 'manga', country_id || null,
@@ -465,9 +465,18 @@ app.post('/api/manga/:mangaId/chapters', upload.single('cover'), async (req, res
     const { title, chapter_number } = req.body;
     const cover = req.file ? `/uploads/${req.file.filename}` : null;
     
+    // Get manga slug to create chapter slug
+    const [mangaRows] = await db.execute('SELECT slug FROM manga WHERE id = ?', [mangaId]);
+    if (mangaRows.length === 0) {
+      return res.status(404).json({ error: 'Manga not found' });
+    }
+    
+    const mangaSlug = mangaRows[0].slug;
+    const chapterSlug = `${mangaSlug}-chapter-${chapter_number}`;
+    
     const [result] = await db.execute(
-      'INSERT INTO chapters (manga_id, title, chapter_number, cover) VALUES (?, ?, ?, ?)',
-      [mangaId, title, chapter_number, cover]
+      'INSERT INTO chapters (manga_id, title, chapter_number, slug, cover) VALUES (?, ?, ?, ?, ?)',
+      [mangaId, title, chapter_number, chapterSlug, cover]
     );
     
     res.status(201).json({ id: result.insertId, message: 'Chapter created successfully' });
@@ -482,8 +491,22 @@ app.put('/api/chapters/:id', upload.single('cover'), async (req, res) => {
     const { id } = req.params;
     const { title, chapter_number } = req.body;
     
-    let query = 'UPDATE chapters SET title = ?, chapter_number = ?';
-    let params = [title, chapter_number];
+    // Get manga slug to update chapter slug
+    const [chapterRows] = await db.execute('SELECT manga_id FROM chapters WHERE id = ?', [id]);
+    if (chapterRows.length === 0) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+    
+    const [mangaRows] = await db.execute('SELECT slug FROM manga WHERE id = ?', [chapterRows[0].manga_id]);
+    if (mangaRows.length === 0) {
+      return res.status(404).json({ error: 'Manga not found' });
+    }
+    
+    const mangaSlug = mangaRows[0].slug;
+    const chapterSlug = `${mangaSlug}-chapter-${chapter_number}`;
+    
+    let query = 'UPDATE chapters SET title = ?, chapter_number = ?, slug = ?';
+    let params = [title, chapter_number, chapterSlug];
     
     if (req.file) {
       query += ', cover = ?';
@@ -659,7 +682,7 @@ app.post('/api/westmanga/sync', async (req, res) => {
               title = ?, slug = ?, alternative_name = ?, author = ?,
               synopsis = ?, thumbnail = ?, content_type = ?, country_id = ?,
               color = ?, hot = ?, is_project = ?, is_safe = ?,
-              rating = ?, bookmark_count = ?, views = ?, release = ?,
+              rating = ?, bookmark_count = ?, views = ?, \`release\` = ?,
               status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE westmanga_id = ?
           `, [
@@ -680,7 +703,7 @@ app.post('/api/westmanga/sync', async (req, res) => {
               westmanga_id, title, slug, alternative_name, author,
               synopsis, thumbnail, content_type, country_id,
               color, hot, is_project, is_safe, rating,
-              bookmark_count, views, release, status, is_input_manual
+              bookmark_count, views, \`release\`, status, is_input_manual
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `, [
             transformed.westmanga_id, transformed.title, transformed.slug,

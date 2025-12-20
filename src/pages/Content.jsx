@@ -75,38 +75,38 @@ const Content = () => {
     try {
       const params = new URLSearchParams();
       
-      // If search query exists, use it and skip other filters
+      // Add search query if exists
       if (searchQuery.trim()) {
         params.append('q', searchQuery.trim());
-        params.append('page', currentPage);
-        params.append('per_page', '40');
       } else {
-        // Normal filtering when no search query
-        params.append('page', currentPage);
-        params.append('per_page', '40');
+        // Only add project filter when no search query
         params.append('project', 'true');
+      }
+      
+      // Common parameters
+      params.append('page', currentPage);
+      params.append('per_page', '40');
 
-        // Add genre filters
-        selectedGenres.forEach(genreId => {
-          params.append('genre[]', genreId);
-        });
+      // Add genre filters (can be combined with search)
+      selectedGenres.forEach(genreId => {
+        params.append('genre[]', genreId);
+      });
 
-        // Add status filter
-        if (selectedStatus !== 'All') {
-          params.append('status', selectedStatus);
-        }
+      // Add status filter (can be combined with search)
+      if (selectedStatus !== 'All') {
+        params.append('status', selectedStatus);
+      }
 
-        // Add type/country filter
-        const typeOption = typeOptions.find(t => t.value === selectedType);
-        if (typeOption && typeOption.country) {
-          params.append('country', typeOption.country);
-          params.append('type', 'Comic');
-        }
+      // Add type/country filter (can be combined with search)
+      const typeOption = typeOptions.find(t => t.value === selectedType);
+      if (typeOption && typeOption.country) {
+        params.append('country', typeOption.country);
+        params.append('type', 'Comic');
+      }
 
-        // Add order filter
-        if (selectedOrder !== 'Update') {
-          params.append('orderBy', selectedOrder);
-        }
+      // Add order filter (can be combined with search)
+      if (selectedOrder !== 'Update') {
+        params.append('orderBy', selectedOrder);
       }
 
       const response = await fetch(`https://data.westmanga.me/api/contents?${params.toString()}`);
@@ -125,10 +125,10 @@ const Content = () => {
     }
   }, [currentPage, selectedGenres, selectedStatus, selectedType, selectedOrder, searchQuery]);
 
-  // Reset page to 1 when search query changes
+  // Reset page to 1 when search query or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, selectedGenres, selectedStatus, selectedType, selectedOrder]);
 
   // Load manga based on filters
   useEffect(() => {
@@ -298,11 +298,11 @@ const Content = () => {
       
       {/* Page Header */}
       <div className="bg-white dark:bg-primary-900 shadow-md sticky top-16 z-40">
-        <div className="container mx-auto px-4 py-12">
+        <div className="container mx-auto px-4 py-6 md:py-10">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {searchQuery ? `Hasil Pencarian: &quot;${searchQuery}&quot;` : 'Daftar Komik'}
+                {searchQuery ? <>Hasil Pencarian: {'"'}{searchQuery}{'"'}</> : 'Daftar Komik'}
               </h1>
               {searchQuery && (
                 <button
@@ -325,7 +325,7 @@ const Content = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pb-8 pt-24">
         {/* Mobile Filter Dropdowns */}
         <div className="lg:hidden mb-6 grid grid-cols-2 gap-3">
           {/* Genre Dropdown */}
@@ -610,7 +610,7 @@ const Content = () => {
                 <div className="flex flex-wrap gap-2">
                   {searchQuery && (
                     <span className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">
-                      <span>Pencarian: &quot;{searchQuery}&quot;</span>
+                      <span>Pencarian: {'"'}{searchQuery}{'"'}</span>
                       <button
                         onClick={clearSearch}
                         className="hover:text-blue-900 dark:hover:text-blue-100"
