@@ -1,16 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, Bookmark, History, LogIn } from 'lucide-react';
-import homepageMangaData from '../mockdata/homepage-manga.json';
 import LazyImage from '../components/LazyImage';
 import comingSoonImage from '../assets/coming-soon.png';
 import Header from '../components/Header';
+import AdBanner from '../components/AdBanner';
+import { useAds } from '../hooks/useAds';
+import { apiClient, getImageUrl } from '../utils/api';
 
 const Library = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('new-update');
   const [mangaList, setMangaList] = useState([]);
   const [historyList, setHistoryList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch ads by type
+  const { ads: libraryTopAds } = useAds('library-top', 6);
 
   const countryFlags = {
     'JP': '🇯🇵',
@@ -20,58 +26,45 @@ const Library = () => {
     'ID': '🇮🇩'
   };
 
-  // Adjust mock data timestamps to be relative to current time
-  const adjustMangaTimestamps = useCallback((mangaList) => {
-    if (!mangaList || mangaList.length === 0) return [];
-    
-    let maxTimestamp = 0;
-    mangaList.forEach(manga => {
-      if (manga.lastChapters && manga.lastChapters.length > 0) {
-        const timestamp = manga.lastChapters[0]?.created_at?.time;
-        if (timestamp > maxTimestamp) maxTimestamp = timestamp;
-      }
-    });
-
-    const now = Math.floor(Date.now() / 1000);
-    const timeDiff = now - maxTimestamp;
-
-    return mangaList.map(manga => {
-      if (!manga.lastChapters || manga.lastChapters.length === 0) return manga;
+  const loadMangaUpdates = useCallback(async () => {
+    try {
+      setLoading(true);
+      const items = await apiClient.getFeaturedItems('rekomendasi', true);
       
-      return {
-        ...manga,
-        lastChapters: manga.lastChapters.map(chapter => ({
-          ...chapter,
-          created_at: {
-            ...chapter.created_at,
-            time: chapter.created_at.time + timeDiff
-          }
+      // Transform to match expected format and sort by display_order
+      const transformed = items
+        .map(item => ({
+          id: item.manga_id,
+          title: item.title,
+          slug: item.slug,
+          cover: item.cover,
+          country_id: item.country_id,
+          color: item.color,
+          hot: item.hot,
+          rating: item.rating,
+          total_views: item.total_views,
+          lastChapters: item.lastChapters || [],
+          display_order: item.display_order || 0
         }))
-      };
-    });
-  }, []);
-
-  const loadMangaUpdates = useCallback(() => {
-    let result = [];
-
-    if (homepageMangaData?.data?.mirror_update) {
-      const adjustedManga = adjustMangaTimestamps(homepageMangaData.data.mirror_update);
+        .sort((a, b) => {
+          // Sort by display_order first, then by last chapter update time
+          if (a.display_order !== b.display_order) {
+            return a.display_order - b.display_order;
+          }
+          
+          const timeA = a.lastChapters[0]?.created_at?.time || 0;
+          const timeB = b.lastChapters[0]?.created_at?.time || 0;
+          return timeB - timeA;
+        });
       
-      result = adjustedManga.filter(manga => {
-        return manga.lastChapters && manga.lastChapters.length > 0;
-      });
-
-      result.sort((a, b) => {
-        const timeA = a.lastChapters[0]?.created_at?.time || 0;
-        const timeB = b.lastChapters[0]?.created_at?.time || 0;
-        return timeB - timeA;
-      });
-
-      result = result.slice(0, 30);
+      setMangaList(transformed);
+    } catch (error) {
+      console.error('Error fetching recommended manga:', error);
+      setMangaList([]);
+    } finally {
+      setLoading(false);
     }
-
-    setMangaList(result);
-  }, [adjustMangaTimestamps]);
+  }, []);
 
   const loadHistory = useCallback(() => {
     try {
@@ -108,18 +101,22 @@ const Library = () => {
   };
 
   const tabs = [
-    { id: 'new-update', label: 'New Update', icon: Clock },
+    { id: 'new-update', label: 'Rekomendasi', icon: Clock },
     { id: 'bookmark', label: 'Bookmark', icon: Bookmark },
     { id: 'history', label: 'History', icon: History },
   ];
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-      {/* Header */}
-      <Header />
+      {/* Library Top Ads - 6 ads */}
+      {libraryTopAds.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 mb-6">
+          <AdBanner ads={libraryTopAds} layout="grid" columns={2} />
+        </div>
+      )}
       
       {/* Tabs */}
-      <div className="sticky top-20 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 mt-20">
+      <div className={`sticky top-20 md:top-24 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 ${libraryTopAds.length === 0 ? 'mt-20' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 py-2">
             {tabs.map((tab) => {
@@ -152,17 +149,22 @@ const Library = () => {
             <div>
               <div className="mb-4">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                  Update Terbaru
+                  Rekomendasi
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Semua komik yang baru saja diperbarui
                 </p>
               </div>
 
-              {mangaList.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+                  <p className="text-gray-500 dark:text-gray-400 mt-4">Memuat...</p>
+                </div>
+              ) : mangaList.length === 0 ? (
                 <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
                   <p className="text-gray-500 dark:text-gray-400">
-                    Tidak ada manga update terbaru
+                    Tidak ada manga rekomendasi
                   </p>
                 </div>
               ) : (
@@ -175,7 +177,7 @@ const Library = () => {
                     >
                       <div className="relative aspect-[3/4] overflow-hidden">
                         <LazyImage
-                          src={manga.cover}
+                          src={getImageUrl(manga.cover)}
                           alt={manga.title}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           wrapperClassName="w-full h-full"
@@ -300,7 +302,7 @@ const Library = () => {
                     >
                       <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
                         <LazyImage
-                          src={item.cover}
+                          src={getImageUrl(item.cover)}
                           alt={item.mangaTitle}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           wrapperClassName="w-full h-full aspect-[3/4]"

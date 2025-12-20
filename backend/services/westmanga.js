@@ -1,4 +1,4 @@
-import axios from 'axios';
+const axios = require('axios');
 
 const WESTMANGA_BASE_URL = 'https://data.westmanga.me/api';
 
@@ -68,10 +68,56 @@ class WestMangaService {
    */
   async getChapterDetail(chapterSlug) {
     try {
-      const response = await this.axiosInstance.get(`/chapters/${chapterSlug}`);
+      const response = await this.axiosInstance.get(`/v/${chapterSlug}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching chapter detail for ${chapterSlug}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get manga chapters by slug (from /api/comic/[slug])
+   * @param {string} slug - Manga slug
+   * @returns {Promise} API response with chapters array
+   */
+  async getMangaChapters(slug) {
+    try {
+      const encodedSlug = encodeURIComponent(slug);
+      const response = await this.axiosInstance.get(`/comic/${encodedSlug}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching manga chapters for ${slug}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get chapter images by chapter slug (from /api/v/[chapter-slug])
+   * @param {string} chapterSlug - Chapter slug
+   * @returns {Promise} API response with images array
+   */
+  async getChapterImages(chapterSlug) {
+    try {
+      const encodedSlug = encodeURIComponent(chapterSlug);
+      const response = await this.axiosInstance.get(`/v/${encodedSlug}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching chapter images for ${chapterSlug}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all genres from WestManga
+   * @returns {Promise} API response with genres array
+   */
+  async getGenres() {
+    try {
+      const response = await this.axiosInstance.get('/contents/genres');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching genres from WestManga:', error.message);
       throw error;
     }
   }
@@ -110,6 +156,18 @@ class WestMangaService {
    * @returns {Object} Transformed manga object
    */
   transformMangaData(mangaData) {
+    // Validate and clamp rating to DECIMAL(3,1) range: -99.9 to 99.9
+    let rating = 0;
+    if (mangaData.rating !== undefined && mangaData.rating !== null) {
+      const ratingValue = parseFloat(mangaData.rating);
+      if (!isNaN(ratingValue)) {
+        // Clamp rating to valid DECIMAL(3,1) range
+        rating = Math.max(-99.9, Math.min(99.9, ratingValue));
+        // Round to 1 decimal place
+        rating = Math.round(rating * 10) / 10;
+      }
+    }
+
     return {
       westmanga_id: mangaData.id,
       title: mangaData.title,
@@ -124,7 +182,7 @@ class WestMangaService {
       hot: mangaData.hot || false,
       is_project: mangaData.is_project || false,
       is_safe: mangaData.is_safe !== undefined ? mangaData.is_safe : true,
-      rating: mangaData.rating || 0,
+      rating: rating,
       bookmark_count: mangaData.bookmark_count || 0,
       views: mangaData.total_views || 0,
       release: mangaData.release || null,
@@ -153,7 +211,7 @@ class WestMangaService {
 
 // Export singleton instance
 const westMangaService = new WestMangaService();
-export default westMangaService;
+module.exports = westMangaService;
 
 
 

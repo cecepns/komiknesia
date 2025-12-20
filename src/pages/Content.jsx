@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import Header from '../components/Header';
+import { getImageUrl } from '../utils/api';
+import { API_BASE_URL } from '../utils/api';
+
 
 const countryFlags = {
   'JP': '🇯🇵',
@@ -56,7 +59,7 @@ const Content = () => {
     const fetchGenres = async () => {
       setGenresLoading(true);
       try {
-        const response = await fetch('https://data.westmanga.me/api/contents/genres');
+        const response = await fetch(`${API_BASE_URL}/contents/genres`);
         const data = await response.json();
         if (data.status && data.data) {
           setGenres(data.data);
@@ -80,7 +83,7 @@ const Content = () => {
         params.append('q', searchQuery.trim());
       } else {
         // Only add project filter when no search query
-        params.append('project', 'true');
+        params.append('project', 'false');
       }
       
       // Common parameters
@@ -109,7 +112,7 @@ const Content = () => {
         params.append('orderBy', selectedOrder);
       }
 
-      const response = await fetch(`https://data.westmanga.me/api/contents?${params.toString()}`);
+      const response = await fetch(`${API_BASE_URL}/contents?${params.toString()}`);
       const data = await response.json();
       
       if (data.status && data.data) {
@@ -698,7 +701,7 @@ const Content = () => {
                       {/* Cover Image */}
                       <div className="relative aspect-[3/4] overflow-hidden">
                         <LazyImage
-                          src={manga.cover}
+                          src={getImageUrl(manga.cover)}
                           alt={manga.title}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           wrapperClassName="w-full h-full"

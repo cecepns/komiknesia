@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
+import { API_BASE_URL } from '../utils/api';
+import AdBanner from '../components/AdBanner';
+import { useAds } from '../hooks/useAds';
 
 const ChapterReader = () => {
   const { chapterSlug } = useParams();
@@ -33,7 +36,8 @@ const ChapterReader = () => {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`https://data.westmanga.me/api/v/${chapterSlug}`);
+        // Use our API endpoint which checks database first, then falls back to WestManga
+        const response = await fetch(`${API_BASE_URL}/chapters/slug/${chapterSlug}`);
         
         if (!response.ok) {
           throw new Error('Chapter tidak ditemukan');
@@ -47,6 +51,21 @@ const ChapterReader = () => {
           // Extract manga slug from API response (assuming it exists in content.slug or derive from data)
           const extractedMangaSlug = result.data.content?.slug || result.data.content?.id;
           setMangaSlug(extractedMangaSlug);
+          
+          // Increment view counter for this manga
+          if (extractedMangaSlug) {
+            try {
+              await fetch(`${API_BASE_URL}/comic/${extractedMangaSlug}/view`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              });
+            } catch (viewError) {
+              // Silently fail - view counter is not critical
+              console.warn('Failed to increment view counter:', viewError);
+            }
+          }
           
           // Set current chapter index from chapters list
           if (result.data.chapters && result.data.chapters.length > 0) {
@@ -87,6 +106,10 @@ const ChapterReader = () => {
 
   const allChapters = chapterData?.chapters || [];
   const mangaData = chapterData?.content || null;
+
+  // Fetch ads for manga-detail-top and manga-detail-bottom
+  const { ads: mangaDetailTopAds } = useAds('manga-detail-top');
+  const { ads: mangaDetailBottomAds } = useAds('manga-detail-bottom');
 
   const handlePrevChapter = () => {
     if (currentChapterIndex < allChapters.length - 1) {
@@ -286,6 +309,17 @@ const ChapterReader = () => {
             </p>
           </div>
 
+          {/* Ad Banner - Top of Images */}
+          {mangaDetailTopAds.length > 0 && (
+            <div className="px-3 sm:px-4 mb-6">
+              <AdBanner
+                ads={mangaDetailTopAds}
+                layout="grid"
+                columns={1}
+              />
+            </div>
+          )}
+
           {/* Chapter Images */}
           <div className="space-y-0">
             {chapterData?.images && chapterData.images.length > 0 ? (
@@ -347,6 +381,17 @@ const ChapterReader = () => {
               </button>
             </div>
           </div>
+
+          {/* Ad Banner - Above Comment Section with Grid 2 */}
+          {mangaDetailBottomAds.length > 0 && (
+            <div className="px-3 sm:px-4 mb-6">
+              <AdBanner
+                ads={mangaDetailBottomAds}
+                layout="grid"
+                columns={2}
+              />
+            </div>
+          )}
 
           {/* Comment Section */}
           <div className="px-3 sm:px-4 pb-6 sm:pb-8">

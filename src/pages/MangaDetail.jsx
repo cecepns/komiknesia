@@ -16,6 +16,10 @@ import {
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
+import { API_BASE_URL } from '../utils/api';
+import AdBanner from '../components/AdBanner';
+import { useAds } from '../hooks/useAds';
+
 
 // Import vote assets
 import senangImg from '../assets/votes/senang.png';
@@ -23,6 +27,7 @@ import biasaAjaImg from '../assets/votes/biasa-aja.png';
 import kecewaImg from '../assets/votes/kecewa.png';
 import marahImg from '../assets/votes/marah.png';
 import sedihImg from '../assets/votes/sedih.png';
+import { getImageUrl } from '../utils/api';
 
 const MangaDetail = () => {
   const { slug } = useParams();
@@ -39,13 +44,19 @@ const MangaDetail = () => {
   
   // Vote states
   const [voteData, setVoteData] = useState({
-    senang: 653,
-    biasaAja: 26,
-    kecewa: 53,
-    marah: 12,
-    sedih: 8
+    senang: 0,
+    biasaAja: 0,
+    kecewa: 0,
+    marah: 0,
+    sedih: 0
   });
   const [selectedVote, setSelectedVote] = useState(null);
+  const [voteLoading, setVoteLoading] = useState(false);
+
+  // Fetch ads by type
+  const { ads: chapterTopAds } = useAds('chapter-top', 4);
+  const { ads: listChapterAds } = useAds('list-chapter', 2);
+  const { ads: topUpvoteAds } = useAds('top-upvote', 2);
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -53,7 +64,8 @@ const MangaDetail = () => {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`https://data.westmanga.me/api/comic/${slug}`);
+        // Use our backend API which searches database first, then falls back to westmanga
+        const response = await fetch(`${API_BASE_URL}/comic/${slug}`);
         
         if (!response.ok) {
           throw new Error('Manga tidak ditemukan');
@@ -78,6 +90,32 @@ const MangaDetail = () => {
     if (slug) {
       fetchMangaDetail();
     }
+  }, [slug]);
+
+  // Fetch vote data
+  useEffect(() => {
+    const fetchVoteData = async () => {
+      if (!slug) return;
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/votes/${slug}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.status && result.data) {
+            setVoteData(result.data);
+            // Set selected vote if user has voted
+            if (result.userVote) {
+              setSelectedVote(result.userVote);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching vote data:', err);
+        // Don't show error to user, just use default values
+      }
+    };
+
+    fetchVoteData();
   }, [slug]);
 
   const generateChapters = (mangaData) => {
@@ -153,29 +191,74 @@ const MangaDetail = () => {
 
   const totalVotes = Object.values(voteData).reduce((sum, val) => sum + val, 0);
 
-  const handleVote = (voteId) => {
-    if (selectedVote === voteId) {
-      // Unvote if clicking the same vote
-      setVoteData(prev => ({
-        ...prev,
-        [voteId]: prev[voteId] - 1
-      }));
-      setSelectedVote(null);
-    } else if (selectedVote) {
-      // Change vote
-      setVoteData(prev => ({
-        ...prev,
-        [selectedVote]: prev[selectedVote] - 1,
-        [voteId]: prev[voteId] + 1
-      }));
-      setSelectedVote(voteId);
-    } else {
-      // New vote
-      setVoteData(prev => ({
-        ...prev,
-        [voteId]: prev[voteId] + 1
-      }));
-      setSelectedVote(voteId);
+  const handleVote = async (voteId) => {
+    if (!slug) return;
+    
+    setVoteLoading(true);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/votes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slug: slug,
+          vote_type: voteId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.status) {
+        // Update local state based on action
+        if (result.action === 'removed') {
+          // Unvote
+          setVoteData(prev => ({
+            ...prev,
+            [voteId]: Math.max(0, prev[voteId] - 1)
+          }));
+          setSelectedVote(null);
+        } else if (result.action === 'updated') {
+          // Changed vote
+          setVoteData(prev => ({
+            ...prev,
+            [result.previous_vote]: Math.max(0, prev[result.previous_vote] - 1),
+            [result.new_vote]: prev[result.new_vote] + 1
+          }));
+          setSelectedVote(voteId);
+        } else {
+          // New vote
+          setVoteData(prev => ({
+            ...prev,
+            [voteId]: prev[voteId] + 1
+          }));
+          setSelectedVote(voteId);
+        }
+        
+        // Refresh vote data from server to ensure accuracy
+        const refreshResponse = await fetch(`${API_BASE_URL}/votes/${slug}`);
+        if (refreshResponse.ok) {
+          const refreshResult = await refreshResponse.json();
+          if (refreshResult.status && refreshResult.data) {
+            setVoteData(refreshResult.data);
+            // Update selectedVote based on current vote
+            if (refreshResult.userVote) {
+              setSelectedVote(refreshResult.userVote);
+            } else {
+              setSelectedVote(null);
+            }
+          }
+        }
+      } else {
+        console.error('Vote failed:', result.error);
+        // Optionally show error message to user
+      }
+    } catch (err) {
+      console.error('Error submitting vote:', err);
+      // Optionally show error message to user
+    } finally {
+      setVoteLoading(false);
     }
   };
 
@@ -230,7 +313,7 @@ const MangaDetail = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/content')}
               className="p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -249,11 +332,18 @@ const MangaDetail = () => {
       {/* Main Content */}
       <main className="pt-20 pb-24 md:pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Chapter Top Ads - 4 ads at top */}
+          {chapterTopAds.length > 0 && (
+            <div className="mb-6">
+              <AdBanner ads={chapterTopAds} layout="grid" columns={2} />
+            </div>
+          )}
+
           {/* Hero Section with Cover */}
           <div className="relative h-80 md:h-96 rounded-xl overflow-hidden mb-8">
             <div 
               className="absolute inset-0 bg-cover bg-center blur-xl scale-110"
-              style={{ backgroundImage: `url(${manga.cover})` }}
+              style={{ backgroundImage: `url(${getImageUrl(manga.cover)})` }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-primary-950 via-primary-950/50 to-transparent" />
             
@@ -262,7 +352,7 @@ const MangaDetail = () => {
                 {/* Cover Image */}
                 <div className="flex-shrink-0">
                   <LazyImage
-                    src={manga.cover}
+                    src={getImageUrl(manga.cover)}
                     alt={manga.title}
                     className="w-32 md:w-48 rounded-lg shadow-2xl"
                     wrapperClassName="w-32 md:w-48"
@@ -376,6 +466,13 @@ const MangaDetail = () => {
               </div>
             )}
           </div>
+
+          {/* List Chapter Ads - 2 ads above tabs */}
+          {listChapterAds.length > 0 && (
+            <div className="mb-6">
+              <AdBanner ads={listChapterAds} layout="grid" columns={2} />
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex space-x-1 mb-6 bg-primary-900 p-1 rounded-lg">
@@ -645,6 +742,13 @@ const MangaDetail = () => {
             </div>
           )}
 
+          {/* Top Upvote Ads - 2 ads above vote section */}
+          {topUpvoteAds.length > 0 && (
+            <div className="mt-8 mb-6">
+              <AdBanner ads={topUpvoteAds} layout="grid" columns={2} />
+            </div>
+          )}
+
           {/* Vote Section */}
           <div className="mt-8 bg-primary-900 rounded-lg p-6">
             <div className="text-center mb-6">
@@ -659,9 +763,10 @@ const MangaDetail = () => {
                 <button
                   key={option.id}
                   onClick={() => handleVote(option.id)}
+                  disabled={voteLoading}
                   className={`flex flex-col items-center group transition-all duration-300 hover:scale-110 ${
                     selectedVote === option.id ? 'scale-110' : ''
-                  }`}
+                  } ${voteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {/* Vote Count Badge */}
                   <div className={`mb-2 px-4 py-1 rounded-full font-bold text-sm transition-all duration-300 ${
@@ -727,6 +832,7 @@ const MangaDetail = () => {
 };
 
 export default MangaDetail;
+
 
 
 

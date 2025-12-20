@@ -1,17 +1,26 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3 } from 'lucide-react';
+import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3, Star, Mail, LogOut } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/admin/dashboard' },
     { id: 'categories', label: 'Kategori', icon: List, path: '/admin/categories' },
     { id: 'manga', label: 'Manga', icon: BookOpen, path: '/admin/manga' },
+    { id: 'featured', label: 'Featured Items', icon: Star, path: '/admin/featured' },
     { id: 'ads', label: 'Iklan', icon: FileText, path: '/admin/ads' },
+    { id: 'contact', label: 'Kontak', icon: Mail, path: '/admin/contact' },
   ];
 
   // Get active page from current location
@@ -84,13 +93,28 @@ const AdminLayout = ({ children }) => {
               </h2>
             </div>
 
-            <a
-              href="/"
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
-            >
-              <Home className="h-4 w-4 mr-2" />
-              Kembali ke Site
-            </a>
+            <div className="flex items-center gap-4">
+              {user && (
+                <div className="hidden md:flex items-center text-sm text-gray-600 dark:text-gray-400">
+                  <span className="mr-2">Halo,</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{user.username}</span>
+                </div>
+              )}
+              <button
+                onClick={handleLogout}
+                className="flex items-center px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </button>
+              <a
+                href="/"
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Kembali ke Site
+              </a>
+            </div>
           </div>
         </header>
 

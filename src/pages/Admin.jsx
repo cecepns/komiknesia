@@ -4,6 +4,8 @@ import CategoryManager from '../components/admin/CategoryManager';
 import MangaManager from '../components/admin/MangaManager';
 import Dashboard from './admin/Dashboard';
 import AdsManager from './admin/AdsManager';
+import FeaturedManager from './admin/FeaturedManager';
+import ContactManager from './admin/ContactManager';
 
 const Admin = () => {
   return (
@@ -14,6 +16,8 @@ const Admin = () => {
         <Route path="categories" element={<CategoryManager />} />
         <Route path="manga" element={<MangaManager />} />
         <Route path="ads" element={<AdsManager />} />
+        <Route path="featured" element={<FeaturedManager />} />
+        <Route path="contact" element={<ContactManager />} />
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </AdminLayout>

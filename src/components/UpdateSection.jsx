@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock } from 'lucide-react';
-import homepageMangaData from '../mockdata/homepage-manga.json';
 import LazyImage from './LazyImage';
+import { apiClient, getImageUrl } from '../utils/api';
 
 const UpdateSection = () => {
   const navigate = useNavigate();
   const [mangaList, setMangaList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const countryFlags = {
     'JP': '🇯🇵',
@@ -16,69 +17,45 @@ const UpdateSection = () => {
     'ID': '🇮🇩'
   };
 
-  // Adjust mock data timestamps to be relative to current time
-  const adjustMangaTimestamps = useCallback((mangaList) => {
-    if (!mangaList || mangaList.length === 0) return [];
-    
-    // Find the most recent timestamp in the mock data
-    let maxTimestamp = 0;
-    mangaList.forEach(manga => {
-      if (manga.lastChapters && manga.lastChapters.length > 0) {
-        const timestamp = manga.lastChapters[0]?.created_at?.time;
-        if (timestamp > maxTimestamp) maxTimestamp = timestamp;
-      }
-    });
-
-    // Calculate the difference between now and the most recent mock timestamp
-    const now = Math.floor(Date.now() / 1000);
-    const timeDiff = now - maxTimestamp;
-
-    // Adjust all timestamps by the difference
-    return mangaList.map(manga => {
-      if (!manga.lastChapters || manga.lastChapters.length === 0) return manga;
-      
-      return {
-        ...manga,
-        lastChapters: manga.lastChapters.map(chapter => ({
-          ...chapter,
-          created_at: {
-            ...chapter.created_at,
-            time: chapter.created_at.time + timeDiff
-          }
-        }))
-      };
-    });
+  useEffect(() => {
+    fetchUpdateManga();
   }, []);
 
-  const loadManga = useCallback(() => {
-    let result = [];
-
-    if (homepageMangaData?.data?.mirror_update) {
-      // Adjust timestamps to be relative to current time
-      const adjustedManga = adjustMangaTimestamps(homepageMangaData.data.mirror_update);
+  const fetchUpdateManga = async () => {
+    try {
+      setLoading(true);
+      const items = await apiClient.getFeaturedItems('update_terbaru', true);
       
-      // Filter out manga without chapters
-      result = adjustedManga.filter(manga => {
-        return manga.lastChapters && manga.lastChapters.length > 0;
-      });
-
-      // Sort by latest update
-      result.sort((a, b) => {
-        const timeA = a.lastChapters[0]?.created_at?.time || 0;
-        const timeB = b.lastChapters[0]?.created_at?.time || 0;
-        return timeB - timeA;
-      });
-
-      // Limit to top 20
-      result = result.slice(0, 20);
+      // Transform to match expected format and sort by last chapter update
+      const transformed = items
+        .map(item => ({
+          id: item.manga_id,
+          title: item.title,
+          slug: item.slug,
+          cover: item.cover,
+          country_id: item.country_id,
+          color: item.color,
+          hot: item.hot,
+          rating: item.rating,
+          total_views: item.total_views,
+          lastChapters: item.lastChapters || []
+        }))
+        .filter(manga => manga.lastChapters && manga.lastChapters.length > 0)
+        .sort((a, b) => {
+          const timeA = a.lastChapters[0]?.created_at?.time || 0;
+          const timeB = b.lastChapters[0]?.created_at?.time || 0;
+          return timeB - timeA;
+        })
+        .slice(0, 20);
+      
+      setMangaList(transformed);
+    } catch (error) {
+      console.error('Error fetching update manga:', error);
+      setMangaList([]);
+    } finally {
+      setLoading(false);
     }
-
-    setMangaList(result);
-  }, [adjustMangaTimestamps]);
-
-  useEffect(() => {
-    loadManga();
-  }, [loadManga]);
+  };
 
   const getTimeAgo = (timestamp) => {
     const now = Math.floor(Date.now() / 1000);
@@ -115,7 +92,12 @@ const UpdateSection = () => {
       </div>
 
       {/* Manga Grid */}
-      {mangaList.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-12 bg-gray-100 dark:bg-primary-900 rounded-lg">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+          <p className="text-gray-500 dark:text-gray-400 mt-4">Memuat...</p>
+        </div>
+      ) : mangaList.length === 0 ? (
         <div className="text-center py-12 bg-gray-100 dark:bg-primary-900 rounded-lg">
           <p className="text-gray-500 dark:text-gray-400">
             Tidak ada manga update terbaru
@@ -132,7 +114,7 @@ const UpdateSection = () => {
               {/* Cover Image */}
               <div className="relative aspect-[3/4] overflow-hidden">
                 <LazyImage
-                  src={manga.cover}
+                  src={getImageUrl(manga.cover)}
                   alt={manga.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   wrapperClassName="w-full h-full"

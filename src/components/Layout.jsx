@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import Header from './Header';
 import Footer from './Footer';
 import BottomNavigation from './BottomNavigation';
+import AdPopup from './AdPopup';
 
 const Layout = ({ children }) => {
   return (
@@ -19,6 +20,9 @@ const Layout = ({ children }) => {
 
       {/* Bottom Navigation - Mobile */}
       <BottomNavigation />
+
+      {/* Ad Popup - Only in Layout (not AdminLayout) */}
+      <AdPopup />
     </div>
   );
 };
