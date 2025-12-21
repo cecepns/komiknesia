@@ -12,7 +12,7 @@ const AdPopup = () => {
   const { ads, loading } = useAds('popup'); // Get all popup ads
   const [isOpen, setIsOpen] = useState(false);
   const [canClose, setCanClose] = useState(false);
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(5);
   const [lastClosedTime, setLastClosedTime] = useState(null);
 
   // Effect to show popup when ads are loaded
@@ -20,7 +20,7 @@ const AdPopup = () => {
     // Show popup on every page refresh if there's an ad
     if (!loading && ads.length > 0) {
       setIsOpen(true);
-      setCountdown(10); // Reset countdown when popup opens
+      setCountdown(5); // Reset countdown when popup opens
     }
   }, [ads, loading]);
 
@@ -42,7 +42,7 @@ const AdPopup = () => {
 
       if (timeSinceClosed >= fiveMinutes) {
         setIsOpen(true);
-        setCountdown(10); // Reset countdown when popup reopens
+        setCountdown(5); // Reset countdown when popup reopens
         setLastClosedTime(null); // Reset to prevent immediate re-trigger
       }
     }, 1000);
@@ -59,7 +59,7 @@ const AdPopup = () => {
     }
 
     // Reset countdown when popup opens
-    setCountdown(10);
+    setCountdown(5);
 
     // Start countdown timer
     const timer = setInterval(() => {
@@ -116,7 +116,7 @@ const AdPopup = () => {
         )}
 
         {/* Ads Grid - 2 columns */}
-        <div className="grid grid-cols-2 gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-4">
+        <div className="grid bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-4">
           {ads.map((ad, index) => (
             <div
               key={ad.id || index}
