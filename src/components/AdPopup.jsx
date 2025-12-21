@@ -50,6 +50,21 @@ const AdPopup = () => {
     return () => clearInterval(interval);
   }, [isOpen, lastClosedTime, ads.length, loading]);
 
+  // Effect to prevent body scroll when popup is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save current overflow style
+      const originalOverflow = document.body.style.overflow;
+      // Prevent scrolling
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore original overflow when popup closes
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   // Effect to handle countdown timer when popup is open
   useEffect(() => {
     if (!isOpen) {

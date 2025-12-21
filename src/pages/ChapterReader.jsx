@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, getImageUrl } from '../utils/api';
 import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 
@@ -326,7 +326,7 @@ const ChapterReader = () => {
               chapterData.images.map((image, index) => (
                 <div key={index} className="w-full leading-[0]">
                   <LazyImage
-                    src={image}
+                    src={getImageUrl(image)}
                     alt={`Page ${index + 1}`}
                     className="w-full h-auto block"
                     wrapperClassName="w-full block"

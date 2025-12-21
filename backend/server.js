@@ -3064,12 +3064,7 @@ app.get('/api/chapters/slug/:slug', async (req, res) => {
         // Format response to match expected structure
         const responseData = {
           images: images.map(img => {
-            // Convert relative paths to full URLs if needed
-            if (img.image_path && !img.image_path.startsWith('http')) {
-              return img.image_path.startsWith('/uploads/') 
-                ? `${req.protocol}://${req.get('host')}${img.image_path}`
-                : img.image_path;
-            }
+            // Return path as-is for uploads/ or is_input_manual (no URL conversion)
             return img.image_path;
           }),
           content: {
