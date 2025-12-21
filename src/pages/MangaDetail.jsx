@@ -416,11 +416,15 @@ const MangaDetail = () => {
             {manga.genres && manga.genres.length > 0 && (
               <>
                 {manga.genres.map((genre) => (
-                  <div key={genre.id} className="px-4 py-2 bg-purple-900/30 rounded-lg">
+                  <button
+                    key={genre.id}
+                    onClick={() => navigate(`/content?genre[]=${genre.id}`)}
+                    className="px-4 py-2 bg-purple-900/30 rounded-lg hover:bg-purple-900/50 transition-colors cursor-pointer"
+                  >
                     <span className="text-sm font-medium text-purple-300">
                       {genre.name}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </>
             )}
