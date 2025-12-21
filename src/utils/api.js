@@ -476,6 +476,29 @@ class APIClient {
       method: 'DELETE',
     });
   }
+
+  // Contents (Manga List with filters)
+  getContents(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params.q) queryParams.append('q', params.q);
+    if (params.genre) {
+      if (Array.isArray(params.genre)) {
+        params.genre.forEach(g => queryParams.append('genre[]', g));
+      } else {
+        queryParams.append('genre', params.genre);
+      }
+    }
+    if (params.status) queryParams.append('status', params.status);
+    if (params.country) queryParams.append('country', params.country);
+    if (params.type) queryParams.append('type', params.type);
+    if (params.orderBy) queryParams.append('orderBy', params.orderBy);
+    if (params.project) queryParams.append('project', params.project);
+    
+    const queryString = queryParams.toString();
+    return this.request(`/contents${queryString ? `?${queryString}` : ''}`);
+  }
 }
 
 export const apiClient = new APIClient();

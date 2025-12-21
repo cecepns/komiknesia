@@ -559,12 +559,19 @@ app.get('/api/contents', async (req, res) => {
       }
     };
     
-    // Sort local manga first, then external manga
-    sortManga(localMangaList);
-    sortManga(externalMangaList);
-    
-    // Combine: local manga first, then external manga
-    let mergedManga = [...localMangaList, ...externalMangaList];
+    // For 'Update' order, merge and sort by time regardless of local/external
+    // For other orders, prioritize local manga first
+    let mergedManga;
+    if (orderBy === 'Update') {
+      // Merge first, then sort by update time (newest first)
+      mergedManga = [...localMangaList, ...externalMangaList];
+      sortManga(mergedManga);
+    } else {
+      // For other orders, sort separately and prioritize local
+      sortManga(localMangaList);
+      sortManga(externalMangaList);
+      mergedManga = [...localMangaList, ...externalMangaList];
+    }
     
     // Remove is_local flag before sending response (keep format consistent)
     mergedManga = mergedManga.map(manga => {

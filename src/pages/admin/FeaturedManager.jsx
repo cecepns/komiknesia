@@ -26,7 +26,6 @@ const FeaturedManager = () => {
     { value: 'popular_daily', label: 'Popular Hari Ini' },
     { value: 'popular_weekly', label: 'Popular Minggu Ini' },
     { value: 'popular_monthly', label: 'Popular Bulan Ini' },
-    { value: 'update_terbaru', label: 'Update Terbaru' },
     { value: 'rekomendasi', label: 'Rekomendasi' }
   ];
 

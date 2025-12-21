@@ -24,29 +24,31 @@ const UpdateSection = () => {
   const fetchUpdateManga = async () => {
     try {
       setLoading(true);
-      const items = await apiClient.getFeaturedItems('update_terbaru', true);
+      // Use /api/contents endpoint with page=1, orderBy=Update, per_page=14
+      const response = await apiClient.getContents({
+        page: 1,
+        per_page: 14,
+        orderBy: 'Update'
+      });
       
-      // Transform to match expected format and sort by last chapter update
-      const transformed = items
-        .map(item => ({
-          id: item.manga_id,
-          title: item.title,
-          slug: item.slug,
-          cover: item.cover,
-          country_id: item.country_id,
-          color: item.color,
-          hot: item.hot,
-          rating: item.rating,
-          total_views: item.total_views,
-          lastChapters: item.lastChapters || []
-        }))
+      // Extract manga data from response
+      const mangaData = response.data || [];
+      
+      // Transform to match expected format
+      const transformed = mangaData
         .filter(manga => manga.lastChapters && manga.lastChapters.length > 0)
-        .sort((a, b) => {
-          const timeA = a.lastChapters[0]?.created_at?.time || 0;
-          const timeB = b.lastChapters[0]?.created_at?.time || 0;
-          return timeB - timeA;
-        })
-        .slice(0, 20);
+        .map(manga => ({
+          id: manga.id,
+          title: manga.title,
+          slug: manga.slug,
+          cover: manga.cover,
+          country_id: manga.country_id,
+          color: manga.color,
+          hot: manga.hot,
+          rating: manga.rating,
+          total_views: manga.total_views,
+          lastChapters: manga.lastChapters || []
+        }));
       
       setMangaList(transformed);
     } catch (error) {
