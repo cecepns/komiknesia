@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Admin from "./pages/Admin";
@@ -15,12 +15,16 @@ import AdPopup from "./components/AdPopup";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  
+  // Don't show AdPopup on admin and login routes
+  const shouldShowAdPopup = !location.pathname.startsWith('/admin') && location.pathname !== '/login';
+
   return (
-    <AuthProvider>
-      <Router>
-        <ScrollToTop />
-        <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
           <Route path="/login" element={<Login />} />
           <Route
             path="/admin/*"
@@ -86,9 +90,18 @@ function App() {
             </Layout>
           }
         />
-        </Routes>
-        {/* AdPopup rendered once for all routes */}
-        <AdPopup />
+      </Routes>
+      {/* AdPopup rendered once for all routes except admin and login */}
+      {shouldShowAdPopup && <AdPopup />}
+    </>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
       </Router>
     </AuthProvider>
   );
