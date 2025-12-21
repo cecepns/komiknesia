@@ -22,7 +22,7 @@ const Layout = ({ children }) => {
       <BottomNavigation />
 
       {/* Ad Popup - Only in Layout (not AdminLayout) */}
-      <AdPopup />
+      {/* <AdPopup /> */}
     </div>
   );
 };

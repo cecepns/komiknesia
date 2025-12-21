@@ -1,40 +1,65 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import { getImageUrl } from '../utils/api';
 import LazyImage from './LazyImage';
 import { useAds } from '../hooks/useAds';
 
 /**
  * AdPopup component to display popup ads in a 2-column grid
- * Cannot be closed for the first 10 seconds
+ * Cannot be closed for the first 5 seconds
+ * Will reappear after 5 minutes if user stays on the page
  */
 const AdPopup = () => {
   const { ads, loading } = useAds('popup'); // Get all popup ads
   const [isOpen, setIsOpen] = useState(false);
   const [canClose, setCanClose] = useState(false);
   const [countdown, setCountdown] = useState(10);
+  const [lastClosedTime, setLastClosedTime] = useState(null);
 
   // Effect to show popup when ads are loaded
   useEffect(() => {
-    // Check if popup has already been shown in this session
-    const hasShownPopup = sessionStorage.getItem('adPopupShown');
-    
-    // Only show popup if there's an ad, not loading, and hasn't been shown yet
-    if (!loading && ads.length > 0 && !hasShownPopup) {
+    // Show popup on every page refresh if there's an ad
+    if (!loading && ads.length > 0) {
       setIsOpen(true);
-      // Mark as shown in sessionStorage
-      sessionStorage.setItem('adPopupShown', 'true');
+      setCountdown(10); // Reset countdown when popup opens
     }
   }, [ads, loading]);
+
+  // Effect to track time and show popup again after 5 minutes
+  useEffect(() => {
+    if (!ads.length || loading) return;
+
+    // If popup is open, don't check for re-show timer
+    if (isOpen) return;
+
+    // If no last closed time, don't start timer yet
+    if (lastClosedTime === null) return;
+
+    // Check every second if 5 minutes have passed
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceClosed = now - lastClosedTime;
+      const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+      if (timeSinceClosed >= fiveMinutes) {
+        setIsOpen(true);
+        setCountdown(10); // Reset countdown when popup reopens
+        setLastClosedTime(null); // Reset to prevent immediate re-trigger
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, lastClosedTime, ads.length, loading]);
 
   // Effect to handle countdown timer when popup is open
   useEffect(() => {
     if (!isOpen) {
-      // Reset countdown when popup is closed
-      setCountdown(10);
+      // Reset canClose when popup is closed
       setCanClose(false);
       return;
     }
+
+    // Reset countdown when popup opens
+    setCountdown(10);
 
     // Start countdown timer
     const timer = setInterval(() => {
@@ -53,6 +78,7 @@ const AdPopup = () => {
   const handleClose = () => {
     if (canClose) {
       setIsOpen(false);
+      setLastClosedTime(Date.now()); // Save the time when popup is closed
     }
   };
 
