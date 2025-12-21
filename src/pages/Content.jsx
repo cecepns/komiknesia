@@ -338,7 +338,7 @@ const Content = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 pb-8 pt-24">
+      <div className="container mx-auto px-4 pb-8 pt-4 md:pt-8">
         {/* Mobile Filter Dropdowns */}
         <div className="lg:hidden mb-6 grid grid-cols-2 gap-3">
           {/* Genre Dropdown */}
