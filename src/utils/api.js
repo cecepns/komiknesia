@@ -220,6 +220,16 @@ class APIClient {
     });
   }
 
+  reorderChapterImages(chapterId, images) {
+    return this.request(`/chapters/${chapterId}/images/reorder`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ images }),
+    });
+  }
+
   // Ads
   getAds() {
     return this.request('/ads');

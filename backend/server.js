@@ -1531,6 +1531,55 @@ app.delete('/api/chapters/:chapterId/images/:imageId', authenticateToken, async 
   }
 });
 
+// Reorder chapter images (update page_number for multiple images)
+app.put('/api/chapters/:chapterId/images/reorder', authenticateToken, async (req, res) => {
+  try {
+    const { chapterId } = req.params;
+    const { images } = req.body; // Array of { id, page_number }
+    
+    if (!Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ error: 'Images array is required' });
+    }
+    
+    // Verify all images belong to this chapter
+    const imageIds = images.map(img => img.id);
+    const placeholders = imageIds.map(() => '?').join(',');
+    const [existingImages] = await db.execute(
+      `SELECT id FROM chapter_images WHERE id IN (${placeholders}) AND chapter_id = ?`,
+      [...imageIds, chapterId]
+    );
+    
+    if (existingImages.length !== images.length) {
+      return res.status(400).json({ error: 'Some images do not belong to this chapter' });
+    }
+    
+    // Update page_number for each image in a transaction
+    await db.beginTransaction();
+    
+    try {
+      for (const image of images) {
+        if (!image.id || image.page_number === undefined) {
+          throw new Error('Each image must have id and page_number');
+        }
+        await db.execute(
+          'UPDATE chapter_images SET page_number = ? WHERE id = ? AND chapter_id = ?',
+          [image.page_number, image.id, chapterId]
+        );
+      }
+      
+      await db.commit();
+      
+      res.json({ message: 'Images reordered successfully' });
+    } catch (error) {
+      await db.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error reordering chapter images:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Dashboard Stats Route
 app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   try {

@@ -13,6 +13,7 @@ import {
   Search,
   BookOpen,
   Upload,
+  GripVertical,
 } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -86,6 +87,9 @@ const MangaManager = () => {
   const [chapterImagesMap, setChapterImagesMap] = useState({}); // Store images for each chapter
   const [expandedChapters, setExpandedChapters] = useState({}); // Track which chapters have images expanded
   const [loadingImages, setLoadingImages] = useState({}); // Track loading state for each chapter
+  const [draggedImage, setDraggedImage] = useState(null); // Track dragged image {chapterId, imageId}
+  const [draggedOverImage, setDraggedOverImage] = useState(null); // Track image being dragged over {chapterId, imageId}
+  const [isReordering, setIsReordering] = useState({}); // Track reordering state per chapter
 
   const fetchManga = useCallback(async () => {
     try {
@@ -569,6 +573,87 @@ const MangaManager = () => {
       console.error("Error deleting chapter image:", error);
       alert("Gagal menghapus gambar: " + error.message);
     }
+  };
+
+  // Drag and drop handlers for image reordering
+  const handleDragStart = (e, chapterId, imageId) => {
+    setDraggedImage({ chapterId, imageId });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target);
+  };
+
+  const handleDragOver = (e, chapterId, imageId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedImage && draggedImage.chapterId === chapterId && draggedImage.imageId !== imageId) {
+      setDraggedOverImage({ chapterId, imageId });
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDraggedOverImage(null);
+  };
+
+  const handleDrop = async (e, chapterId, imageId) => {
+    e.preventDefault();
+    
+    if (!draggedImage || draggedImage.chapterId !== chapterId || draggedImage.imageId === imageId) {
+      setDraggedImage(null);
+      setDraggedOverImage(null);
+      return;
+    }
+
+    const images = [...chapterImagesMap[chapterId]];
+    const draggedIndex = images.findIndex(img => img.id === draggedImage.imageId);
+    const dropIndex = images.findIndex(img => img.id === imageId);
+
+    if (draggedIndex === -1 || dropIndex === -1) {
+      setDraggedImage(null);
+      setDraggedOverImage(null);
+      return;
+    }
+
+    // Reorder images in array
+    const [removed] = images.splice(draggedIndex, 1);
+    images.splice(dropIndex, 0, removed);
+
+    // Update page_number for all images
+    const reorderedImages = images.map((img, index) => ({
+      id: img.id,
+      page_number: index + 1
+    }));
+
+    // Optimistically update UI
+    setChapterImagesMap((prev) => ({
+      ...prev,
+      [chapterId]: images.map((img, index) => ({
+        ...img,
+        page_number: index + 1
+      }))
+    }));
+
+    setIsReordering((prev) => ({ ...prev, [chapterId]: true }));
+
+    try {
+      await apiClient.reorderChapterImages(chapterId, reorderedImages);
+      // Refresh to get updated data from server
+      await fetchChapterImages(chapterId);
+      alert("Urutan gambar berhasil diubah!");
+    } catch (error) {
+      console.error("Error reordering images:", error);
+      // Revert on error
+      await fetchChapterImages(chapterId);
+      alert("Gagal mengubah urutan gambar: " + error.message);
+    } finally {
+      setIsReordering((prev) => ({ ...prev, [chapterId]: false }));
+      setDraggedImage(null);
+      setDraggedOverImage(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedImage(null);
+    setDraggedOverImage(null);
   };
 
   if (loading) {
@@ -1664,39 +1749,75 @@ const MangaManager = () => {
                                 <>
                                   {chapterImagesMap[chapter.id] &&
                                   chapterImagesMap[chapter.id].length > 0 ? (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                      {chapterImagesMap[chapter.id].map((image) => (
-                                        <div
-                                          key={image.id}
-                                          className="relative group aspect-[3/4] bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden"
-                                        >
-                                          <LazyImage
-                                            src={getImageUrl(image.image_path)}
-                                            alt={`Page ${image.page_number}`}
-                                            className="w-full h-full object-cover"
-                                            wrapperClassName="w-full h-full"
-                                          />
-                                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center">
-                                            <button
-                                              onClick={() =>
-                                                handleDeleteChapterImage(
-                                                  chapter.id,
-                                                  image.id
-                                                )
-                                              }
-                                              className="opacity-0 group-hover:opacity-100 p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all"
-                                              title="Hapus Gambar"
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                          Drag and drop gambar untuk mengubah urutan
+                                        </p>
+                                        {isReordering[chapter.id] && (
+                                          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                                            <RefreshCw className="h-4 w-4 animate-spin" />
+                                            <span>Menyimpan urutan...</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {chapterImagesMap[chapter.id].map((image) => {
+                                          const isDragged = draggedImage?.chapterId === chapter.id && draggedImage?.imageId === image.id;
+                                          const isDraggedOver = draggedOverImage?.chapterId === chapter.id && draggedOverImage?.imageId === image.id;
+                                          
+                                          return (
+                                            <div
+                                              key={image.id}
+                                              draggable
+                                              onDragStart={(e) => handleDragStart(e, chapter.id, image.id)}
+                                              onDragOver={(e) => handleDragOver(e, chapter.id, image.id)}
+                                              onDragLeave={handleDragLeave}
+                                              onDrop={(e) => handleDrop(e, chapter.id, image.id)}
+                                              onDragEnd={handleDragEnd}
+                                              className={`relative group aspect-[3/4] bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden cursor-move transition-all ${
+                                                isDragged ? 'opacity-50 scale-95' : ''
+                                              } ${
+                                                isDraggedOver ? 'ring-2 ring-blue-500 scale-105 z-10' : ''
+                                              } ${
+                                                isReordering[chapter.id] ? 'pointer-events-none' : ''
+                                              }`}
                                             >
-                                              <Trash2 className="h-4 w-4" />
-                                            </button>
-                                          </div>
-                                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                                            <p className="text-white text-xs font-medium">
-                                              Halaman {image.page_number}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      ))}
+                                              <LazyImage
+                                                src={getImageUrl(image.image_path)}
+                                                alt={`Page ${image.page_number}`}
+                                                className="w-full h-full object-cover pointer-events-none"
+                                                wrapperClassName="w-full h-full"
+                                              />
+                                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center gap-2">
+                                                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-all">
+                                                  <div className="p-2 bg-gray-800/80 text-white rounded-full">
+                                                    <GripVertical className="h-4 w-4" />
+                                                  </div>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleDeleteChapterImage(chapter.id, image.id);
+                                                    }}
+                                                    className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all"
+                                                    title="Hapus Gambar"
+                                                  >
+                                                    <Trash2 className="h-4 w-4" />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                              <div className="absolute top-0 left-0 bg-blue-600 text-white px-2 py-1 rounded-br-lg text-xs font-medium">
+                                                #{image.page_number}
+                                              </div>
+                                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                                                <p className="text-white text-xs font-medium">
+                                                  Halaman {image.page_number}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   ) : (
                                     <p className="text-center text-gray-500 dark:text-gray-400 py-8">
