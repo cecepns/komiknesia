@@ -1,8 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame } from "lucide-react";
 import LazyImage from "./LazyImage";
 import { apiClient, getImageUrl } from "../utils/api";
+
+const countryFlags = {
+  JP: "🇯🇵",
+  KR: "🇰🇷",
+  CN: "🇨🇳",
+  US: "🇺🇸",
+  ID: "🇮🇩",
+};
+
+const filters = [
+  { id: "today", label: "Hari ini", type: "popular_daily" },
+  { id: "week", label: "Minggu ini", type: "popular_weekly" },
+  { id: "month", label: "Bulan ini", type: "popular_monthly" },
+];
 
 const PopularSection = () => {
   const navigate = useNavigate();
@@ -10,25 +24,7 @@ const PopularSection = () => {
   const [filteredManga, setFilteredManga] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const countryFlags = {
-    JP: "🇯🇵",
-    KR: "🇰🇷",
-    CN: "🇨🇳",
-    US: "🇺🇸",
-    ID: "🇮🇩",
-  };
-
-  const filters = [
-    { id: "today", label: "Hari ini", type: "popular_daily" },
-    { id: "week", label: "Minggu ini", type: "popular_weekly" },
-    { id: "month", label: "Bulan ini", type: "popular_monthly" },
-  ];
-
-  useEffect(() => {
-    fetchPopularManga(activeFilter);
-  }, [activeFilter]);
-
-  const fetchPopularManga = async (filter) => {
+  const fetchPopularManga = useCallback(async (filter) => {
     try {
       setLoading(true);
       const filterConfig = filters.find((f) => f.id === filter);
@@ -58,7 +54,11 @@ const PopularSection = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPopularManga(activeFilter);
+  }, [activeFilter, fetchPopularManga]);
 
   const getTimeAgo = (timestamp) => {
     const now = Math.floor(Date.now() / 1000);
@@ -164,17 +164,15 @@ const PopularSection = () => {
                     <Flame className="h-5 w-5 text-red-500 filter drop-shadow-lg" />
                   </div>
                 )}
-
-                {/* Title Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <h3 className="text-white font-bold text-sm line-clamp-2 mb-1">
-                    {manga.title}
-                  </h3>
-                </div>
               </div>
 
               {/* Info Section */}
               <div className="p-3">
+                {/* Title */}
+                <h3 className="font-bold text-sm line-clamp-2 mb-2 text-gray-900 dark:text-gray-100">
+                  {manga.title}
+                </h3>
+                
                 <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                   <span className="font-medium">
                     Chapter {manga.lastChapters[0]?.number || "N/A"}

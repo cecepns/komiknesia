@@ -146,17 +146,15 @@ const UpdateSection = () => {
                     <span className="text-white text-xs font-bold">HOT</span>
                   </div>
                 )}
-                
-                {/* Title Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <h3 className="text-white font-bold text-sm line-clamp-2 mb-1">
-                    {manga.title}
-                  </h3>
-                </div>
               </div>
 
               {/* Info Section */}
               <div className="p-3">
+                {/* Title */}
+                <h3 className="font-bold text-sm line-clamp-2 mb-2 text-gray-900 dark:text-gray-100">
+                  {manga.title}
+                </h3>
+                
                 <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                   <span className="font-medium">
                     Chapter {manga.lastChapters[0]?.number || 'N/A'}
