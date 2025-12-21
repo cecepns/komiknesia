@@ -1541,42 +1541,82 @@ app.put('/api/chapters/:chapterId/images/reorder', authenticateToken, async (req
       return res.status(400).json({ error: 'Images array is required' });
     }
     
-    // Verify all images belong to this chapter
-    const imageIds = images.map(img => img.id);
-    const placeholders = imageIds.map(() => '?').join(',');
-    const [existingImages] = await db.execute(
-      `SELECT id FROM chapter_images WHERE id IN (${placeholders}) AND chapter_id = ?`,
-      [...imageIds, chapterId]
-    );
+    // Validate each image has required fields
+    for (const image of images) {
+      if (!image.id || image.page_number === undefined || image.page_number === null) {
+        return res.status(400).json({ error: 'Each image must have id and page_number' });
+      }
+    }
+    
+    // Verify all images belong to this chapter - use a safer approach
+    const imageIds = images.map(img => parseInt(img.id)).filter(id => !isNaN(id));
+    
+    if (imageIds.length === 0) {
+      return res.status(400).json({ error: 'No valid image IDs provided' });
+    }
+    
+    // Build query with proper placeholders - ensure we have valid placeholders
+    let existingImages;
+    
+    if (imageIds.length === 1) {
+      // Single ID case
+      [existingImages] = await db.execute(
+        'SELECT id FROM chapter_images WHERE id = ? AND chapter_id = ?',
+        [imageIds[0], parseInt(chapterId)]
+      );
+    } else {
+      // Multiple IDs case - build query with proper placeholders
+      const placeholders = imageIds.map(() => '?').join(',');
+      const query = `SELECT id FROM chapter_images WHERE id IN (${placeholders}) AND chapter_id = ?`;
+      const params = [...imageIds, parseInt(chapterId)];
+      
+      console.log('Verifying images query:', query);
+      console.log('Verifying images params:', params);
+      
+      [existingImages] = await db.execute(query, params);
+    }
     
     if (existingImages.length !== images.length) {
-      return res.status(400).json({ error: 'Some images do not belong to this chapter' });
+      return res.status(400).json({ 
+        error: 'Some images do not belong to this chapter',
+        expected: images.length,
+        found: existingImages.length
+      });
     }
     
-    // Update page_number for each image in a transaction
-    await db.beginTransaction();
+    // Update page_number for each image
+    // Note: Using individual updates instead of transaction for compatibility
+    const updatePromises = [];
     
-    try {
-      for (const image of images) {
-        if (!image.id || image.page_number === undefined) {
-          throw new Error('Each image must have id and page_number');
-        }
-        await db.execute(
-          'UPDATE chapter_images SET page_number = ? WHERE id = ? AND chapter_id = ?',
-          [image.page_number, image.id, chapterId]
-        );
+    for (const image of images) {
+      const imageId = parseInt(image.id);
+      const pageNumber = parseInt(image.page_number);
+      
+      if (isNaN(imageId) || isNaN(pageNumber)) {
+        return res.status(400).json({ 
+          error: 'Invalid image data',
+          details: `id=${image.id}, page_number=${image.page_number}`
+        });
       }
       
-      await db.commit();
-      
-      res.json({ message: 'Images reordered successfully' });
-    } catch (error) {
-      await db.rollback();
-      throw error;
+      updatePromises.push(
+        db.execute(
+          'UPDATE chapter_images SET page_number = ? WHERE id = ? AND chapter_id = ?',
+          [pageNumber, imageId, parseInt(chapterId)]
+        )
+      );
     }
+    
+    // Execute all updates
+    await Promise.all(updatePromises);
+    
+    res.json({ message: 'Images reordered successfully' });
   } catch (error) {
     console.error('Error reordering chapter images:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 });
 
