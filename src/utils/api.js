@@ -43,15 +43,21 @@ class APIClient {
     const isFormData = options.body instanceof FormData;
     const token = this.getAuthToken();
     
+    // Build headers: start with custom headers, then add Content-Type, then add Authorization (so it can't be overridden)
+    const headers = {
+      ...options.headers,
+      // Don't set Content-Type for FormData - browser will set it with boundary
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    };
+    
+    // Always add auth token if available (this will override any Authorization in options.headers)
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const config = {
-      headers: {
-        // Don't set Content-Type for FormData - browser will set it with boundary
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        // Add auth token if available
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
       ...options,
+      headers,
     };
 
     if (config.body && typeof config.body === 'object' && !isFormData) {
@@ -77,8 +83,14 @@ class APIClient {
       method: 'POST',
       body: { username, password },
     });
-    if (response.status && response.data && response.data.token) {
+    // Ensure token is saved after successful login
+    if (response && response.status && response.data && response.data.token) {
       this.setAuthToken(response.data.token);
+      // Verify token was saved
+      const savedToken = this.getAuthToken();
+      if (!savedToken || savedToken !== response.data.token) {
+        console.error('Failed to save auth token to localStorage');
+      }
     }
     return response;
   }

@@ -15,3 +15,4 @@ INSERT INTO contact_info (email, whatsapp, description, is_active)
 VALUES ('contact@komiknesia.com', '+6281234567890', 'Hubungi kami untuk pertanyaan, saran, atau dukungan.', TRUE);
 
 
+

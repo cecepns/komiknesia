@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import Header from '../components/Header';
+import AdBanner from '../components/AdBanner';
+import { useAds } from '../hooks/useAds';
 import { getImageUrl } from '../utils/api';
 import { API_BASE_URL } from '../utils/api';
 
@@ -28,6 +30,9 @@ const Content = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
+  
+  // Ads
+  const { ads: comicTopAds } = useAds('comic-top', 2);
   
   const [mangaList, setMangaList] = useState([]);
   const [genres, setGenres] = useState([]);
@@ -299,8 +304,13 @@ const Content = () => {
       {/* Main Navigation Header */}
       <Header />
       
+      {/* Ads Section - Top */}
+      <div className="container mx-auto px-4 pt-28 pb-2">
+        <AdBanner ads={comicTopAds} layout="grid" columns={2} className="gap-4" />
+      </div>
+      
       {/* Page Header */}
-      <div className="bg-white dark:bg-primary-900 shadow-md sticky top-16 z-40">
+      <div className="bg-white dark:bg-primary-900 shadow-md sticky top-20 z-40">
         <div className="container mx-auto px-4 py-6 md:py-10">
           <div className="flex items-center justify-between">
             <div className="flex-1">

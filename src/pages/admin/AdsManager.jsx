@@ -27,6 +27,7 @@ const AdsManager = () => {
     { value: 'popup', label: 'Popup' },
     { value: 'manga-detail-top', label: 'Manga Detail Top' },
     { value: 'manga-detail-bottom', label: 'Manga Detail Bottom' },
+    { value: 'comic-top', label: 'Comic Top' },
   ];
 
   useEffect(() => {

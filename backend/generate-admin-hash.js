@@ -11,3 +11,4 @@ console.log('Password:', password);
 console.log('Bcrypt Hash:', hash);
 console.log('\nCopy the hash above to the migration file.\n');
 
+
