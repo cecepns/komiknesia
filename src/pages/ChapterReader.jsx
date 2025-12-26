@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Home, 
@@ -201,9 +202,18 @@ const ChapterReader = () => {
   }
 
   const currentChapter = allChapters[currentChapterIndex];
+  const chapterNumber = currentChapter?.number || chapterData?.number;
+  const mangaTitle = mangaData?.title || chapterData?.title || 'KomikNesia';
+  const pageTitle = `${mangaTitle} - Chapter ${chapterNumber} | KomikNesia`;
+  const pageDescription = `Baca Chapter ${chapterNumber} dari ${mangaTitle} secara gratis di KomikNesia.`;
 
   return (
     <div ref={topRef} className="min-h-screen bg-primary-950 text-gray-100">
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <link rel="canonical" href={`https://komiknesia.net/view/${chapterSlug}`} />
+      </Helmet>
       {/* Fixed Header */}
       <header className="bg-primary-950 shadow-lg fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -478,6 +488,8 @@ const ChapterReader = () => {
 };
 
 export default ChapterReader;
+
+
 
 
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Mail, MessageCircle, FileText, Loader2 } from 'lucide-react';
 import { apiClient } from '../utils/api';
 
@@ -56,6 +57,10 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-primary-950 py-12 px-4 sm:px-6 lg:px-8">
+      <Helmet>
+        <title>Hubungi Kami | KomikNesia</title>
+        <meta name="description" content="Hubungi tim KomikNesia melalui email atau WhatsApp. Kami siap membantu menjawab pertanyaan dan mendengarkan saran Anda." />
+      </Helmet>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -165,6 +170,7 @@ const Contact = () => {
 };
 
 export default Contact;
+
 
 
 

@@ -1,10 +1,16 @@
 import PropTypes from 'prop-types';
+import { Helmet } from 'react-helmet-async';
 import comingSoonImage from '../assets/coming-soon.png';
 import Header from '../components/Header';
 
 const ComingSoon = ({ title = "Coming Soon" }) => {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <Helmet>
+        <title>{title} | KomikNesia</title>
+        <meta name="description" content={`Fitur ${title} sedang dalam pengembangan. Mohon tunggu update terbaru dari KomikNesia.`} />
+      </Helmet>
+      
       {/* Header */}
       <Header />
       

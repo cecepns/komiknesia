@@ -1,7 +1,9 @@
 // export const API_BASE_URL = 'http://localhost:5000/api';
 // const API_BASE_URL_WITHOUT_API = 'http://localhost:5000';
-export const API_BASE_URL = 'https://api-inventory.isavralabel.com/komiknesia/api';
-export const API_BASE_URL_WITHOUT_API = 'https://api-inventory.isavralabel.com/komiknesia';
+// export const API_BASE_URL = 'https://api-inventory.isavralabel.com/komiknesia/api';
+// export const API_BASE_URL_WITHOUT_API = 'https://api-inventory.isavralabel.com/komiknesia';
+export const API_BASE_URL = 'https://api.komiknesia.net/api';
+export const API_BASE_URL_WITHOUT_API = 'https://api.komiknesia.net';
 
 /**
  * Get full image URL with endpoint prefix if the path is relative
@@ -260,12 +262,20 @@ class APIClient {
   // Helper function for SSE streaming
   _handleSSEStream = (url, body, onProgress) => {
     return new Promise((resolve, reject) => {
+      const token = this.getAuthToken();
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      };
+      
+      // Add auth token if available
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-        },
+        headers,
         body: JSON.stringify(body),
       })
         .then(async (response) => {
@@ -408,6 +418,13 @@ class APIClient {
       });
     }
   };
+
+  // Sync a single manga from WestManga to database by slug
+  syncMangaBySlug(slug) {
+    return this.request(`/westmanga/sync-manga/${encodeURIComponent(slug)}`, {
+      method: 'POST',
+    });
+  }
 
   // Sync chapters for a specific manga by slug (WestManga only)
   syncChaptersBySlug(slug) {

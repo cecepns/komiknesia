@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { X, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import Header from '../components/Header';
@@ -32,7 +33,7 @@ const Content = () => {
   const searchQuery = searchParams.get('q') || '';
   
   // Ads
-  const { ads: comicTopAds } = useAds('comic-top', 2);
+  const { ads: comicTopAds } = useAds('comic-top', 10);
   
   const [mangaList, setMangaList] = useState([]);
   const [genres, setGenres] = useState([]);
@@ -312,6 +313,11 @@ const Content = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-primary-950">
+      <Helmet>
+        <title>{searchQuery ? `Hasil Pencarian: "${searchQuery}" | KomikNesia` : 'Daftar Komik | KomikNesia'}</title>
+        <meta name="description" content={searchQuery ? `Hasil pencarian untuk "${searchQuery}" di KomikNesia. Temukan komik, manga, manhwa, dan manhua favoritmu.` : 'Jelajahi koleksi lengkap komik, manga, manhwa, dan manhua di KomikNesia. Filter berdasarkan genre, status, dan tipe komik.'} />
+      </Helmet>
+      
       {/* Main Navigation Header */}
       <Header />
       
@@ -739,10 +745,10 @@ const Content = () => {
                         {/* Color Badge */}
                         {manga.color && (
                           <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-md text-xs font-bold flex items-center space-x-1">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            {/* <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z"/>
-                            </svg>
-                            <span>COLOR</span>
+                            </svg> */}
+                            <span className="block text-[10px] md:text-sm">COLOR</span>
                           </div>
                         )}
                         

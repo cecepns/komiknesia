@@ -47,19 +47,26 @@ class WestMangaService {
   }
 
   /**
-   * Get manga detail by slug
+   * Get manga detail by slug (uses /comic/{slug} which returns full manga data with chapters)
    * @param {string} slug - Manga slug
    * @returns {Promise} API response
    */
   async getMangaDetail(slug) {
     try {
-      const response = await this.axiosInstance.get(`/contents/${slug}`);
+      const encodedSlug = encodeURIComponent(slug);
+      // Use /comic/{slug} endpoint which returns full manga data (same as getMangaChapters)
+      const response = await this.axiosInstance.get(`/comic/${encodedSlug}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching manga detail for ${slug}:`, error.message);
+      if (error.response) {
+        console.error(`WestManga API response status: ${error.response.status}`);
+        console.error(`WestManga API response data:`, error.response.data);
+      }
       throw error;
     }
   }
+
 
   /**
    * Get chapter detail by slug
@@ -212,6 +219,8 @@ class WestMangaService {
 // Export singleton instance
 const westMangaService = new WestMangaService();
 module.exports = westMangaService;
+
+
 
 
 

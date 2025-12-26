@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Clock, Bookmark, History, LogIn } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import comingSoonImage from '../assets/coming-soon.png';
@@ -108,6 +109,10 @@ const Library = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <Helmet>
+        <title>Library | KomikNesia</title>
+        <meta name="description" content="Lihat rekomendasi komik, bookmark, dan riwayat baca kamu di KomikNesia. Kelola koleksi komik favoritmu dengan mudah." />
+      </Helmet>
       {/* Library Top Ads - 6 ads */}
       {libraryTopAds.length > 0 && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 mb-6">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import { Star, ChevronLeft, ChevronRight } from "lucide-react";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
@@ -29,10 +30,10 @@ const Home = () => {
   };
 
   // Fetch ads by type
-  const { ads: homeTopAds } = useAds("home-top", 6);
-  const { ads: newUpdateAds } = useAds("new-update", 4);
-  const { ads: populerAds } = useAds("populer", 4);
-  const { ads: homeFooterAds } = useAds("home-footer", 2);
+  const { ads: homeTopAds } = useAds("home-top", 10);
+  const { ads: newUpdateAds } = useAds("new-update", 10);
+  const { ads: populerAds } = useAds("populer", 10);
+  const { ads: homeFooterAds } = useAds("home-footer", 10);
 
   useEffect(() => {
     AOS.init({
@@ -68,6 +69,10 @@ const Home = () => {
 
   return (
     <div className="pt-5 md:pt-20 pb-4">
+      <Helmet>
+        <title>KomikNesia | Baca Komik, Manga, Manhwa, dan Manhua Bahasa Indonesia</title>
+        <meta name="description" content="KomikNesia adalah tempat baca komik online terlengkap mulai dari Manhwa, Manhua, dan Manga bisa kamu baca online gratis khusus bahasa Indonesia. Genre komik yang tersedia adalah Romance, Fantasy, Isekai, Action, dan genre lainnya." />
+      </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Home Top Ads - 6 ads */}
         {homeTopAds.length > 0 && (

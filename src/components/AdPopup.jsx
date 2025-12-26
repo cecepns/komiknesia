@@ -34,11 +34,11 @@ const AdPopup = () => {
     // If no last closed time, don't start timer yet
     if (lastClosedTime === null) return;
 
-    // Check every second if 5 minutes have passed
+    // Check every second if 10 minutes have passed
     const interval = setInterval(() => {
       const now = Date.now();
       const timeSinceClosed = now - lastClosedTime;
-      const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+      const fiveMinutes = 10 * 60 * 1000; // 10 minutes in milliseconds
 
       if (timeSinceClosed >= fiveMinutes) {
         setIsOpen(true);

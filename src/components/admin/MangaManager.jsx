@@ -403,40 +403,64 @@ const MangaManager = () => {
 
     setSearching(true);
     try {
-      const results = await apiClient.searchManga(searchQuery);
-      setSearchResults(results);
+      // Use /contents API so the result is consistent with Content page
+      const response = await apiClient.getContents({
+        q: searchQuery.trim(),
+        page: 1,
+        per_page: 40,
+        project: 'false'
+      });
+
+      if (response?.status && Array.isArray(response.data)) {
+        setSearchResults(response.data);
+      } else {
+        setSearchResults([]);
+      }
     } catch (error) {
       console.error("Error searching manga:", error);
-      setSearchResults({
-        local: [],
-        westmanga: [],
-        total: 0,
-        error: error.message,
-      });
+      setSearchResults([]);
     } finally {
       setSearching(false);
     }
   };
 
-  const handleImportFromSearch = async (mangaData, source) => {
+  const handleImportFromSearch = async (mangaData) => {
+    if (!confirm(`Apakah Anda yakin ingin mengimport "${mangaData.title}" ke database?`)) {
+      return;
+    }
+
     try {
-      if (source === "westmanga") {
-        // Import from WestManga - we need to sync it
-        await apiClient.syncWestManga(1, 1);
-        // After sync, the manga should be available
-        await fetchManga();
-        setSearchResults(null);
-        setSearchQuery("");
-        alert(
-          "Manga berhasil diimport! Silakan refresh halaman untuk melihat."
-        );
-      } else {
-        // Local manga - already in database
-        alert("Manga ini sudah ada di database.");
+      // Import manga spesifik dari WestManga menggunakan slug
+      if (!mangaData.slug) {
+        alert("Error: Slug manga tidak ditemukan");
+        return;
       }
+
+      console.log("Importing manga:", mangaData.slug, mangaData.title);
+      const result = await apiClient.syncMangaBySlug(mangaData.slug);
+      console.log("Import result:", result);
+      
+      // Refresh manga list first to update state
+      await fetchManga();
+      
+      // Then refresh search results to update status
+      if (searchQuery.trim()) {
+        const response = await apiClient.getContents({
+          q: searchQuery.trim(),
+          page: 1,
+          per_page: 40,
+          project: 'false'
+        });
+        if (response?.status && Array.isArray(response.data)) {
+          setSearchResults(response.data);
+        }
+      }
+      
+      alert("Manga berhasil diimport ke database!");
     } catch (error) {
       console.error("Error importing manga:", error);
-      alert("Gagal mengimport manga: " + error.message);
+      const errorMessage = error.response?.data?.message || error.message || "Terjadi kesalahan";
+      alert("Gagal mengimport manga: " + errorMessage);
     }
   };
 
@@ -1499,11 +1523,11 @@ const MangaManager = () => {
       )}
 
       {/* Search Results */}
-      {searchResults && (
+      {Array.isArray(searchResults) && searchResults.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Hasil Pencarian ({searchResults.total || 0} hasil)
+              Hasil Pencarian ({searchResults.length} hasil)
             </h4>
             <button
               onClick={() => {
@@ -1516,114 +1540,83 @@ const MangaManager = () => {
             </button>
           </div>
 
-          {searchResults.error ? (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <p className="text-red-800 dark:text-red-200">
-                {searchResults.error}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {searchResults.westmanga &&
-                searchResults.westmanga.length > 0 && (
-                  <div>
-                    <h5 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Dari WestManga API ({searchResults.westmanga.length})
-                    </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {searchResults.westmanga.map((item) => (
-                        <div
-                          key={item.id || item.slug}
-                          className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
-                        >
-                          <div className="aspect-[3/4] relative overflow-hidden rounded-lg mb-2">
-                            <LazyImage
-                              src={
-                                getImageUrl(item.cover) ||
-                                getImageUrl(item.thumbnail) ||
-                                "https://images.pexels.com/photos/1591447/pexels-photo-1591447.jpeg?auto=compress&cs=tinysrgb&w=400"
-                              }
-                              alt={item.title}
-                              className="w-full h-full object-cover"
-                              wrapperClassName="w-full h-full"
-                            />
-                          </div>
-                          <h6 className="font-medium text-gray-900 dark:text-gray-100 mb-1 line-clamp-1 text-sm">
-                            {item.title}
-                          </h6>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
-                            {item.author || "Unknown"}
-                          </p>
-                          <button
-                            onClick={() =>
-                              handleImportFromSearch(item, "westmanga")
-                            }
-                            className="w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
-                          >
-                            Import ke Database
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {searchResults.map((item) => {
+              // Check if manga exists in local database
+              // Manga is in local DB if:
+              // 1. It has is_input_manual = true (manual input)
+              // 2. It exists in our current manga list (already synced from WestManga)
+              //    - Match by slug (most reliable)
+              //    - Match by westmanga_id (item.id from search is westmanga_id)
+              //    - Match by database id (less common, but possible)
+              const existsInLocal = item.is_input_manual === true || 
+                manga.some(m => {
+                  // Match by slug (most reliable)
+                  if (m.slug === item.slug) return true;
+                  // Match by westmanga_id (item.id from search results is westmanga_id)
+                  if (m.westmanga_id && m.westmanga_id === item.id) return true;
+                  // Match by database id (fallback)
+                  if (m.id && m.id === item.id) return true;
+                  return false;
+                });
 
-              {searchResults.local && searchResults.local.length > 0 && (
-                <div>
-                  <h5 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Dari Database Lokal ({searchResults.local.length})
-                  </h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {searchResults.local.map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
+              return (
+                <div
+                  key={item.id || item.slug}
+                  className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
+                >
+                  <div className="aspect-[3/4] relative overflow-hidden rounded-lg mb-2">
+                    <LazyImage
+                      src={
+                        getImageUrl(item.cover) ||
+                        getImageUrl(item.thumbnail) ||
+                        "https://images.pexels.com/photos/1591447/pexels-photo-1591447.jpeg?auto=compress&cs=tinysrgb&w=400"
+                      }
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      wrapperClassName="w-full h-full"
+                    />
+                  </div>
+                  <h6 className="font-medium text-gray-900 dark:text-gray-100 mb-1 line-clamp-1 text-sm">
+                    {item.title}
+                  </h6>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
+                    {item.author || "Unknown"}
+                  </p>
+                  {existsInLocal ? (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          item.is_input_manual
+                            ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+                            : "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+                        }`}
                       >
-                        <div className="aspect-[3/4] relative overflow-hidden rounded-lg mb-2">
-                          <LazyImage
-                            src={
-                              getImageUrl(item.thumbnail) ||
-                              "https://images.pexels.com/photos/1591447/pexels-photo-1591447.jpeg?auto=compress&cs=tinysrgb&w=400"
-                            }
-                            alt={item.title}
-                            className="w-full h-full object-cover"
-                            wrapperClassName="w-full h-full"
-                          />
-                        </div>
-                        <h6 className="font-medium text-gray-900 dark:text-gray-100 mb-1 line-clamp-1 text-sm">
-                          {item.title}
-                        </h6>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
-                          {item.author || "Unknown"}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs px-2 py-1 rounded ${
-                              item.is_input_manual
-                                ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-                                : "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
-                            }`}
-                          >
-                            {item.is_input_manual ? "Manual" : "API"}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        {item.is_input_manual ? "Manual" : "API"}
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleImportFromSearch(item)}
+                      className="w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                    >
+                      Import ke Database
+                    </button>
+                  )}
                 </div>
-              )}
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-              {(!searchResults.westmanga ||
-                searchResults.westmanga.length === 0) &&
-                (!searchResults.local || searchResults.local.length === 0) && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Tidak ada hasil ditemukan
-                    </p>
-                  </div>
-                )}
-            </div>
-          )}
+      {Array.isArray(searchResults) && searchResults.length === 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="text-center py-8">
+            <p className="text-gray-500 dark:text-gray-400">
+              Tidak ada hasil ditemukan
+            </p>
+          </div>
         </div>
       )}
 

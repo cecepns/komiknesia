@@ -28,7 +28,7 @@ const dbConfig = {
   host: 'localhost',
   user: 'root',
   password: '',
-  database: 'komiknesia'
+  database: 'komiknesia',
 };
 
 let db;
@@ -36,7 +36,7 @@ let db;
 // Initialize database connection and start server
 (async function initDatabase() {
   try {
-    db = await mysql.createConnection(dbConfig);
+    db = await mysql.createPool(dbConfig);
     console.log('Connected to MySQL database');
     
     // Start server after database connection
@@ -362,6 +362,9 @@ async function fetchLocalManga(filters) {
         author: manga.author || 'Unknown',
         sinopsis: manga.synopsis || null,
         cover: coverUrl,
+        // Keep thumbnail and is_input_manual for admin tools (e.g. MangaManager search)
+        thumbnail: manga.thumbnail || coverUrl,
+        is_input_manual: true,
         content_type: manga.content_type || 'comic',
         country_id: manga.country_id || null,
         color: manga.color ? true : false,
@@ -422,6 +425,7 @@ app.get('/api/contents', async (req, res) => {
     let externalManga = [];
     let localManga = [];
     let externalPaginator = null;
+    const externalPerPage = 100; // Use reasonable per_page for external API
 
     // Fetch local manga first to know how many we have
     try {
@@ -441,11 +445,57 @@ app.get('/api/contents', async (req, res) => {
     try {
       // Fetch from external API - we need to fetch enough data to cover the requested page after merge
       // Strategy: fetch multiple pages from external API to ensure we have enough data
-      // Calculate how many pages we need: (pageNum * perPage) / externalPerPage + buffer
-      // Since local manga appears first, we need more external data
-      const externalPerPage = 100; // Use reasonable per_page for external API
-      const pagesNeeded = Math.ceil((pageNum * perPage + localManga.length + (perPage * 2)) / externalPerPage);
-      const pagesToFetch = Math.min(pagesNeeded, 20); // Fetch up to 20 pages (2000 items max)
+      const offset = (pageNum - 1) * perPage;
+      
+      // Calculate minimum items needed for the requested page
+      const itemsNeeded = offset + perPage;
+      
+      // For 'Update' order, we merge and sort all data, so positions can change significantly
+      // For other orders, local appears first, so external data starts after local
+      // We need a large buffer because:
+      // 1. After merge and sort, positions change (especially for 'Update' order)
+      // 2. Local manga might be inserted at various positions
+      // 3. Duplicates are removed, reducing total count
+      // 4. We need to ensure we have enough data even if sorting changes positions
+      
+      // Calculate buffer more aggressively:
+      // - For Update order: need more buffer because sorting can change positions drastically
+      // - For other orders: local appears first, so we need buffer for external data after local
+      // For higher pages, we need proportionally more buffer because:
+      // 1. After merge and sort, positions can shift significantly
+      // 2. Local manga might be inserted at various positions
+      // 3. We need to ensure we have enough data even after deduplication
+      
+      // Dynamic buffer multiplier based on page number and order type
+      // Higher pages need more buffer because positions change more after merge
+      // For 'Update' order, we need even more buffer because all data is merged and sorted together
+      const baseBufferMultiplier = orderBy === 'Update' ? 12 : 8;
+      const pageBasedMultiplier = Math.max(1, Math.floor(pageNum / 2)); // Increase multiplier for higher pages
+      const bufferMultiplier = baseBufferMultiplier + pageBasedMultiplier;
+      
+      const baseBuffer = perPage * bufferMultiplier;
+      const localBuffer = localManga.length * 4; // Account for local manga taking positions
+      const buffer = Math.max(baseBuffer, localBuffer + perPage * 3);
+      
+      const totalItemsNeeded = itemsNeeded + buffer;
+      const pagesNeeded = Math.ceil(totalItemsNeeded / externalPerPage);
+      
+      // For higher page numbers, we need to fetch proportionally more pages
+      // Calculate minimum pages needed based on page number (more aggressive for higher pages)
+      // For 'Update' order, we need even more because positions change drastically after merge and sort
+      const orderMultiplier = orderBy === 'Update' ? 1.5 : 1.0;
+      const minPagesForOffset = Math.ceil((offset * orderMultiplier) / externalPerPage);
+      const minPagesForPage = Math.ceil((pageNum * perPage * orderMultiplier) / externalPerPage);
+      // Fetch at least enough to cover the page + generous buffer
+      // For higher pages, add more buffer pages
+      const bufferPages = Math.max(5, Math.floor(pageNum / 1.5));
+      const minPagesToFetch = Math.max(minPagesForOffset, minPagesForPage) + bufferPages;
+      const pagesToFetch = Math.max(minPagesToFetch, Math.min(pagesNeeded, 200)); // Increased max to 200 pages
+      
+      // Log for debugging
+      if (pageNum >= 3) {
+        console.log(`[DEBUG] Page ${pageNum}: offset=${offset}, itemsNeeded=${itemsNeeded}, buffer=${buffer}, totalItemsNeeded=${totalItemsNeeded}, pagesToFetch=${pagesToFetch}, localManga=${localManga.length}`);
+      }
       
       // Fetch multiple pages in parallel
       const fetchPromises = [];
@@ -582,6 +632,175 @@ app.get('/api/contents', async (req, res) => {
 
     // Apply pagination after merge
     const offset = (pageNum - 1) * perPage;
+    
+    // Check if we have enough data after merge
+    // If not, we need to fetch more data
+    if (mergedManga.length < offset + perPage && externalPaginator) {
+      // We don't have enough data in mergedManga to fill the requested page
+      // This can happen if:
+      // 1. We didn't fetch enough external data
+      // 2. After merge and sort, positions changed significantly
+      // 3. Many duplicates were removed
+      
+      console.log(`[DEBUG] Not enough data for page ${pageNum}: mergedManga.length=${mergedManga.length}, offset=${offset}, perPage=${perPage}, need=${offset + perPage}`);
+      
+      // Calculate how many more items we need
+      const itemsShort = (offset + perPage) - mergedManga.length;
+      // Add generous buffer because after merge and sort, we might need even more
+      const bufferMultiplier = Math.max(3, Math.floor(pageNum / 2));
+      const additionalPagesNeeded = Math.ceil((itemsShort * bufferMultiplier) / externalPerPage) + 3;
+      const currentMaxPage = Math.ceil(externalManga.length / externalPerPage);
+      const nextPageToFetch = currentMaxPage + 1;
+      // Increase limit for additional fetches, especially for higher pages
+      const maxAdditionalPages = Math.min(additionalPagesNeeded, 50); // Increased from 20 to 50
+      
+      console.log(`[DEBUG] Fetching additional data: itemsShort=${itemsShort}, additionalPagesNeeded=${additionalPagesNeeded}, nextPageToFetch=${nextPageToFetch}, maxAdditionalPages=${maxAdditionalPages}`);
+      
+      // Try to fetch more data if we're still within reasonable limits
+      // Increase max page limit for higher page numbers
+      const maxPageLimit = Math.max(200, pageNum * 3); // Increased limit and multiplier
+      if (nextPageToFetch <= maxPageLimit && maxAdditionalPages > 0) {
+        try {
+          const additionalFetchPromises = [];
+          for (let i = nextPageToFetch; i < nextPageToFetch + maxAdditionalPages; i++) {
+            const externalParams = {
+              page: i,
+              per_page: externalPerPage,
+              ...(q && { q }),
+              ...(genreArray.length > 0 && { genre: genreArray }),
+              ...(status && status !== 'All' && { status }),
+              ...(country && { country }),
+              ...(type && { type }),
+              ...(orderBy && orderBy !== 'Update' && { orderBy }),
+              ...(project === 'true' && { project })
+            };
+            additionalFetchPromises.push(westMangaService.getMangaList(externalParams));
+          }
+          
+          const additionalResponses = await Promise.all(additionalFetchPromises);
+          
+          // Add additional external manga
+          for (const response of additionalResponses) {
+            if (response.status && response.data && Array.isArray(response.data)) {
+              externalManga.push(...response.data);
+            }
+          }
+          
+          // Re-merge and re-sort with additional data
+          const additionalMangaMap = new Map();
+          externalManga.forEach(manga => {
+            if (manga.slug) {
+              additionalMangaMap.set(manga.slug, { ...manga, is_local: false });
+            }
+          });
+          localManga.forEach(manga => {
+            if (manga.slug) {
+              additionalMangaMap.set(manga.slug, { ...manga, is_local: true });
+            }
+          });
+          
+          const allMangaAdditional = Array.from(additionalMangaMap.values());
+          const localMangaListAdditional = allMangaAdditional.filter(m => m.is_local === true);
+          const externalMangaListAdditional = allMangaAdditional.filter(m => m.is_local === false);
+          
+          if (orderBy === 'Update') {
+            mergedManga = [...localMangaListAdditional, ...externalMangaListAdditional];
+            sortManga(mergedManga);
+          } else {
+            sortManga(localMangaListAdditional);
+            sortManga(externalMangaListAdditional);
+            mergedManga = [...localMangaListAdditional, ...externalMangaListAdditional];
+          }
+          
+          // Remove is_local flag
+          mergedManga = mergedManga.map(manga => {
+            const mangaCopy = { ...manga };
+            delete mangaCopy.is_local;
+            return mangaCopy;
+          });
+          
+          console.log(`[DEBUG] After additional fetch: mergedManga.length=${mergedManga.length}, need=${offset + perPage}`);
+          
+          // If still not enough, try one more time with even more data
+          if (mergedManga.length < offset + perPage && nextPageToFetch + maxAdditionalPages <= maxPageLimit) {
+            const stillShort = (offset + perPage) - mergedManga.length;
+            const secondAdditionalPages = Math.ceil((stillShort * 2) / externalPerPage) + 5;
+            const secondNextPage = nextPageToFetch + maxAdditionalPages;
+            const secondMaxPages = Math.min(secondAdditionalPages, 30);
+            
+            if (secondNextPage <= maxPageLimit && secondMaxPages > 0) {
+              console.log(`[DEBUG] Fetching second batch: stillShort=${stillShort}, secondMaxPages=${secondMaxPages}`);
+              try {
+                const secondFetchPromises = [];
+                for (let i = secondNextPage; i < secondNextPage + secondMaxPages; i++) {
+                  const externalParams = {
+                    page: i,
+                    per_page: externalPerPage,
+                    ...(q && { q }),
+                    ...(genreArray.length > 0 && { genre: genreArray }),
+                    ...(status && status !== 'All' && { status }),
+                    ...(country && { country }),
+                    ...(type && { type }),
+                    ...(orderBy && orderBy !== 'Update' && { orderBy }),
+                    ...(project === 'true' && { project })
+                  };
+                  secondFetchPromises.push(westMangaService.getMangaList(externalParams));
+                }
+                
+                const secondResponses = await Promise.all(secondFetchPromises);
+                for (const response of secondResponses) {
+                  if (response.status && response.data && Array.isArray(response.data)) {
+                    externalManga.push(...response.data);
+                  }
+                }
+                
+                // Re-merge again
+                const finalMangaMap = new Map();
+                externalManga.forEach(manga => {
+                  if (manga.slug) {
+                    finalMangaMap.set(manga.slug, { ...manga, is_local: false });
+                  }
+                });
+                localManga.forEach(manga => {
+                  if (manga.slug) {
+                    finalMangaMap.set(manga.slug, { ...manga, is_local: true });
+                  }
+                });
+                
+                const allMangaFinal = Array.from(finalMangaMap.values());
+                const localMangaListFinal = allMangaFinal.filter(m => m.is_local === true);
+                const externalMangaListFinal = allMangaFinal.filter(m => m.is_local === false);
+                
+                if (orderBy === 'Update') {
+                  mergedManga = [...localMangaListFinal, ...externalMangaListFinal];
+                  sortManga(mergedManga);
+                } else {
+                  sortManga(localMangaListFinal);
+                  sortManga(externalMangaListFinal);
+                  mergedManga = [...localMangaListFinal, ...externalMangaListFinal];
+                }
+                
+                mergedManga = mergedManga.map(manga => {
+                  const mangaCopy = { ...manga };
+                  delete mangaCopy.is_local;
+                  return mangaCopy;
+                });
+                
+                console.log(`[DEBUG] After second fetch: mergedManga.length=${mergedManga.length}, need=${offset + perPage}`);
+              } catch (secondError) {
+                console.warn('Error fetching second batch:', secondError.message);
+              }
+            }
+          }
+        } catch (additionalError) {
+          console.warn('Error fetching additional data:', additionalError.message);
+          // Continue with what we have
+        }
+      } else {
+        console.log(`[DEBUG] Cannot fetch additional data: nextPageToFetch=${nextPageToFetch}, maxPageLimit=${maxPageLimit}, maxAdditionalPages=${maxAdditionalPages}`);
+      }
+    }
+    
     const paginatedManga = mergedManga.slice(offset, offset + perPage);
 
     // Calculate total: external total + local total (local takes priority if duplicate)
@@ -1739,7 +1958,7 @@ app.get('/api/featured-items', async (req, res) => {
 
 app.post('/api/featured-items', authenticateToken, async (req, res) => {
   try {
-    let { manga_id, featured_type, display_order, is_active = true, westmanga_id } = req.body;
+    let { manga_id, featured_type, display_order, is_active = true, westmanga_id, slug } = req.body;
     
     // Handle display_order: null or undefined becomes 0
     if (display_order === null || display_order === undefined) {
@@ -1757,17 +1976,113 @@ app.post('/api/featured-items', authenticateToken, async (req, res) => {
     if (mangaCheck.length === 0 && westmanga_id) {
       [mangaCheck] = await db.execute('SELECT id FROM manga WHERE westmanga_id = ?', [westmanga_id]);
       
-      // If still not found, return error
-      if (mangaCheck.length === 0) {
-        return res.status(404).json({ 
-          error: 'Manga not found. Please sync the manga from WestManga first.' 
+      // If found, use the local manga id
+      if (mangaCheck.length > 0) {
+        manga_id = mangaCheck[0].id;
+      }
+    }
+    
+    // If manga still not found and slug is provided, try to sync from WestManga
+    if (mangaCheck.length === 0 && slug) {
+      try {
+        console.log(`Manga not found in database, attempting to sync from WestManga using slug: ${slug}`);
+        
+        // Use the existing sync-manga endpoint logic to sync the manga
+        const mangaDetail = await westMangaService.getMangaDetail(slug);
+        
+        if (mangaDetail.status && mangaDetail.data) {
+          const mangaData = mangaDetail.data;
+          
+          // Sync genres to categories table if needed
+          if (mangaData.genres && Array.isArray(mangaData.genres)) {
+            for (const genre of mangaData.genres) {
+              const [existing] = await db.execute(
+                'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) OR LOWER(slug) = LOWER(?)',
+                [genre.name, genre.slug]
+              );
+              
+              if (existing.length === 0) {
+                await db.execute(
+                  'INSERT INTO categories (name, slug) VALUES (?, ?)',
+                  [genre.name, genre.slug]
+                );
+              }
+            }
+          }
+          
+          // Transform and insert manga
+          const transformed = westMangaService.transformMangaData(mangaData);
+          
+          // Check if manga exists by westmanga_id or slug before inserting
+          const [existingByWestmangaId] = await db.execute(
+            'SELECT id FROM manga WHERE westmanga_id = ? OR slug = ?',
+            [transformed.westmanga_id, transformed.slug]
+          );
+          
+          if (existingByWestmangaId.length > 0) {
+            // Manga already exists, use existing id
+            manga_id = existingByWestmangaId[0].id;
+            mangaCheck = existingByWestmangaId; // Update mangaCheck to indicate manga found
+            console.log(`Manga already exists with id: ${manga_id}`);
+          } else {
+            // Insert new manga
+            const [result] = await db.execute(`
+              INSERT INTO manga (
+                westmanga_id, title, slug, alternative_name, author,
+                synopsis, thumbnail, content_type, country_id,
+                color, hot, is_project, is_safe, rating,
+                bookmark_count, views, \`release\`, status, is_input_manual
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+              transformed.westmanga_id, transformed.title, transformed.slug,
+              transformed.alternative_name, transformed.author, transformed.synopsis,
+              transformed.thumbnail, transformed.content_type, transformed.country_id,
+              transformed.color, transformed.hot, transformed.is_project,
+              transformed.is_safe, transformed.rating, transformed.bookmark_count,
+              transformed.views, transformed.release, transformed.status,
+              transformed.is_input_manual
+            ]);
+            
+            manga_id = result.insertId;
+            mangaCheck = [{ id: manga_id }]; // Update mangaCheck to indicate manga found
+            console.log(`Manga synced and inserted with id: ${manga_id}`);
+            
+            // Sync genres
+            if (mangaData.genres && Array.isArray(mangaData.genres) && mangaData.genres.length > 0) {
+              for (const genre of mangaData.genres) {
+                const [category] = await db.execute(
+                  'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) OR LOWER(slug) = LOWER(?)',
+                  [genre.name, genre.slug]
+                );
+                
+                if (category.length > 0) {
+                  await db.execute(`
+                    INSERT IGNORE INTO manga_genres (manga_id, category_id)
+                    VALUES (?, ?)
+                  `, [manga_id, category[0].id]);
+                }
+              }
+            }
+          }
+        } else {
+          return res.status(404).json({ 
+            error: 'Manga not found',
+            message: `Tidak dapat menemukan manga dengan slug "${slug}" di WestManga API.` 
+          });
+        }
+      } catch (syncError) {
+        console.error('Error syncing manga from WestManga:', syncError);
+        return res.status(500).json({ 
+          error: 'Failed to sync manga',
+          message: `Gagal mensinkronkan manga dari WestManga: ${syncError.message || 'Unknown error'}` 
         });
       }
-      
-      // Use the local manga id found by westmanga_id
-      manga_id = mangaCheck[0].id;
     } else if (mangaCheck.length === 0) {
-      return res.status(404).json({ error: 'Manga not found' });
+      // Manga not found and no slug provided for syncing
+      return res.status(404).json({ 
+        error: 'Manga not found',
+        message: 'Manga tidak ditemukan di database. Jika manga dari WestManga, pastikan slug dikirim untuk auto-sync.' 
+      });
     }
     
     // Check if combination already exists (unique constraint)
@@ -2660,6 +2975,194 @@ app.post('/api/westmanga/sync-manga-only', authenticateToken, async (req, res) =
   }
 });
 
+// Sync a single manga from WestManga to database by slug
+app.post('/api/westmanga/sync-manga/:slug', authenticateToken, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const decodedSlug = decodeURIComponent(slug);
+    
+    // Check if manga exists in our database to get the correct WestManga slug
+    const [existingManga] = await db.execute(
+      'SELECT id, slug, westmanga_id, title FROM manga WHERE slug = ?',
+      [decodedSlug]
+    );
+    
+    // Use the slug from our DB if it exists (it should be the WestManga slug)
+    // Otherwise use the provided slug
+    const westMangaSlug = existingManga.length > 0 ? existingManga[0].slug : decodedSlug;
+    
+    // Use /comic/{slug} endpoint to get manga data
+    // This endpoint returns full manga data (same format as search results) plus chapters
+    // According to WestManga API: /api/comic/{slug} returns manga detail with chapters
+    let mangaData = null;
+    
+    try {
+      const mangaDetail = await westMangaService.getMangaDetail(westMangaSlug);
+      if (mangaDetail.status && mangaDetail.data) {
+        mangaData = mangaDetail.data;
+        console.log(`Found manga "${mangaData.title}" from comic endpoint`);
+      }
+    } catch (westError) {
+        const statusCode = westError.response?.status || 500;
+        const errorMessage = statusCode === 404
+          ? `Manga dengan slug "${westMangaSlug}" tidak ditemukan di WestManga API. Pastikan slug yang digunakan adalah slug dari WestManga.`
+          : `Gagal mengambil data manga dari WestManga: ${westError.message || 'Unknown error'}`;
+        
+        console.error(`Error fetching manga from WestManga for slug "${westMangaSlug}":`, {
+          message: westError.message,
+          status: statusCode,
+          response: westError.response?.data
+        });
+        
+        return res.status(statusCode).json({ 
+          error: 'Failed to fetch manga',
+          message: errorMessage,
+          details: {
+            attemptedSlug: westMangaSlug,
+            originalSlug: decodedSlug,
+            statusCode: statusCode,
+            suggestion: statusCode === 404 
+              ? 'Pastikan slug yang digunakan adalah slug dari WestManga. Jika manga belum pernah di-sync, gunakan fitur bulk sync terlebih dahulu, atau pastikan slug sesuai dengan format WestManga.'
+              : 'Periksa koneksi internet atau status API WestManga.'
+          }
+        });
+    }
+    
+    if (!mangaData) {
+      return res.status(404).json({ 
+        error: 'Manga not found',
+        message: `Data manga tidak ditemukan dari WestManga API untuk slug "${westMangaSlug}"`,
+        details: {
+          attemptedSlug: westMangaSlug,
+          originalSlug: decodedSlug
+        }
+      });
+    }
+    
+    // First, sync genres to categories table if needed
+    if (mangaData.genres && Array.isArray(mangaData.genres)) {
+      for (const genre of mangaData.genres) {
+        const [existing] = await db.execute(
+          'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) OR LOWER(slug) = LOWER(?)',
+          [genre.name, genre.slug]
+        );
+        
+        if (existing.length === 0) {
+          await db.execute(
+            'INSERT INTO categories (name, slug) VALUES (?, ?)',
+            [genre.name, genre.slug]
+          );
+        }
+      }
+    }
+    
+    // Transform manga data
+    const transformed = westMangaService.transformMangaData(mangaData);
+    console.log('Transformed manga data:', {
+      westmanga_id: transformed.westmanga_id,
+      title: transformed.title,
+      slug: transformed.slug,
+      author: transformed.author
+    });
+    
+    let mangaId;
+    
+    // Check if manga already exists
+    const [existing] = await db.execute(
+      'SELECT id FROM manga WHERE westmanga_id = ? OR slug = ?',
+      [mangaData.id, transformed.slug]
+    );
+    
+    if (existing.length > 0) {
+      // Update existing manga
+      mangaId = existing[0].id;
+      console.log(`Updating existing manga with ID: ${mangaId}`);
+      await db.execute(`
+        UPDATE manga SET 
+          westmanga_id = ?, title = ?, slug = ?, alternative_name = ?, author = ?,
+          synopsis = ?, thumbnail = ?, content_type = ?, country_id = ?,
+          color = ?, hot = ?, is_project = ?, is_safe = ?,
+          rating = ?, bookmark_count = ?, views = ?, \`release\` = ?,
+          status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [
+        transformed.westmanga_id, transformed.title, transformed.slug,
+        transformed.alternative_name, transformed.author, transformed.synopsis,
+        transformed.thumbnail, transformed.content_type, transformed.country_id,
+        transformed.color, transformed.hot, transformed.is_project,
+        transformed.is_safe, transformed.rating, transformed.bookmark_count,
+        transformed.views, transformed.release, transformed.status,
+        mangaId
+      ]);
+      console.log(`Manga updated successfully: ${transformed.title} (ID: ${mangaId})`);
+    } else {
+      // Insert new manga
+      console.log(`Inserting new manga: ${transformed.title}`);
+      const [result] = await db.execute(`
+        INSERT INTO manga (
+          westmanga_id, title, slug, alternative_name, author,
+          synopsis, thumbnail, content_type, country_id,
+          color, hot, is_project, is_safe, rating,
+          bookmark_count, views, \`release\`, status, is_input_manual
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        transformed.westmanga_id, transformed.title, transformed.slug,
+        transformed.alternative_name, transformed.author, transformed.synopsis,
+        transformed.thumbnail, transformed.content_type, transformed.country_id,
+        transformed.color, transformed.hot, transformed.is_project,
+        transformed.is_safe, transformed.rating, transformed.bookmark_count,
+        transformed.views, transformed.release, transformed.status,
+        transformed.is_input_manual
+      ]);
+      
+      mangaId = result.insertId;
+      console.log(`Manga inserted successfully: ${transformed.title} (ID: ${mangaId}, westmanga_id: ${transformed.westmanga_id})`);
+    }
+    
+    // Sync genres
+    if (mangaData.genres && Array.isArray(mangaData.genres) && mangaData.genres.length > 0) {
+      console.log(`Syncing ${mangaData.genres.length} genres for manga ${mangaId}`);
+      // Clear existing genres first
+      await db.execute('DELETE FROM manga_genres WHERE manga_id = ?', [mangaId]);
+      
+      let genresSynced = 0;
+      for (const genre of mangaData.genres) {
+        const [category] = await db.execute(
+          'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) OR LOWER(slug) = LOWER(?)',
+          [genre.name, genre.slug]
+        );
+        
+        if (category.length > 0) {
+          await db.execute(`
+            INSERT IGNORE INTO manga_genres (manga_id, category_id)
+            VALUES (?, ?)
+          `, [mangaId, category[0].id]);
+          genresSynced++;
+        }
+      }
+      console.log(`Synced ${genresSynced} genres for manga ${mangaId}`);
+    } else {
+      console.log(`No genres to sync for manga ${mangaId} (genres: ${mangaData.genres ? 'empty array' : 'not provided'})`);
+    }
+    
+    res.json({
+      status: true,
+      message: 'Manga berhasil diimport',
+      data: {
+        id: mangaId,
+        slug: transformed.slug,
+        title: transformed.title
+      }
+    });
+  } catch (error) {
+    console.error('Error syncing manga by slug:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
 // Sync chapters for a specific manga by slug (WestManga only)
 app.post('/api/westmanga/sync-chapters/:slug', authenticateToken, async (req, res) => {
   try {
@@ -3371,46 +3874,187 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
   }
 });
 
-// Search manga (combines local and WestManga results)
+// Search manga (combines local and WestManga results with pagination)
+// Similar to /api/contents but returns separate local and westmanga arrays
+// NOTE: local results are now transformed using fetchLocalManga so the shape
+// matches /api/contents (includes genres, lastChapters, rating, total_views, etc.)
 app.get('/api/manga/search', async (req, res) => {
   try {
-    const { query, source = 'all' } = req.query;
-    
+    const { query, source = 'all', page = 1, per_page = 40 } = req.query;
+
     if (!query) {
       return res.status(400).json({ error: 'Search query is required' });
     }
-    
+
+    const pageNum = parseInt(page);
+    const perPage = parseInt(per_page);
+
     let localResults = [];
     let westMangaResults = [];
-    
-    // Search local database
+    let externalPaginator = null;
+
+    // Search local database using the same transformer as /api/contents
     if (source === 'all' || source === 'local') {
-      const [rows] = await db.execute(`
-        SELECT m.*, c.name as category_name
-        FROM manga m
-        LEFT JOIN categories c ON m.category_id = c.id
-        WHERE m.title LIKE ? OR m.alternative_name LIKE ?
-        LIMIT 20
-      `, [`%${query}%`, `%${query}%`]);
-      localResults = rows;
+      try {
+        // Use fetchLocalManga so the result format matches /api/contents
+        // We only pass the search query; other filters are left empty
+        localResults = await fetchLocalManga({
+          q: query,
+          genreArray: [],
+          status: null,
+          country: null,
+          type: null,
+          orderBy: 'Update',
+          project: null
+        });
+      } catch (localError) {
+        console.error('Error searching local manga:', localError);
+      }
     }
-    
-    // Search WestManga API
+
+    // Search WestManga API - fetch multiple pages like /api/contents does
     if (source === 'all' || source === 'westmanga') {
       try {
-        const westData = await westMangaService.searchManga(query);
-        if (westData.status && westData.data) {
-          westMangaResults = westData.data;
+        // Fetch multiple pages from WestManga to get comprehensive results
+        // Similar to how /api/contents fetches data
+        const externalPerPage = 100;
+        const pagesNeeded = Math.ceil((pageNum * perPage + localResults.length + (perPage * 2)) / externalPerPage);
+        const pagesToFetch = Math.min(pagesNeeded, 20); // Fetch up to 20 pages (2000 items max)
+        
+        const fetchPromises = [];
+        for (let i = 1; i <= pagesToFetch; i++) {
+          fetchPromises.push(
+            westMangaService.getMangaList({
+              search: query,
+              page: i,
+              per_page: externalPerPage
+            })
+          );
         }
+        
+        const externalResponses = await Promise.all(fetchPromises);
+        
+        // Combine all results from multiple pages
+        for (const response of externalResponses) {
+          if (response.status && response.data && Array.isArray(response.data)) {
+            westMangaResults.push(...response.data);
+            // Save paginator from first response for total calculation
+            if (!externalPaginator && response.paginator) {
+              externalPaginator = response.paginator;
+            }
+          }
+        }
+        
+        // Get accurate total by making a separate minimal request with default per_page
+        if (!externalPaginator || externalPaginator.total === undefined) {
+          try {
+            const totalResponse = await westMangaService.getMangaList({
+              search: query,
+              page: 1,
+              per_page: 25
+            });
+            if (totalResponse.paginator) {
+              externalPaginator = totalResponse.paginator;
+            }
+          } catch (totalError) {
+            console.warn('Error fetching total from external API:', totalError.message);
+          }
+        }
+        
+        // Remove duplicates by slug (in case API returns duplicates)
+        const uniqueMap = new Map();
+        westMangaResults.forEach(manga => {
+          if (manga.slug && !uniqueMap.has(manga.slug)) {
+            uniqueMap.set(manga.slug, manga);
+          }
+        });
+        westMangaResults = Array.from(uniqueMap.values());
       } catch (westError) {
         console.warn('WestManga search failed:', westError.message);
       }
     }
+
+    // Create a Set of local slugs for quick lookup
+    const localSlugs = new Set(localResults.map(m => m.slug).filter(Boolean));
+
+    // Merge results - avoid duplicates by slug (prefer local if duplicate)
+    const mangaMap = new Map();
     
+    // First add external manga (mark as not local)
+    westMangaResults.forEach(manga => {
+      if (manga.slug && !localSlugs.has(manga.slug)) {
+        mangaMap.set(manga.slug, { ...manga, _is_local: false });
+      }
+    });
+
+    // Then add local manga (will overwrite external if duplicate slug, mark as local)
+    localResults.forEach(manga => {
+      if (manga.slug) {
+        mangaMap.set(manga.slug, { ...manga, _is_local: true });
+      }
+    });
+
+    // Convert to array
+    let mergedManga = Array.from(mangaMap.values());
+    
+    // Sort by update time (newest first) - similar to /api/contents default
+    mergedManga.sort((a, b) => {
+      const aTime = a.lastChapters?.[0]?.created_at?.time || 0;
+      const bTime = b.lastChapters?.[0]?.created_at?.time || 0;
+      return bTime - aTime;
+    });
+
+    // Apply pagination after merge
+    const offset = (pageNum - 1) * perPage;
+    const paginatedManga = mergedManga.slice(offset, offset + perPage);
+
+    // Separate paginated results back into local and westmanga
+    const paginatedLocal = [];
+    const paginatedWestmanga = [];
+    
+    paginatedManga.forEach(manga => {
+      const mangaCopy = { ...manga };
+      const isLocal = mangaCopy._is_local === true;
+      delete mangaCopy._is_local; // Remove internal flag
+      
+      if (isLocal) {
+        paginatedLocal.push(mangaCopy);
+      } else {
+        paginatedWestmanga.push(mangaCopy);
+      }
+    });
+
+    // Calculate total: external total + local total (local takes priority if duplicate)
+    let total = 0;
+    let lastPage = 1;
+    
+    if (externalPaginator && externalPaginator.total !== undefined) {
+      // Use total from external API as base
+      total = externalPaginator.total;
+      
+      // Add local manga count (local takes priority if duplicate)
+      total += localResults.length;
+      
+      // Calculate last_page based on total and our per_page
+      lastPage = Math.ceil(total / perPage);
+    } else {
+      // Fallback: use merged count if external paginator not available
+      total = mergedManga.length;
+      lastPage = Math.ceil(total / perPage);
+    }
+
     res.json({
-      local: localResults,
-      westmanga: westMangaResults,
-      total: localResults.length + westMangaResults.length
+      local: paginatedLocal,
+      westmanga: paginatedWestmanga,
+      total: total,
+      paginator: {
+        current_page: pageNum,
+        last_page: lastPage,
+        per_page: perPage,
+        total: total,
+        from: total > 0 ? offset + 1 : 0,
+        to: Math.min(offset + perPage, total)
+      }
     });
   } catch (error) {
     console.error('Error searching manga:', error);

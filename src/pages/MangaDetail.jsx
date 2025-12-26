@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Home, 
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, getImageUrl } from '../utils/api';
 import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 
@@ -27,7 +28,6 @@ import biasaAjaImg from '../assets/votes/biasa-aja.png';
 import kecewaImg from '../assets/votes/kecewa.png';
 import marahImg from '../assets/votes/marah.png';
 import sedihImg from '../assets/votes/sedih.png';
-import { getImageUrl } from '../utils/api';
 
 const MangaDetail = () => {
   const { slug } = useParams();
@@ -53,7 +53,6 @@ const MangaDetail = () => {
   const [selectedVote, setSelectedVote] = useState(null);
   const [voteLoading, setVoteLoading] = useState(false);
 
-  // Fetch ads by type
   const { ads: chapterTopAds } = useAds('chapter-top', 4);
   const { ads: listChapterAds } = useAds('list-chapter', 2);
   const { ads: topUpvoteAds } = useAds('top-upvote', 2);
@@ -64,7 +63,6 @@ const MangaDetail = () => {
         setLoading(true);
         setError(null);
         
-        // Use our backend API which searches database first, then falls back to westmanga
         const response = await fetch(`${API_BASE_URL}/comic/${slug}`);
         
         if (!response.ok) {
@@ -306,8 +304,80 @@ const MangaDetail = () => {
     'ID': '🇮🇩'
   };
 
+  // SEO data
+  const siteUrl = 'https://komiknesia.net';
+  const pageUrl = `${siteUrl}/komik/${slug}`;
+  const coverImage = manga ? getImageUrl(manga.cover) : `${siteUrl}/logo.png`;
+  const description = manga?.sinopsis 
+    ? manga.sinopsis.replace(/<[^>]*>/g, '').substring(0, 160) + '...'
+    : `Baca ${manga?.title || 'komik'} online gratis di KomikNesia. ${manga?.genres?.map(g => g.name).join(', ') || ''}`;
+  const genresList = manga?.genres?.map(g => g.name).join(', ') || '';
+  const author = manga?.author || '';
+  const rating = manga?.rating || 'N/A';
+  const totalChapters = chapters.length;
+
   return (
     <div className="min-h-screen bg-primary-950 text-gray-100">
+      <Helmet>
+        <title>{manga?.title ? `${manga.title} | KomikNesia` : 'KomikNesia'}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={pageUrl} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="book" />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:title" content={manga?.title ? `${manga.title} | KomikNesia` : 'KomikNesia'} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={coverImage} />
+        <meta property="og:site_name" content="KomikNesia" />
+        <meta property="og:locale" content="id_ID" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={pageUrl} />
+        <meta name="twitter:title" content={manga?.title ? `${manga.title} | KomikNesia` : 'KomikNesia'} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={coverImage} />
+        
+        {/* Additional meta tags */}
+        <meta name="keywords" content={`${manga?.title || ''}, ${genresList}, baca komik, manga online, komiknesia`} />
+        {author && <meta name="author" content={author} />}
+        
+        {/* Structured Data - Book/Comic */}
+        {manga && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Book",
+              "name": manga.title,
+              "alternateName": manga.alternative_name || undefined,
+              "author": author ? {
+                "@type": "Person",
+                "name": author
+              } : undefined,
+              "image": coverImage,
+              "description": description,
+              "url": pageUrl,
+              "publisher": {
+                "@type": "Organization",
+                "name": "KomikNesia",
+                "url": siteUrl
+              },
+              "inLanguage": "id-ID",
+              "bookFormat": manga.content_type || "Comic",
+              "numberOfPages": totalChapters,
+              "aggregateRating": rating !== 'N/A' ? {
+                "@type": "AggregateRating",
+                "ratingValue": rating,
+                "bestRating": "10",
+                "worstRating": "1"
+              } : undefined,
+              "genre": genresList ? genresList.split(', ') : undefined
+            })}
+          </script>
+        )}
+      </Helmet>
+      
       {/* Header */}
       <header className="bg-primary-950 shadow-md fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -836,6 +906,8 @@ const MangaDetail = () => {
 };
 
 export default MangaDetail;
+
+
 
 
 

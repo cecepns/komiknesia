@@ -9,7 +9,8 @@ const FeaturedManager = () => {
   const [selectedType, setSelectedType] = useState('banner');
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState(null);
+  // Search results list for manga (from /contents endpoint)
+  const [searchResults, setSearchResults] = useState(null); // will hold an array of manga objects
   const [searching, setSearching] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedManga, setSelectedManga] = useState(null);
@@ -52,16 +53,22 @@ const FeaturedManager = () => {
 
     setSearching(true);
     try {
-      const results = await apiClient.searchManga(searchQuery, 'all');
-      setSearchResults(results);
+      // Use /contents API so the result is consistent with Content page
+      const response = await apiClient.getContents({
+        q: searchQuery.trim(),
+        page: 1,
+        per_page: 40,
+        project: 'false'
+      });
+
+      if (response?.status && Array.isArray(response.data)) {
+        setSearchResults(response.data);
+      } else {
+        setSearchResults([]);
+      }
     } catch (error) {
       console.error('Error searching manga:', error);
-      setSearchResults({
-        local: [],
-        westmanga: [],
-        total: 0,
-        error: error.message
-      });
+      setSearchResults([]);
     } finally {
       setSearching(false);
     }
@@ -86,21 +93,27 @@ const FeaturedManager = () => {
     }
 
     try {
-      // Include westmanga_id if the selected manga is from WestManga
+      // Include westmanga_id and slug if the selected manga is from WestManga
       const createData = {
         ...newItem,
         featured_type: selectedType,
         display_order: newItem.display_order ?? 0
       };
       
-      // Check if selected manga is from WestManga (not in local results)
-      const isWestManga = selectedManga && searchResults && 
-        !searchResults.local?.find(m => m.id === selectedManga.id) &&
-        searchResults.westmanga?.find(m => m.id === selectedManga.id);
-      
-      // If selected manga is from WestManga, include westmanga_id to help backend find the local manga
+      // Check if selected manga is from WestManga using available flags
+      // Prefer explicit westmanga_id if provided by API
+      const isWestManga = selectedManga && (selectedManga.westmanga_id || selectedManga.is_local === false || !selectedManga.is_input_manual);
+
+      // If selected manga is from WestManga, include westmanga_id and slug to help backend find/create the local manga
       if (isWestManga) {
-        createData.westmanga_id = selectedManga.id; // In westmanga results, id is the westmanga_id
+        createData.westmanga_id = selectedManga.westmanga_id || selectedManga.id;
+        // Always include slug for auto-sync if manga not found in database
+        if (selectedManga.slug) {
+          createData.slug = selectedManga.slug;
+        }
+      } else if (selectedManga && selectedManga.slug) {
+        // Even for local manga, include slug as fallback (though it should already exist)
+        createData.slug = selectedManga.slug;
       }
       
       await apiClient.createFeaturedItem(createData);
@@ -278,11 +291,11 @@ const FeaturedManager = () => {
           </form>
 
           {/* Search Results */}
-          {searchResults && (
+          {Array.isArray(searchResults) && searchResults.length > 0 && (
             <div className="mb-4 max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Hasil Pencarian ({searchResults.total || 0})
+                  Hasil Pencarian ({searchResults.length})
                 </p>
                 <button
                   onClick={() => {
@@ -295,7 +308,7 @@ const FeaturedManager = () => {
                 </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[...(searchResults.local || []), ...(searchResults.westmanga || [])].map((manga) => (
+                {searchResults.map((manga) => (
                   <div
                     key={manga.id}
                     onClick={() => handleSelectManga(manga)}
