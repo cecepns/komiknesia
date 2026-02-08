@@ -1,0 +1,20 @@
+# robots.txt for KomikNesia
+# https://komiknesia.net
+
+User-agent: *
+Allow: /
+
+# Sitemap locations (served from API)
+Sitemap: https://api.komiknesia.net/sitemap.xml
+
+# Disallow admin and login pages
+Disallow: /admin
+Disallow: /login
+Disallow: /akun
+
+# Allow search engines to crawl all manga and chapter pages
+Allow: /komik/
+Allow: /view/
+Allow: /content
+Allow: /library
+Allow: /contact

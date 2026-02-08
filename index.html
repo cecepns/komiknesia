@@ -19,9 +19,10 @@
     <meta name="thumbnailUrl" content="https://komiknesia.net/logo.png" itemprop="thumbnailUrl" />
     <meta content="https://komiknesia.net" itemprop="url" />
     <link rel="canonical" href="https://komiknesia.net" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://api.komiknesia.net/sitemap.xml" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.jpg">
+    <!-- <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"> -->
+    <!-- <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"> -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     <meta name="mobile-web-app-capable" content="yes">
@@ -48,5 +49,18 @@
 <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+      
+  <!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-EYTRZ4EYR9', {
+    send_page_view: true
+  });
+</script>
+<!-- End Google Analytics -->
 </body>
 </html>

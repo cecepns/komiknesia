@@ -71,7 +71,7 @@ const Home = () => {
     <div className="pt-5 md:pt-20 pb-4">
       <Helmet>
         <title>KomikNesia | Baca Komik, Manga, Manhwa, dan Manhua Bahasa Indonesia</title>
-        <meta name="description" content="KomikNesia adalah tempat baca komik online terlengkap mulai dari Manhwa, Manhua, dan Manga bisa kamu baca online gratis khusus bahasa Indonesia. Genre komik yang tersedia adalah Romance, Fantasy, Isekai, Action, dan genre lainnya." />
+        <meta name="description" content="Baca komik, manga, manhwa, dan manhua bahasa Indonesia gratis di KomikNesia. Update terbaru, kualitas terbaik, dan mudah dibaca di semua perangkat." />
       </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Home Top Ads - 6 ads */}

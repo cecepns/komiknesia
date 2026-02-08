@@ -32,16 +32,71 @@ class WestMangaService {
    */
   async getMangaList(params = {}) {
     try {
-      const response = await this.axiosInstance.get('/contents', {
-        params: {
-          page: params.page || 1,
-          per_page: params.per_page || 25,
-          ...params
+      // Build params object, ensuring arrays are properly formatted
+      const queryParams = {
+        page: params.page || 1,
+        per_page: params.per_page || 25,
+      };
+
+      // Handle genre array separately to ensure proper serialization
+      if (params.genre && Array.isArray(params.genre)) {
+        // Store genre array separately for custom serialization
+        queryParams._genreArray = params.genre;
+      } else if (params.genre) {
+        queryParams.genre = params.genre;
+      }
+
+      // Add other params
+      Object.keys(params).forEach(key => {
+        if (key !== 'page' && key !== 'per_page' && key !== 'genre') {
+          queryParams[key] = params[key];
         }
+      });
+
+      // Custom paramsSerializer to handle array with bracket notation (genre[]=1&genre[]=2)
+      const paramsSerializer = (params) => {
+        const parts = [];
+        
+        Object.keys(params).forEach(key => {
+          const value = params[key];
+          
+          // Handle genre array specially with bracket notation
+          if (key === '_genreArray' && Array.isArray(value)) {
+            value.forEach(v => {
+              parts.push(`genre[]=${encodeURIComponent(v)}`);
+            });
+          } else if (value !== null && value !== undefined && key !== '_genreArray') {
+            if (Array.isArray(value)) {
+              // For other arrays, use bracket notation too
+              value.forEach(v => {
+                parts.push(`${key}[]=${encodeURIComponent(v)}`);
+              });
+            } else {
+              parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+            }
+          }
+        });
+        
+        return parts.join('&');
+      };
+
+      // Log the serialized params for debugging
+      const serializedParams = paramsSerializer(queryParams);
+      if (queryParams._genreArray && queryParams._genreArray.length > 0) {
+        console.log(`[WestManga API] Requesting with genre filter: ${serializedParams}`);
+      }
+      
+      const response = await this.axiosInstance.get('/contents', {
+        params: queryParams,
+        paramsSerializer: paramsSerializer
       });
       return response.data;
     } catch (error) {
       console.error('Error fetching manga list from WestManga:', error.message);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
       throw error;
     }
   }
@@ -219,6 +274,7 @@ class WestMangaService {
 // Export singleton instance
 const westMangaService = new WestMangaService();
 module.exports = westMangaService;
+
 
 
 

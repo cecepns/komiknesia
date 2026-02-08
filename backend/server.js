@@ -229,6 +229,108 @@ app.get('/api/contents/genres', async (req, res) => {
   }
 });
 
+// Cache for West Manga genres to avoid repeated API calls
+let westMangaGenresCache = null;
+let westMangaGenresCacheTime = null;
+const CACHE_DURATION = 3600000; // 1 hour in milliseconds
+
+// Helper function to get West Manga genres (with caching)
+async function getWestMangaGenres() {
+  const now = Date.now();
+  // Return cached data if available and not expired
+  if (westMangaGenresCache && westMangaGenresCacheTime && (now - westMangaGenresCacheTime) < CACHE_DURATION) {
+    return westMangaGenresCache;
+  }
+
+  try {
+    const response = await westMangaService.getGenres();
+    if (response && response.data && Array.isArray(response.data)) {
+      westMangaGenresCache = response.data;
+      westMangaGenresCacheTime = now;
+      console.log(`[Genre Cache] Loaded ${response.data.length} genres from West Manga API`);
+      return westMangaGenresCache;
+    } else {
+      console.warn('[Genre Cache] Invalid response format from West Manga genres API');
+    }
+  } catch (error) {
+    console.warn('Error fetching West Manga genres:', error.message);
+    // Return cached data even if expired if API call fails
+    if (westMangaGenresCache) {
+      console.log(`[Genre Cache] Using cached genres (${westMangaGenresCache.length} genres)`);
+      return westMangaGenresCache;
+    }
+  }
+  return [];
+}
+
+// Helper function to map local genre IDs to West Manga genre IDs
+async function mapLocalGenresToWestManga(localGenreIds) {
+  if (!localGenreIds || localGenreIds.length === 0) {
+    return [];
+  }
+
+  try {
+    // Convert to integers to ensure proper type
+    const genreIds = localGenreIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+    if (genreIds.length === 0) {
+      return [];
+    }
+
+    // Get local genre names/slugs from database
+    const placeholders = genreIds.map(() => '?').join(',');
+    const [localGenres] = await db.execute(
+      `SELECT id, name, slug FROM categories WHERE id IN (${placeholders})`,
+      genreIds
+    );
+
+    if (localGenres.length === 0) {
+      console.warn(`[Genre Mapping] No local genres found for IDs: ${genreIds.join(', ')}`);
+      return [];
+    }
+
+    // Get West Manga genres
+    const westMangaGenres = await getWestMangaGenres();
+    if (!westMangaGenres || westMangaGenres.length === 0) {
+      console.warn('[Genre Mapping] No West Manga genres available for mapping');
+      return [];
+    }
+
+    // Map local genres to West Manga genres by name (case-insensitive) or slug
+    const mappedIds = [];
+    for (const localGenre of localGenres) {
+      const localName = (localGenre.name || '').toLowerCase().trim();
+      const localSlug = (localGenre.slug || '').toLowerCase().trim();
+      
+      const matched = westMangaGenres.find(wmGenre => {
+        const wmName = (wmGenre.name || '').toLowerCase().trim();
+        const wmSlug = (wmGenre.slug || '').toLowerCase().trim();
+        
+        // Try exact match on name first, then slug
+        return (localName && wmName && localName === wmName) ||
+               (localSlug && wmSlug && localSlug === wmSlug);
+      });
+
+      if (matched && matched.id) {
+        // Ensure ID is a number
+        const westMangaId = parseInt(matched.id);
+        if (!isNaN(westMangaId)) {
+          mappedIds.push(westMangaId);
+          console.log(`[Genre Mapping] Matched: "${localGenre.name}" (local ID: ${localGenre.id}) -> West Manga ID: ${westMangaId}`);
+        } else {
+          console.warn(`[Genre Mapping] Invalid West Manga ID for genre: ${localGenre.name}`);
+        }
+      } else {
+        console.warn(`[Genre Mapping] No match found for local genre: "${localGenre.name}" (slug: "${localGenre.slug}", local ID: ${localGenre.id})`);
+      }
+    }
+
+    return mappedIds;
+  } catch (error) {
+    console.error('[Genre Mapping] Error mapping local genres to West Manga genres:', error);
+    return [];
+  }
+}
+
 // Helper function to fetch local manga (is_input_manual = true) with filters
 async function fetchLocalManga(filters) {
     const {
@@ -442,6 +544,18 @@ app.get('/api/contents', async (req, res) => {
       console.error('Error fetching local manga:', localError);
     }
 
+    // Map local genre IDs to West Manga genre IDs
+    let westMangaGenreArray = [];
+    if (genreArray.length > 0) {
+      westMangaGenreArray = await mapLocalGenresToWestManga(genreArray);
+      // Debug logging
+      if (westMangaGenreArray.length === 0) {
+        console.warn(`[Genre Mapping] No matching West Manga genres found for local genre IDs: ${genreArray.join(', ')}`);
+      } else {
+        console.log(`[Genre Mapping] Mapped local genres ${genreArray.join(', ')} to West Manga genres ${westMangaGenreArray.join(', ')}`);
+      }
+    }
+
     try {
       // Fetch from external API - we need to fetch enough data to cover the requested page after merge
       // Strategy: fetch multiple pages from external API to ensure we have enough data
@@ -504,7 +618,7 @@ app.get('/api/contents', async (req, res) => {
           page: i,
           per_page: externalPerPage,
           ...(q && { q }),
-          ...(genreArray.length > 0 && { genre: genreArray }),
+          ...(westMangaGenreArray.length > 0 && { genre: westMangaGenreArray }),
           ...(status && status !== 'All' && { status }),
           ...(country && { country }),
           ...(type && { type }),
@@ -536,7 +650,7 @@ app.get('/api/contents', async (req, res) => {
             page: 1,
             per_page: 25, // Use their default per_page to get accurate paginator
             ...(q && { q }),
-            ...(genreArray.length > 0 && { genre: genreArray }),
+            ...(westMangaGenreArray.length > 0 && { genre: westMangaGenreArray }),
             ...(status && status !== 'All' && { status }),
             ...(country && { country }),
             ...(type && { type }),
@@ -667,7 +781,7 @@ app.get('/api/contents', async (req, res) => {
               page: i,
               per_page: externalPerPage,
               ...(q && { q }),
-              ...(genreArray.length > 0 && { genre: genreArray }),
+              ...(westMangaGenreArray.length > 0 && { genre: westMangaGenreArray }),
               ...(status && status !== 'All' && { status }),
               ...(country && { country }),
               ...(type && { type }),
@@ -1021,7 +1135,9 @@ app.get('/api/comic/:slug', async (req, res) => {
             c.title,
             c.slug,
             c.created_at,
-            UNIX_TIMESTAMP(c.created_at) as created_at_timestamp
+            c.updated_at,
+            UNIX_TIMESTAMP(c.created_at) as created_at_timestamp,
+            UNIX_TIMESTAMP(COALESCE(c.updated_at, c.created_at)) as updated_at_timestamp
           FROM chapters c
           WHERE c.manga_id = ?
           ORDER BY CAST(c.chapter_number AS UNSIGNED) DESC, c.chapter_number DESC
@@ -1048,17 +1164,24 @@ app.get('/api/comic/:slug', async (req, res) => {
           release: manga.release || null,
           status: manga.status || 'ongoing',
           genres: genres,
-          chapters: chapters.map(ch => ({
-            id: ch.id,
-            content_id: ch.content_id || ch.id,
-            number: ch.number,
-            title: ch.title || `Chapter ${ch.number}`,
-            slug: ch.slug,
-            created_at: {
-              time: parseInt(ch.created_at_timestamp),
-              formatted: new Date(ch.created_at).toLocaleString('id-ID')
-            }
-          }))
+          chapters: chapters.map(ch => {
+            const updateTime = ch.updated_at || ch.created_at;
+            return {
+              id: ch.id,
+              content_id: ch.content_id || ch.id,
+              number: ch.number,
+              title: ch.title || `Chapter ${ch.number}`,
+              slug: ch.slug,
+              created_at: {
+                time: parseInt(ch.created_at_timestamp),
+                formatted: new Date(ch.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+              },
+              updated_at: {
+                time: parseInt(ch.updated_at_timestamp),
+                formatted: new Date(updateTime).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+              }
+            };
+          })
         };
         
         return res.json({
@@ -4059,6 +4182,272 @@ app.get('/api/manga/search', async (req, res) => {
   } catch (error) {
     console.error('Error searching manga:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==========================================
+// SITEMAP & ROBOTS.TXT GENERATION
+// ==========================================
+
+const SITE_URL = 'https://komiknesia.net';
+const API_URL = 'https://api.komiknesia.net';
+
+/**
+ * Serve robots.txt for the API domain
+ */
+app.get('/robots.txt', (req, res) => {
+  const robotsTxt = `# robots.txt for KomikNesia API
+# ${API_URL}
+
+User-agent: *
+Allow: /sitemap.xml
+Allow: /sitemap-index.xml
+Allow: /sitemap-manga.xml
+Allow: /sitemap-chapters.xml
+
+# Sitemap locations
+Sitemap: ${API_URL}/sitemap.xml
+Sitemap: ${API_URL}/sitemap-index.xml
+`;
+
+  res.set('Content-Type', 'text/plain');
+  res.send(robotsTxt);
+});
+
+/**
+ * Generate XML sitemap dynamically
+ * Includes static pages, all manga detail pages, and all chapter pages
+ */
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    // Static pages with their priorities and change frequencies
+    const staticPages = [
+      { url: '/', priority: '1.0', changefreq: 'daily' },
+      { url: '/content', priority: '0.9', changefreq: 'daily' },
+      { url: '/library', priority: '0.8', changefreq: 'daily' },
+      { url: '/contact', priority: '0.5', changefreq: 'monthly' },
+    ];
+
+    // Fetch all manga from database
+    const [mangaRows] = await db.execute(`
+      SELECT slug, updated_at 
+      FROM manga 
+      WHERE slug IS NOT NULL AND slug != ''
+      ORDER BY updated_at DESC
+    `);
+
+    // Fetch all chapters from database
+    const [chapterRows] = await db.execute(`
+      SELECT c.slug, c.updated_at
+      FROM chapters c
+      WHERE c.slug IS NOT NULL AND c.slug != ''
+      ORDER BY c.updated_at DESC
+    `);
+
+    // Get current date for lastmod
+    const now = new Date().toISOString().split('T')[0];
+
+    // Start building XML
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+    // Add static pages
+    for (const page of staticPages) {
+      xml += '  <url>\n';
+      xml += `    <loc>${SITE_URL}${page.url}</loc>\n`;
+      xml += `    <lastmod>${now}</lastmod>\n`;
+      xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+      xml += `    <priority>${page.priority}</priority>\n`;
+      xml += '  </url>\n';
+    }
+
+    // Add manga detail pages
+    for (const manga of mangaRows) {
+      const lastmod = manga.updated_at 
+        ? new Date(manga.updated_at).toISOString().split('T')[0]
+        : now;
+      
+      xml += '  <url>\n';
+      xml += `    <loc>${SITE_URL}/komik/${encodeURIComponent(manga.slug)}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += '    <changefreq>weekly</changefreq>\n';
+      xml += '    <priority>0.8</priority>\n';
+      xml += '  </url>\n';
+    }
+
+    // Add chapter reader pages
+    for (const chapter of chapterRows) {
+      const lastmod = chapter.updated_at 
+        ? new Date(chapter.updated_at).toISOString().split('T')[0]
+        : now;
+      
+      xml += '  <url>\n';
+      xml += `    <loc>${SITE_URL}/view/${encodeURIComponent(chapter.slug)}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += '    <changefreq>monthly</changefreq>\n';
+      xml += '    <priority>0.6</priority>\n';
+      xml += '  </url>\n';
+    }
+
+    xml += '</urlset>';
+
+    // Set proper content type for XML
+    res.set('Content-Type', 'application/xml');
+    res.send(xml);
+
+  } catch (error) {
+    console.error('Error generating sitemap:', error);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
+  }
+});
+
+/**
+ * Generate sitemap index for large sites (optional - splits sitemap into multiple files)
+ * Use this if you have more than 50,000 URLs
+ */
+app.get('/sitemap-index.xml', async (req, res) => {
+  try {
+    const now = new Date().toISOString().split('T')[0];
+    
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+    
+    // Main sitemap
+    xml += '  <sitemap>\n';
+    xml += `    <loc>${SITE_URL}/sitemap.xml</loc>\n`;
+    xml += `    <lastmod>${now}</lastmod>\n`;
+    xml += '  </sitemap>\n';
+    
+    // Manga sitemap
+    xml += '  <sitemap>\n';
+    xml += `    <loc>${SITE_URL}/sitemap-manga.xml</loc>\n`;
+    xml += `    <lastmod>${now}</lastmod>\n`;
+    xml += '  </sitemap>\n';
+    
+    // Chapters sitemap
+    xml += '  <sitemap>\n';
+    xml += `    <loc>${SITE_URL}/sitemap-chapters.xml</loc>\n`;
+    xml += `    <lastmod>${now}</lastmod>\n`;
+    xml += '  </sitemap>\n';
+    
+    xml += '</sitemapindex>';
+
+    res.set('Content-Type', 'application/xml');
+    res.send(xml);
+
+  } catch (error) {
+    console.error('Error generating sitemap index:', error);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></sitemapindex>');
+  }
+});
+
+/**
+ * Separate sitemap for manga pages only
+ */
+app.get('/sitemap-manga.xml', async (req, res) => {
+  try {
+    const [mangaRows] = await db.execute(`
+      SELECT slug, updated_at 
+      FROM manga 
+      WHERE slug IS NOT NULL AND slug != ''
+      ORDER BY updated_at DESC
+    `);
+
+    const now = new Date().toISOString().split('T')[0];
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+    for (const manga of mangaRows) {
+      const lastmod = manga.updated_at 
+        ? new Date(manga.updated_at).toISOString().split('T')[0]
+        : now;
+      
+      xml += '  <url>\n';
+      xml += `    <loc>${SITE_URL}/komik/${encodeURIComponent(manga.slug)}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += '    <changefreq>weekly</changefreq>\n';
+      xml += '    <priority>0.8</priority>\n';
+      xml += '  </url>\n';
+    }
+
+    xml += '</urlset>';
+
+    res.set('Content-Type', 'application/xml');
+    res.send(xml);
+
+  } catch (error) {
+    console.error('Error generating manga sitemap:', error);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
+  }
+});
+
+/**
+ * Separate sitemap for chapter pages only
+ */
+app.get('/sitemap-chapters.xml', async (req, res) => {
+  try {
+    const [chapterRows] = await db.execute(`
+      SELECT c.slug, c.updated_at
+      FROM chapters c
+      WHERE c.slug IS NOT NULL AND c.slug != ''
+      ORDER BY c.updated_at DESC
+    `);
+
+    const now = new Date().toISOString().split('T')[0];
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+    for (const chapter of chapterRows) {
+      const lastmod = chapter.updated_at 
+        ? new Date(chapter.updated_at).toISOString().split('T')[0]
+        : now;
+      
+      xml += '  <url>\n';
+      xml += `    <loc>${SITE_URL}/view/${encodeURIComponent(chapter.slug)}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += '    <changefreq>monthly</changefreq>\n';
+      xml += '    <priority>0.6</priority>\n';
+      xml += '  </url>\n';
+    }
+
+    xml += '</urlset>';
+
+    res.set('Content-Type', 'application/xml');
+    res.send(xml);
+
+  } catch (error) {
+    console.error('Error generating chapters sitemap:', error);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
+  }
+});
+
+/**
+ * API endpoint to get sitemap stats (for admin dashboard)
+ */
+app.get('/api/sitemap/stats', async (req, res) => {
+  try {
+    const [mangaCount] = await db.execute(`
+      SELECT COUNT(*) as count FROM manga WHERE slug IS NOT NULL AND slug != ''
+    `);
+    
+    const [chapterCount] = await db.execute(`
+      SELECT COUNT(*) as count FROM chapters WHERE slug IS NOT NULL AND slug != ''
+    `);
+    
+    res.json({
+      status: true,
+      data: {
+        static_pages: 4,
+        manga_pages: mangaCount[0].count,
+        chapter_pages: chapterCount[0].count,
+        total_urls: 4 + mangaCount[0].count + chapterCount[0].count
+      }
+    });
+  } catch (error) {
+    console.error('Error getting sitemap stats:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
   }
 });
 

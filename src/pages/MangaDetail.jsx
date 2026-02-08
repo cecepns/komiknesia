@@ -123,13 +123,62 @@ const MangaDetail = () => {
     if (mangaData.chapters && mangaData.chapters.length > 0) {
       // Use chapters from API
       mangaData.chapters.forEach((ch, index) => {
+        // Handle timestamp conversion
+        // Prefer updated_at if available (more accurate for "last updated" display)
+        // Otherwise use created_at
+        // API returns Unix timestamp in seconds, convert to milliseconds
+        let uploadedAt = Date.now();
+        
+        // Try updated_at first, then created_at
+        const timeSource = ch.updated_at || ch.created_at;
+        
+        if (timeSource?.time) {
+          const timestamp = timeSource.time;
+          // API always returns Unix timestamp in seconds (not milliseconds)
+          // Convert to milliseconds by multiplying by 1000
+          // Threshold: if timestamp < 1e12, it's in seconds; if >= 1e12, it's already in milliseconds
+          const timestampMs = timestamp < 1e12 ? timestamp * 1000 : timestamp;
+          
+          // Validate the timestamp
+          const dateFromTimestamp = new Date(timestampMs);
+          
+          // Check if timestamp is valid (not NaN and reasonable date)
+          if (!isNaN(dateFromTimestamp.getTime())) {
+            // If timestamp is in the future (more than 1 hour), it might be wrong
+            // But we'll still use it and let formatTimeAgo handle it
+            uploadedAt = timestampMs;
+          } else {
+            // Invalid timestamp, try formatted date
+            if (timeSource?.formatted) {
+              try {
+                const parsedDate = new Date(timeSource.formatted);
+                if (!isNaN(parsedDate.getTime())) {
+                  uploadedAt = parsedDate.getTime();
+                }
+              } catch {
+                console.warn('Failed to parse formatted date:', timeSource.formatted);
+              }
+            }
+          }
+        } else if (timeSource?.formatted) {
+          // Fallback: try to parse formatted date
+          try {
+            const parsedDate = new Date(timeSource.formatted);
+            if (!isNaN(parsedDate.getTime())) {
+              uploadedAt = parsedDate.getTime();
+            }
+          } catch {
+            console.warn('Failed to parse formatted date:', timeSource.formatted);
+          }
+        }
+        
         chapterList.push({
           id: ch.id,
           content_id: ch.content_id,
           number: ch.number,
           title: `Chapter ${ch.number}`,
           thumbnail: mangaData.cover,
-          uploadedAt: ch.created_at?.time ? ch.created_at.time * 1000 : Date.now(),
+          uploadedAt: uploadedAt,
           isNew: index === 0,
           slug: ch.slug
         });
@@ -140,13 +189,48 @@ const MangaDetail = () => {
   };
 
   const formatTimeAgo = (timestamp) => {
+    if (!timestamp || isNaN(timestamp)) {
+      return 'Tidak diketahui';
+    }
+    
     const now = Date.now();
-    const diff = now - timestamp;
+    let diff = now - timestamp;
+    
+    // Debug logging for timestamp issues
+    if (Math.abs(diff) > 365 * 24 * 60 * 60 * 1000 || diff < 0) {
+      console.warn('Timestamp calculation issue:', {
+        timestamp,
+        timestampDate: new Date(timestamp).toISOString(),
+        now,
+        nowDate: new Date(now).toISOString(),
+        diff,
+        diffHours: diff / (1000 * 60 * 60),
+        diffDays: diff / (1000 * 60 * 60 * 24)
+      });
+    }
+    
+    // If diff is negative, timestamp is in the future (likely wrong)
+    // This can happen if timestamp was not properly converted from seconds to milliseconds
+    // Or if the timestamp itself is incorrect
+    if (diff < 0) {
+      // If timestamp is way in the future (more than 1 year), it's likely wrong
+      // In this case, we can't calculate relative time accurately
+      if (Math.abs(diff) > 365 * 24 * 60 * 60 * 1000) {
+        return 'Waktu tidak valid';
+      }
+      
+      // For timestamps in the near future (less than 1 year), show as "soon" or use absolute value
+      // But this shouldn't happen normally
+      diff = Math.abs(diff);
+    }
+    
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor(diff / (1000 * 60));
     
     if (days > 0) return `${days} hari lalu`;
     if (hours > 0) return `${hours} jam lalu`;
+    if (minutes > 0) return `${minutes} menit lalu`;
     return 'Baru saja';
   };
 
@@ -308,9 +392,8 @@ const MangaDetail = () => {
   const siteUrl = 'https://komiknesia.net';
   const pageUrl = `${siteUrl}/komik/${slug}`;
   const coverImage = manga ? getImageUrl(manga.cover) : `${siteUrl}/logo.png`;
-  const description = manga?.sinopsis 
-    ? manga.sinopsis.replace(/<[^>]*>/g, '').substring(0, 160) + '...'
-    : `Baca ${manga?.title || 'komik'} online gratis di KomikNesia. ${manga?.genres?.map(g => g.name).join(', ') || ''}`;
+  const seriesType = manga?.content_type || 'Komik';
+  const description = `Baca ${seriesType} ${manga?.title || 'komik'} bahasa Indonesia di KomikNesia. Sinopsis lengkap, daftar chapter, dan update terbaru tersedia di sini.`;
   const genresList = manga?.genres?.map(g => g.name).join(', ') || '';
   const author = manga?.author || '';
   const rating = manga?.rating || 'N/A';
@@ -319,14 +402,14 @@ const MangaDetail = () => {
   return (
     <div className="min-h-screen bg-primary-950 text-gray-100">
       <Helmet>
-        <title>{manga?.title ? `${manga.title} | KomikNesia` : 'KomikNesia'}</title>
+        <title>{manga?.title ? `${manga.title} Bahasa Indonesia - KomikNesia` : 'KomikNesia'}</title>
         <meta name="description" content={description} />
         <link rel="canonical" href={pageUrl} />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="book" />
         <meta property="og:url" content={pageUrl} />
-        <meta property="og:title" content={manga?.title ? `${manga.title} | KomikNesia` : 'KomikNesia'} />
+        <meta property="og:title" content={manga?.title ? `${manga.title} – ${seriesType} Bahasa Indonesia | KomikNesia` : 'KomikNesia'} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={coverImage} />
         <meta property="og:site_name" content="KomikNesia" />
@@ -335,7 +418,7 @@ const MangaDetail = () => {
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content={pageUrl} />
-        <meta name="twitter:title" content={manga?.title ? `${manga.title} | KomikNesia` : 'KomikNesia'} />
+        <meta name="twitter:title" content={manga?.title ? `${manga.title} – ${seriesType} Bahasa Indonesia | KomikNesia` : 'KomikNesia'} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={coverImage} />
         
@@ -488,7 +571,7 @@ const MangaDetail = () => {
                 {manga.genres.map((genre) => (
                   <button
                     key={genre.id}
-                    onClick={() => navigate(`/content?genre[]=${genre.id}`)}
+                    onClick={() => navigate(`/content?genre=${encodeURIComponent(genre.name)}`)}
                     className="px-4 py-2 bg-purple-900/30 rounded-lg hover:bg-purple-900/50 transition-colors cursor-pointer"
                   >
                     <span className="text-sm font-medium text-purple-300">
@@ -906,6 +989,7 @@ const MangaDetail = () => {
 };
 
 export default MangaDetail;
+
 
 
 

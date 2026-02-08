@@ -204,8 +204,8 @@ const ChapterReader = () => {
   const currentChapter = allChapters[currentChapterIndex];
   const chapterNumber = currentChapter?.number || chapterData?.number;
   const mangaTitle = mangaData?.title || chapterData?.title || 'KomikNesia';
-  const pageTitle = `${mangaTitle} - Chapter ${chapterNumber} | KomikNesia`;
-  const pageDescription = `Baca Chapter ${chapterNumber} dari ${mangaTitle} secara gratis di KomikNesia.`;
+  const pageTitle = `${mangaTitle} Chapter ${chapterNumber} Bahasa Indonesia | KomikNesia`;
+  const pageDescription = `Baca ${mangaTitle} chapter ${chapterNumber} bahasa Indonesia terbaru di KomikNesia. Episode terbaru, Update cepat, kualitas gambar jernih, dan mudah dibaca.`;
 
   return (
     <div ref={topRef} className="min-h-screen bg-primary-950 text-gray-100">
@@ -488,6 +488,7 @@ const ChapterReader = () => {
 };
 
 export default ChapterReader;
+
 
 
 

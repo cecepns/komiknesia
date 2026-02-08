@@ -79,16 +79,23 @@ const Content = () => {
     fetchGenres();
   }, []);
 
-  // Initialize filters from URL parameters
+  // Initialize filters from URL parameters (by genre name)
   useEffect(() => {
-    const genreParams = searchParams.getAll('genre[]');
-    if (genreParams.length > 0) {
-      const genreIds = genreParams.map(id => parseInt(id)).filter(id => !isNaN(id));
-      if (genreIds.length > 0) {
-        setSelectedGenres(genreIds);
+    const genreParams = searchParams.getAll('genre');
+    if (genreParams.length > 0 && genres.length > 0) {
+      // Find genre IDs by matching names (case-insensitive)
+      const matchedGenreIds = genreParams
+        .map(name => {
+          const genre = genres.find(g => g.name.toLowerCase() === name.toLowerCase());
+          return genre ? genre.id : null;
+        })
+        .filter(id => id !== null);
+      
+      if (matchedGenreIds.length > 0) {
+        setSelectedGenres(matchedGenreIds);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, genres]);
 
   const fetchManga = useCallback(async () => {
     setLoading(true);
@@ -314,8 +321,8 @@ const Content = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-primary-950">
       <Helmet>
-        <title>{searchQuery ? `Hasil Pencarian: "${searchQuery}" | KomikNesia` : 'Daftar Komik | KomikNesia'}</title>
-        <meta name="description" content={searchQuery ? `Hasil pencarian untuk "${searchQuery}" di KomikNesia. Temukan komik, manga, manhwa, dan manhua favoritmu.` : 'Jelajahi koleksi lengkap komik, manga, manhwa, dan manhua di KomikNesia. Filter berdasarkan genre, status, dan tipe komik.'} />
+        <title>{searchQuery ? `Hasil Pencarian: "${searchQuery}" | KomikNesia` : 'Daftar Komik Bahasa Indonesia | KomikNesia'}</title>
+        <meta name="description" content={searchQuery ? `Hasil pencarian untuk "${searchQuery}" di KomikNesia. Temukan komik, manga, manhwa, dan manhua favoritmu.` : 'Temukan daftar lengkap komik, manga, manhwa, dan manhua bahasa Indonesia di KomikNesia. Jelajahi berbagai judul populer dan terbaru dengan mudah.'} />
       </Helmet>
       
       {/* Main Navigation Header */}
