@@ -2147,6 +2147,32 @@ app.post('/api/comments', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete a comment (only by owner); replies are removed via FK / cascade rules
+app.delete('/api/comments/:id', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const commentId = parseInt(req.params.id, 10);
+    if (!commentId || Number.isNaN(commentId)) {
+      return res.status(400).json({ status: false, error: 'Invalid comment id' });
+    }
+
+    // Make sure comment exists and belongs to current user
+    const [rows] = await db.execute(
+      'SELECT id FROM comments WHERE id = ? AND user_id = ?',
+      [commentId, userId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ status: false, error: 'Comment not found' });
+    }
+
+    await db.execute('DELETE FROM comments WHERE id = ?', [commentId]);
+    res.json({ status: true, message: 'Comment deleted' });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
 // Votes Routes (use user_id when logged in to fix cross-browser vote bug)
 // Get vote counts by manga slug
 app.get('/api/votes/:slug', optionalAuthenticate, async (req, res) => {

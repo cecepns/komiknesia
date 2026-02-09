@@ -4,10 +4,13 @@ import { Link } from 'react-router-dom';
 import { apiClient, getImageUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
-function CommentItem({ comment, onReply, getImageUrl, isAuthenticated }) {
+function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUser }) {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyBody, setReplyBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const isOwner = currentUser && comment.user_id === currentUser.id;
 
   const handleSubmitReply = async (e) => {
     e.preventDefault();
@@ -30,6 +33,24 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated }) {
 
   const avatarUrl = comment.profile_image ? getImageUrl(comment.profile_image) : null;
 
+  const deleteCommentById = async (id) => {
+    if (deleting) return;
+    const ok = window.confirm('Hapus komentar ini?');
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await apiClient.deleteComment(id);
+      onReply?.();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!isOwner) return;
+    await deleteCommentById(comment.id);
+  };
+
   return (
     <div className="flex gap-3 py-3 border-b border-primary-800 last:border-0">
       <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-700 flex items-center justify-center overflow-hidden">
@@ -47,6 +68,16 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated }) {
           <span className="text-xs text-gray-500">
             {comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : ''}
           </span>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="ml-auto text-[11px] text-red-400 hover:text-red-300 disabled:opacity-50"
+            >
+              {deleting ? 'Menghapus...' : 'Hapus'}
+            </button>
+          )}
         </div>
         <p className="text-gray-300 text-sm mt-1 whitespace-pre-wrap break-words">{comment.body}</p>
         {isAuthenticated && (
@@ -99,6 +130,19 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated }) {
                     <span className="text-xs text-gray-500">
                       {reply.created_at ? new Date(reply.created_at).toLocaleString('id-ID') : ''}
                     </span>
+                    {currentUser && reply.user_id === currentUser.id && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteCommentById(reply.id);
+                        }}
+                        disabled={deleting}
+                        className="ml-auto text-[11px] text-red-400 hover:text-red-300 disabled:opacity-50"
+                      >
+                        {deleting ? 'Menghapus...' : 'Hapus'}
+                      </button>
+                    )}
                   </div>
                   <p className="text-gray-400 text-sm mt-0.5 whitespace-pre-wrap break-words">{reply.body}</p>
                 </div>
@@ -112,7 +156,7 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated }) {
 }
 
 export default function CommentSection({ mangaId, chapterId, externalSlug, scope }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -225,6 +269,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
                 onReply={fetchComments}
                 getImageUrl={getImageUrl}
                 isAuthenticated={isAuthenticated}
+                currentUser={user}
               />
             ))}
           </div>

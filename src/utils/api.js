@@ -156,6 +156,12 @@ class APIClient {
     });
   }
 
+  deleteComment(id) {
+    return this.request(`/comments/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Categories
   getCategories() {
     return this.request('/categories');

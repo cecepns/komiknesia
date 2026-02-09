@@ -222,7 +222,7 @@ const Library = () => {
       </div>
 
       {/* Main Content */}
-      <main className="pt-6 pb-24">
+      <main className="pt-12 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* New Update Tab */}
           {activeTab === 'new-update' && (
