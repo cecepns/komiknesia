@@ -201,7 +201,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
         </form>
       ) : (
         <p className="text-gray-400 text-sm mb-4">
-          <Link to="/login" className="text-primary-400 hover:text-primary-300 underline">
+          <Link to="/akun" className="text-primary-400 hover:text-primary-300 underline">
             Login
           </Link>{' '}
           untuk mengomentari. Anda hanya dapat melihat komentar saat belum login.
