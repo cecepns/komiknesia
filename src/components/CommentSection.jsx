@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, Send, Loader2, Reply } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { apiClient, getImageUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -110,32 +111,51 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated }) {
   );
 }
 
-export default function CommentSection({ mangaId, chapterId }) {
+export default function CommentSection({ mangaId, chapterId, externalSlug, scope }) {
   const { isAuthenticated } = useAuth();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
     try {
-      const params = {};
+      const params = { page, limit: 30 };
       if (mangaId) params.manga_id = mangaId;
-      if (chapterId) params.chapter_id = chapterId;
+      if (scope) params.scope = scope;
+      if (externalSlug) {
+        params.external_slug = externalSlug;
+      } else if (chapterId) {
+        params.chapter_id = chapterId;
+      }
       const res = await apiClient.getComments(params);
-      if (res.status && res.data) setComments(res.data);
-      else setComments([]);
+      if (res.status && res.data) {
+        setComments(res.data);
+        const meta = res.meta || {};
+        setHasMore(meta.page < meta.totalPages);
+      } else {
+        setComments([]);
+        setHasMore(false);
+      }
     } catch {
       setComments([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [mangaId, chapterId]);
+  }, [mangaId, chapterId, page]);
 
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
+
+  // Reset to first page when target changes
+  useEffect(() => {
+    setPage(1);
+  }, [mangaId, chapterId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -145,6 +165,7 @@ export default function CommentSection({ mangaId, chapterId }) {
       await apiClient.postComment({
         manga_id: mangaId || undefined,
         chapter_id: chapterId || undefined,
+        external_slug: externalSlug || undefined,
         body: body.trim(),
       });
       setBody('');
@@ -180,7 +201,10 @@ export default function CommentSection({ mangaId, chapterId }) {
         </form>
       ) : (
         <p className="text-gray-400 text-sm mb-4">
-          Login untuk mengomentari. Anda hanya dapat melihat komentar saat belum login.
+          <Link to="/login" className="text-primary-400 hover:text-primary-300 underline">
+            Login
+          </Link>{' '}
+          untuk mengomentari. Anda hanya dapat melihat komentar saat belum login.
         </p>
       )}
       {loading ? (
@@ -192,17 +216,30 @@ export default function CommentSection({ mangaId, chapterId }) {
           <p className="text-gray-400">Belum ada komentar.</p>
         </div>
       ) : (
-        <div className="space-y-0">
-          {comments.map((comment) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              onReply={fetchComments}
-              getImageUrl={getImageUrl}
-              isAuthenticated={isAuthenticated}
-            />
-          ))}
-        </div>
+        <>
+          <div className="space-y-0">
+            {comments.map((comment) => (
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                onReply={fetchComments}
+                getImageUrl={getImageUrl}
+                isAuthenticated={isAuthenticated}
+              />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                className="px-4 py-2 text-sm bg-primary-800 hover:bg-primary-700 rounded-lg text-primary-100 border border-primary-700"
+              >
+                Tampilkan komentar berikutnya
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

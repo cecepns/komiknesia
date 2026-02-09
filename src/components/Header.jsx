@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, Search, X } from 'lucide-react';
+import { Moon, Sun, Search, X, User } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import Logo from '../assets/logo.png';
 import LazyImage from './LazyImage';
+import { useAuth } from '../contexts/AuthContext';
 
 const Header = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
@@ -193,7 +195,7 @@ const Header = () => {
             )}
           </div>
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle + Account */}
           <div className="flex items-center space-x-4 flex-shrink-0">
             <button
               onClick={toggleTheme}
@@ -204,6 +206,20 @@ const Header = () => {
               ) : (
                 <Sun className="h-5 w-5" />
               )}
+            </button>
+            <button
+              onClick={() => navigate('/akun')}
+              className="hidden sm:inline-flex items-center px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
+            >
+              <User className="h-4 w-4 mr-2" />
+              {isAuthenticated ? 'Akun Saya' : 'Masuk / Daftar'}
+            </button>
+            <button
+              onClick={() => navigate('/akun')}
+              className="sm:hidden p-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white transition-colors"
+              aria-label="Akun"
+            >
+              <User className="h-5 w-5" />
             </button>
           </div>
         </div>

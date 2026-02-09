@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, UserPlus, Loader2, LogOut, Camera } from 'lucide-react';
@@ -11,10 +11,27 @@ const Akun = () => {
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [profileFile, setProfileFile] = useState(null);
+  const [profileUsername, setProfileUsername] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Sync editable profile fields with current user
+  useEffect(() => {
+    if (user) {
+      setProfileUsername(user.username || '');
+      setProfileEmail(user.email || '');
+    } else {
+      setProfileUsername('');
+      setProfileEmail('');
+    }
+  }, [user]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -84,6 +101,82 @@ const Akun = () => {
     }
   };
 
+  const handleUpdateProfileInfo = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    const trimmedUsername = profileUsername.trim();
+    const trimmedEmail = profileEmail.trim();
+
+    if (!trimmedUsername) {
+      setError('Username wajib diisi');
+      return;
+    }
+    if (trimmedUsername.length < 3) {
+      setError('Username minimal 3 karakter');
+      return;
+    }
+
+    setProfileLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('username', trimmedUsername);
+      if (trimmedEmail) {
+        formData.append('email', trimmedEmail);
+      }
+      const result = await updateProfile(formData);
+      if (result.success) {
+        setSuccess('Profil berhasil diperbarui.');
+      } else {
+        setError(result.error || 'Gagal memperbarui profil');
+      }
+    } catch (err) {
+      setError(err.message || 'Gagal memperbarui profil');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!currentPassword || !newPassword) {
+      setError('Password lama dan password baru wajib diisi');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password baru minimal 6 karakter');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Konfirmasi password baru tidak sama');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('current_password', currentPassword);
+      formData.append('new_password', newPassword);
+      const result = await updateProfile(formData);
+      if (result.success) {
+        setSuccess('Password berhasil diperbarui.');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setError(result.error || 'Gagal memperbarui password');
+      }
+    } catch (err) {
+      setError(err.message || 'Gagal memperbarui password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950">
@@ -133,8 +226,84 @@ const Akun = () => {
                 )}
               </label>
             </div>
-            <p className="text-lg font-semibold">{user?.username}</p>
-            {user?.email && <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>}
+            <form onSubmit={handleUpdateProfileInfo} className="mt-4 space-y-3 text-left">
+              <div>
+                <label className="block text-sm font-medium mb-1">Username</label>
+                <input
+                  type="text"
+                  value={profileUsername}
+                  onChange={(e) => setProfileUsername(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                  disabled={profileLoading}
+                  minLength={3}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  value={profileEmail}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                  disabled={profileLoading}
+                  placeholder="email@contoh.com"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={profileLoading}
+                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {profileLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Simpan Profil
+              </button>
+            </form>
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-left">
+              <h2 className="text-sm font-semibold mb-3">Ubah Password</h2>
+              <form onSubmit={handleUpdatePassword} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password Lama</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                    disabled={passwordLoading}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Password Baru</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                      disabled={passwordLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Konfirmasi Password Baru</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                      disabled={passwordLoading}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {passwordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Simpan Password
+                </button>
+              </form>
+            </div>
             {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
             {success && <p className="mt-2 text-sm text-green-600 dark:text-green-400">{success}</p>}
             <button

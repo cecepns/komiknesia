@@ -17,6 +17,8 @@ const Library = () => {
   const [contentFilter, setContentFilter] = useState('all'); // 'all', 'manga', 'manhwa', 'manhua'
   const [historyList, setHistoryList] = useState([]);
   const [bookmarkList, setBookmarkList] = useState([]);
+  const [bookmarkPage, setBookmarkPage] = useState(1);
+  const [bookmarkHasMore, setBookmarkHasMore] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -73,12 +75,21 @@ const Library = () => {
     }
   }, []);
 
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+
   const loadHistory = useCallback(() => {
     try {
       const history = localStorage.getItem('mangaHistory');
       if (history) {
         const parsedHistory = JSON.parse(history);
-        setHistoryList(parsedHistory.slice(0, 5));
+        // History already stored newest-first; keep max 100 just in case
+        const trimmed = parsedHistory.slice(0, 100);
+        setHistoryList(trimmed);
+        setHistoryHasMore(trimmed.length > 10);
+      } else {
+        setHistoryList([]);
+        setHistoryHasMore(false);
       }
     } catch (error) {
       console.error('Error loading history:', error);
@@ -89,25 +100,46 @@ const Library = () => {
     if (!isAuthenticated) return;
     setBookmarkLoading(true);
     try {
-      const res = await apiClient.getBookmarks();
-      if (res.status && res.data) setBookmarkList(res.data);
-      else setBookmarkList([]);
+      const res = await apiClient.getBookmarks({ page: bookmarkPage, limit: 24 });
+      if (res.status && res.data) {
+        setBookmarkList(res.data);
+        const meta = res.meta || {};
+        setBookmarkHasMore(meta.page < meta.totalPages);
+      } else {
+        setBookmarkList([]);
+        setBookmarkHasMore(false);
+      }
     } catch (err) {
       console.error('Error loading bookmarks:', err);
       setBookmarkList([]);
+      setBookmarkHasMore(false);
     } finally {
       setBookmarkLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, bookmarkPage]);
 
   useEffect(() => {
     loadMangaUpdates();
     loadHistory();
   }, [loadMangaUpdates, loadHistory]);
 
+  // Reset history pagination when tab changes
+  useEffect(() => {
+    if (activeTab === 'history') {
+      setHistoryPage(1);
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     if (activeTab === 'bookmark' && isAuthenticated) loadBookmarks();
   }, [activeTab, isAuthenticated, loadBookmarks]);
+
+  // Reset bookmark pagination when leaving/entering tab
+  useEffect(() => {
+    if (activeTab === 'bookmark') {
+      setBookmarkPage(1);
+    }
+  }, [activeTab]);
 
   const getTimeAgo = (timestamp) => {
     const now = Math.floor(Date.now() / 1000);
@@ -131,9 +163,24 @@ const Library = () => {
     { id: 'history', label: 'History', icon: History },
   ];
 
+  // Map content filter to country_id
+  const countryFilterMap = {
+    manga: 'JP',
+    manhwa: 'KR',
+    manhua: 'CN',
+  };
+
   const filteredMangaList = contentFilter === 'all'
     ? mangaList
-    : mangaList.filter((manga) => (manga.content_type || '').toLowerCase() === contentFilter);
+    : mangaList.filter((manga) => {
+        const targetCountry = countryFilterMap[contentFilter];
+        if (!targetCountry) return true;
+        // Prefer filtering by country_id, fallback to content_type when missing
+        return (
+          manga.country_id === targetCountry ||
+          (manga.content_type || '').toLowerCase() === contentFilter
+        );
+      });
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -349,41 +396,54 @@ const Library = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {bookmarkList.map((item) => (
-                        <div
-                          key={item.id}
-                          className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer relative"
-                        >
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {bookmarkList.map((item) => (
                           <div
-                            className="relative aspect-[3/4] overflow-hidden"
-                            onClick={() => navigate(`/komik/${item.slug}`)}
+                            key={item.id}
+                            className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer relative"
                           >
-                            <LazyImage
-                              src={getImageUrl(item.cover)}
-                              alt={item.title}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                              wrapperClassName="w-full h-full"
-                            />
-                            <div className="absolute top-2 right-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  apiClient.removeBookmark(item.manga_id).then(() => loadBookmarks());
-                                }}
-                                className="p-2 bg-red-600/90 hover:bg-red-600 text-white rounded-full shadow"
-                                title="Hapus bookmark"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                              <h3 className="text-white font-bold text-sm line-clamp-2">{item.title}</h3>
+                            <div
+                              className="relative aspect-[3/4] overflow-hidden"
+                              onClick={() => navigate(`/komik/${item.slug}`)}
+                            >
+                              <LazyImage
+                                src={getImageUrl(item.cover)}
+                                alt={item.title}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                wrapperClassName="w-full h-full"
+                              />
+                              <div className="absolute top-2 right-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    apiClient.removeBookmark(item.manga_id).then(() => loadBookmarks());
+                                  }}
+                                  className="p-2 bg-red-600/90 hover:bg-red-600 text-white rounded-full shadow"
+                                  title="Hapus bookmark"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+                                <h3 className="text-white font-bold text-sm line-clamp-2">{item.title}</h3>
+                              </div>
                             </div>
                           </div>
+                        ))}
+                      </div>
+                      {bookmarkHasMore && (
+                        <div className="mt-6 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setBookmarkPage((p) => p + 1)}
+                            className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            Tampilkan bookmark berikutnya
+                          </button>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -398,7 +458,7 @@ const Library = () => {
                   Riwayat Baca
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  5 komik terakhir yang kamu baca
+                  Maksimal 100 riwayat, ditampilkan 10 per halaman
                 </p>
               </div>
 
@@ -414,9 +474,11 @@ const Library = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {historyList.map((item, index) => (
+                  {historyList
+                    .slice((historyPage - 1) * 10, historyPage * 10)
+                    .map((item, index) => (
                     <div
-                      key={index}
+                      key={`${item.mangaSlug}-${item.chapterSlug}-${index}`}
                       onClick={() => navigate(`/view/${item.chapterSlug}`)}
                       className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
                     >
@@ -444,6 +506,26 @@ const Library = () => {
                       </div>
                     </div>
                   ))}
+                  {historyHasMore && (
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextPage = historyPage + 1;
+                          const maxPage = Math.ceil(historyList.length / 10);
+                          if (nextPage <= maxPage) {
+                            setHistoryPage(nextPage);
+                            setHistoryHasMore(nextPage < maxPage);
+                          } else {
+                            setHistoryHasMore(false);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        Tampilkan riwayat berikutnya
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

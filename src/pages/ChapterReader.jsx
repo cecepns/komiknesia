@@ -407,8 +407,9 @@ const ChapterReader = () => {
           {/* Comment Section */}
           <div className="px-3 sm:px-4 pb-6 sm:pb-8">
             <CommentSection
-              mangaId={mangaData?.id}
+              mangaId={mangaSlug || mangaData?.slug || mangaData?.id}
               chapterId={currentChapter?.id}
+              externalSlug={chapterSlug}
             />
           </div>
         </div>

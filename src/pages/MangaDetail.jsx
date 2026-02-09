@@ -323,11 +323,14 @@ const MangaDetail = () => {
     if (bookmarkChecking) return;
     setBookmarkChecking(true);
     try {
+      // Always use slug as bookmark identifier so backend can resolve/sync manga correctly
+      const identifier = slug;
+
       if (bookmarked) {
-        await apiClient.removeBookmark(manga?.id ?? slug);
+        await apiClient.removeBookmark(identifier);
         setBookmarked(false);
       } else {
-        await apiClient.addBookmark(manga?.id ?? slug);
+        await apiClient.addBookmark(identifier);
         setBookmarked(true);
       }
     } catch (err) {
@@ -970,9 +973,12 @@ const MangaDetail = () => {
           </div>
 
           {/* Comment Section */}
-          {manga?.id && (
+          {manga && (
             <div className="mt-8">
-              <CommentSection mangaId={manga.id} />
+              <CommentSection
+                mangaId={manga.slug || manga.id}
+                scope="manga" // Hanya komentar level manga (bukan per chapter/external_slug)
+              />
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 /**
  * Save manga reading history to localStorage
- * Keeps only the last 5 items
+ * Keeps only the last 100 items
  */
 export const saveToHistory = (historyItem) => {
   try {
@@ -19,8 +19,8 @@ export const saveToHistory = (historyItem) => {
       timestamp: Date.now()
     });
 
-    // Keep only last 5 items
-    history = history.slice(0, 5);
+    // Keep only last 100 items (newest first)
+    history = history.slice(0, 100);
 
     // Save to localStorage
     localStorage.setItem('mangaHistory', JSON.stringify(history));

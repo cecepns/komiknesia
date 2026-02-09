@@ -333,18 +333,107 @@ app.put('/api/auth/profile', authenticateToken, upload.single('profile_image'), 
   try {
     const userId = req.user.id;
     const profileImage = req.file ? `/uploads/${req.file.filename}` : null;
-    if (profileImage) {
-      await db.execute('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
+    const {
+      username,
+      email,
+      current_password,
+      new_password,
+    } = req.body || {};
+
+    // Load current user (including password hash)
+    const [users] = await db.execute(
+      'SELECT id, username, email, password, profile_image FROM users WHERE id = ?',
+      [userId]
+    );
+    if (users.length === 0) {
+      return res.status(404).json({ status: false, error: 'User not found' });
     }
-    const [users] = await db.execute('SELECT id, username, email, profile_image FROM users WHERE id = ?', [userId]);
-    const user = users[0];
+    const currentUser = users[0];
+
+    const updates = [];
+    const params = [];
+
+    // Handle username/email changes
+    const usernameTrim = typeof username === 'string' ? username.trim() : '';
+    const emailTrim = typeof email === 'string' ? email.trim() : '';
+
+    if (usernameTrim && usernameTrim.toLowerCase() !== String(currentUser.username || '').trim().toLowerCase()) {
+      if (usernameTrim.length < 3) {
+        return res.status(400).json({ status: false, error: 'Username minimal 3 karakter' });
+      }
+      // Check uniqueness (exclude current user)
+      const [existing] = await db.execute(
+        'SELECT id FROM users WHERE id != ? AND (LOWER(TRIM(username)) = LOWER(TRIM(?)) OR (email IS NOT NULL AND TRIM(?) != "" AND LOWER(TRIM(email)) = LOWER(TRIM(?))))',
+        [userId, usernameTrim, emailTrim || '', emailTrim || '']
+      );
+      if (existing.length > 0) {
+        return res.status(400).json({ status: false, error: 'Username atau email sudah dipakai pengguna lain.' });
+      }
+      updates.push('username = ?');
+      params.push(usernameTrim);
+    }
+
+    if (emailTrim || (email === '')) {
+      // Allow clearing email by sending empty string
+      const emailVal = emailTrim || null;
+      if (emailVal && emailVal !== currentUser.email) {
+        // Check email uniqueness (exclude current user)
+        const [existingEmail] = await db.execute(
+          'SELECT id FROM users WHERE id != ? AND email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM(?))',
+          [userId, emailVal]
+        );
+        if (existingEmail.length > 0) {
+          return res.status(400).json({ status: false, error: 'Email sudah dipakai pengguna lain.' });
+        }
+      }
+      updates.push('email = ?');
+      params.push(emailTrim || null);
+    }
+
+    // Handle password change
+    if (current_password || new_password) {
+      if (!current_password || !new_password) {
+        return res.status(400).json({ status: false, error: 'Password lama dan password baru wajib diisi' });
+      }
+      if (String(new_password).length < 6) {
+        return res.status(400).json({ status: false, error: 'Password baru minimal 6 karakter' });
+      }
+
+      const isMatch = await bcrypt.compare(String(current_password), currentUser.password);
+      if (!isMatch) {
+        return res.status(400).json({ status: false, error: 'Password lama tidak sesuai' });
+      }
+
+      const newHashedPassword = await bcrypt.hash(String(new_password), 10);
+      updates.push('password = ?');
+      params.push(newHashedPassword);
+    }
+
+    // Handle profile image update
+    if (profileImage) {
+      updates.push('profile_image = ?');
+      params.push(profileImage);
+    }
+
+    if (updates.length > 0) {
+      const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
+      params.push(userId);
+      await db.execute(sql, params);
+    }
+
+    const [updatedUsers] = await db.execute(
+      'SELECT id, username, email, profile_image FROM users WHERE id = ?',
+      [userId]
+    );
+    const updated = updatedUsers[0];
+
     res.json({
       status: true,
       data: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        profile_image: user.profile_image || null
+        id: updated.id,
+        username: updated.username,
+        email: updated.email,
+        profile_image: updated.profile_image || null
       }
     });
   } catch (error) {
@@ -1657,15 +1746,38 @@ app.delete('/api/manga/:id', authenticateToken, async (req, res) => {
 app.get('/api/bookmarks', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const { page = 1, limit = 24 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.max(1, Math.min(100, parseInt(limit, 10) || 24)); // max 100 per page
+    const offset = (pageNum - 1) * pageSize;
+
+    const [[countRow]] = await db.execute(
+      `SELECT COUNT(*) as total
+       FROM bookmarks
+       WHERE user_id = ?`,
+      [userId]
+    );
+    const total = countRow ? countRow.total : 0;
+
     const [rows] = await db.execute(
       `SELECT b.id, b.manga_id, b.created_at, m.slug, m.title, m.thumbnail as cover
        FROM bookmarks b
        JOIN manga m ON m.id = b.manga_id
        WHERE b.user_id = ?
-       ORDER BY b.created_at DESC`,
-      [userId]
+       ORDER BY b.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [userId, pageSize, offset]
     );
-    res.json({ status: true, data: rows });
+    res.json({
+      status: true,
+      data: rows,
+      meta: {
+        page: pageNum,
+        limit: pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
   } catch (error) {
     console.error('Error fetching bookmarks:', error);
     res.status(500).json({ status: false, error: 'Internal server error' });
@@ -1731,30 +1843,163 @@ app.get('/api/bookmarks/check/:mangaId', authenticateToken, async (req, res) => 
   }
 });
 
+// Helper: ensure a WestManga title exists in local `manga` table by slug.
+// Returns the internal manga ID or null on failure.
+async function ensureWestMangaMangaIdBySlug(slug) {
+  try {
+    if (!slug) return null;
+
+    // If already exists by slug, just return it
+    const [existingBySlug] = await db.execute(
+      'SELECT id FROM manga WHERE slug = ?',
+      [slug]
+    );
+    if (existingBySlug.length > 0) {
+      return existingBySlug[0].id;
+    }
+
+    // Fetch from WestManga API
+    const mangaDetail = await westMangaService.getMangaDetail(slug);
+    if (!mangaDetail || !mangaDetail.status || !mangaDetail.data) {
+      console.warn(`ensureWestMangaMangaIdBySlug: No data returned from WestManga for slug "${slug}"`);
+      return null;
+    }
+
+    const mangaData = mangaDetail.data;
+    const transformed = westMangaService.transformMangaData(mangaData);
+
+    // Check again by westmanga_id or transformed slug
+    const [existing] = await db.execute(
+      'SELECT id FROM manga WHERE westmanga_id = ? OR slug = ?',
+      [mangaData.id, transformed.slug]
+    );
+
+    let mangaId;
+    if (existing.length > 0) {
+      mangaId = existing[0].id;
+      // Update minimal fields to keep data fresh (same as sync-manga route)
+      await db.execute(`
+        UPDATE manga SET 
+          westmanga_id = ?, title = ?, slug = ?, alternative_name = ?, author = ?,
+          synopsis = ?, thumbnail = ?, content_type = ?, country_id = ?,
+          color = ?, hot = ?, is_project = ?, is_safe = ?,
+          rating = ?, bookmark_count = ?, views = ?, \`release\` = ?,
+          status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [
+        transformed.westmanga_id, transformed.title, transformed.slug,
+        transformed.alternative_name, transformed.author, transformed.synopsis,
+        transformed.thumbnail, transformed.content_type, transformed.country_id,
+        transformed.color, transformed.hot, transformed.is_project,
+        transformed.is_safe, transformed.rating, transformed.bookmark_count,
+        transformed.views, transformed.release, transformed.status,
+        mangaId
+      ]);
+    } else {
+      // Insert new manga row
+      const [result] = await db.execute(`
+        INSERT INTO manga (
+          westmanga_id, title, slug, alternative_name, author,
+          synopsis, thumbnail, content_type, country_id,
+          color, hot, is_project, is_safe, rating,
+          bookmark_count, views, \`release\`, status, is_input_manual
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        transformed.westmanga_id, transformed.title, transformed.slug,
+        transformed.alternative_name, transformed.author, transformed.synopsis,
+        transformed.thumbnail, transformed.content_type, transformed.country_id,
+        transformed.color, transformed.hot, transformed.is_project,
+        transformed.is_safe, transformed.rating, transformed.bookmark_count,
+        transformed.views, transformed.release, transformed.status,
+        transformed.is_input_manual
+      ]);
+      mangaId = result.insertId;
+    }
+
+    return mangaId || null;
+  } catch (err) {
+    console.error('ensureWestMangaMangaIdBySlug failed:', err);
+    return null;
+  }
+}
+
 // Comments (manga or chapter; replies via parent_id; list public, add/reply require auth)
 app.get('/api/comments', async (req, res) => {
   try {
-    const { manga_id, chapter_id } = req.query;
-    if (!manga_id && !chapter_id) {
-      return res.status(400).json({ status: false, error: 'manga_id or chapter_id required' });
+    const { manga_id, chapter_id, external_slug, scope, page = 1, limit = 30 } = req.query;
+    if (!manga_id && !chapter_id && !external_slug) {
+      return res.status(400).json({ status: false, error: 'manga_id, chapter_id or external_slug required' });
     }
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.max(1, Math.min(100, parseInt(limit, 10) || 30)); // max 100 per page
+    const offset = (pageNum - 1) * pageSize;
+    let baseWhere = 'WHERE c.parent_id IS NULL';
+
     let query = `
       SELECT c.id, c.user_id, c.manga_id, c.chapter_id, c.parent_id, c.body, c.created_at,
              u.username, u.profile_image
       FROM comments c
       JOIN users u ON u.id = c.user_id
-      WHERE c.parent_id IS NULL
+      ${baseWhere}
+    `;
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM comments c
+      ${baseWhere}
     `;
     const params = [];
+    const countParams = [];
+
+    // Support both numeric manga_id and slug (string) for WestManga / external sources.
     if (manga_id) {
+      let resolvedMangaId = null;
+
+      if (!isNaN(Number(manga_id))) {
+        // Numeric ID – use directly
+        resolvedMangaId = Number(manga_id);
+      } else {
+        // Non‑numeric: treat as slug and resolve to internal manga.id if it exists
+        const [mangaRows] = await db.execute(
+          'SELECT id FROM manga WHERE slug = ?',
+          [manga_id]
+        );
+
+        if (mangaRows.length === 0) {
+          // If slug not found in local DB, there is no internal manga_id to join on.
+          // In this case, return empty comments list instead of querying.
+          return res.json({ status: true, data: [] });
+        }
+
+        resolvedMangaId = mangaRows[0].id;
+      }
+
       query += ' AND c.manga_id = ?';
-      params.push(manga_id);
+      countQuery += ' AND c.manga_id = ?';
+      params.push(resolvedMangaId);
+      countParams.push(resolvedMangaId);
     }
     if (chapter_id) {
       query += ' AND c.chapter_id = ?';
+      countQuery += ' AND c.chapter_id = ?';
       params.push(chapter_id);
+      countParams.push(chapter_id);
     }
-    query += ' ORDER BY c.created_at ASC';
+    if (external_slug) {
+      query += ' AND c.external_slug = ?';
+      countQuery += ' AND c.external_slug = ?';
+      params.push(external_slug);
+      countParams.push(external_slug);
+    } else if (manga_id && scope === 'manga') {
+      // On manga detail page, hide chapter-specific comments (those with external_slug set)
+      query += ' AND c.external_slug IS NULL';
+      countQuery += ' AND c.external_slug IS NULL';
+    }
+    query += ' ORDER BY c.created_at ASC LIMIT ? OFFSET ?';
+    params.push(pageSize, offset);
+
+    const [[countRow]] = await db.execute(countQuery, countParams);
+    const total = countRow ? countRow.total : 0;
+
     const [comments] = await db.execute(query, params);
     const parentIds = comments.map(c => c.id);
     let replies = [];
@@ -1778,7 +2023,16 @@ app.get('/api/comments', async (req, res) => {
       ...c,
       replies: (repliesByParent[c.id] || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
     }));
-    res.json({ status: true, data });
+    res.json({
+      status: true,
+      data,
+      meta: {
+        page: pageNum,
+        limit: pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json({ status: false, error: 'Internal server error' });
@@ -1787,17 +2041,81 @@ app.get('/api/comments', async (req, res) => {
 
 app.post('/api/comments', authenticateToken, async (req, res) => {
   try {
-    const { manga_id, chapter_id, parent_id, body } = req.body;
-    if (!body || (String(body).trim().length === 0)) {
+    const { manga_id, chapter_id, parent_id, body, external_slug } = req.body;
+
+    // Basic validation
+    if (!body || String(body).trim().length === 0) {
       return res.status(400).json({ status: false, error: 'Komentar tidak boleh kosong' });
     }
     if (!manga_id && !chapter_id) {
       return res.status(400).json({ status: false, error: 'manga_id or chapter_id required' });
     }
+
+    // Resolve manga_id and chapter_id to valid local IDs to avoid FK errors.
+    // For West Manga / external sources, chapters might not exist locally, so we:
+    // - Only set chapter_id when the chapter exists in our DB
+    // - Always try to resolve/sync manga by slug when provided
+    let resolvedMangaId = null;
+    let resolvedChapterId = null;
+
+    // Try to resolve chapter_id to a local chapter (if it exists)
+    if (chapter_id) {
+      const [chapterRows] = await db.execute(
+        'SELECT id, manga_id FROM chapters WHERE id = ?',
+        [chapter_id]
+      );
+
+      if (chapterRows.length > 0) {
+        resolvedChapterId = chapterRows[0].id;
+        resolvedMangaId = chapterRows[0].manga_id || null;
+      } else {
+        // Chapter is not in our DB (likely WestManga-only) → don't set chapter FK
+        resolvedChapterId = null;
+      }
+    }
+
+    // If we still don't have a manga_id, resolve it from the payload (ID or slug)
+    if (!resolvedMangaId && manga_id) {
+      // Treat manga_id as either numeric ID or slug.
+      if (!isNaN(Number(manga_id))) {
+        const [mangaRows] = await db.execute(
+          'SELECT id FROM manga WHERE id = ?',
+          [Number(manga_id)]
+        );
+        if (mangaRows.length > 0) {
+          resolvedMangaId = mangaRows[0].id;
+        } else {
+          // If numeric ID not found, leave as null (no FK)
+          resolvedMangaId = null;
+        }
+      } else {
+        // Non-numeric: treat as slug. If not found locally, auto-sync from WestManga.
+        const [mangaRows] = await db.execute(
+          'SELECT id FROM manga WHERE slug = ?',
+          [manga_id]
+        );
+        if (mangaRows.length > 0) {
+          resolvedMangaId = mangaRows[0].id;
+        } else {
+          // Auto-sync from WestManga and get internal ID
+          const syncedId = await ensureWestMangaMangaIdBySlug(manga_id);
+          resolvedMangaId = syncedId || null;
+        }
+      }
+    }
+
     const [result] = await db.execute(
-      'INSERT INTO comments (user_id, manga_id, chapter_id, parent_id, body) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, manga_id || null, chapter_id || null, parent_id || null, String(body).trim()]
+      'INSERT INTO comments (user_id, manga_id, external_slug, chapter_id, parent_id, body) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        req.user.id,
+        resolvedMangaId,
+        external_slug || null,
+        resolvedChapterId,
+        parent_id || null,
+        String(body).trim()
+      ]
     );
+
     const [rows] = await db.execute(
       `SELECT c.id, c.user_id, c.manga_id, c.chapter_id, c.parent_id, c.body, c.created_at,
               u.username, u.profile_image
@@ -1806,6 +2124,7 @@ app.post('/api/comments', authenticateToken, async (req, res) => {
        WHERE c.id = ?`,
       [result.insertId]
     );
+
     res.json({ status: true, data: rows[0] });
   } catch (error) {
     console.error('Error adding comment:', error);
