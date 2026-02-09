@@ -145,6 +145,21 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
                     )}
                   </div>
                   <p className="text-gray-400 text-sm mt-0.5 whitespace-pre-wrap break-words">{reply.body}</p>
+                  {isAuthenticated && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReplyForm(true);
+                        // optional: prefill mention
+                        if (!replyBody) {
+                          setReplyBody(`@${reply.username} `);
+                        }
+                      }}
+                      className="mt-1 text-[11px] text-purple-400 hover:text-purple-300"
+                    >
+                      Balas
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
