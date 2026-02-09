@@ -10,7 +10,6 @@ const Akun = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
-  const [profileFile, setProfileFile] = useState(null);
   const [profileUsername, setProfileUsername] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [error, setError] = useState('');
@@ -71,7 +70,6 @@ const Akun = () => {
       formData.append('username', username.trim());
       formData.append('password', password);
       if (email.trim()) formData.append('email', email.trim());
-      if (profileFile) formData.append('profile_image', profileFile);
       const result = await register(formData);
       if (result.success) setSuccess('Registrasi berhasil. Anda sudah masuk.');
       else setError(result.error || 'Registrasi gagal');
@@ -418,16 +416,6 @@ const Akun = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
                     placeholder="Password"
                     required
-                    disabled={loading}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Foto profil (opsional)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setProfileFile(e.target.files?.[0] || null)}
-                    className="w-full text-sm text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded file:border-0 file:bg-red-50 file:text-red-600 dark:file:bg-red-900/30 dark:file:text-red-300"
                     disabled={loading}
                   />
                 </div>

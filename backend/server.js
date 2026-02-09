@@ -213,23 +213,38 @@ app.post('/api/auth/register', upload.single('profile_image'), async (req, res) 
     if (!username || !password) {
       return res.status(400).json({ status: false, error: 'Username dan password wajib diisi' });
     }
-    const usernameTrim = String(username).trim().toLowerCase();
+    const usernameTrim = String(username).trim();
     if (usernameTrim.length < 3) {
       return res.status(400).json({ status: false, error: 'Username minimal 3 karakter' });
     }
-    const [existing] = await db.execute(
-      'SELECT id FROM users WHERE LOWER(TRIM(username)) = ? OR (email IS NOT NULL AND TRIM(?) != "" AND LOWER(TRIM(email)) = LOWER(TRIM(?)))',
-      [usernameTrim, email || '', email || '']
+    const usernameLower = usernameTrim.toLowerCase();
+    const emailTrim = email && String(email).trim() ? String(email).trim() : '';
+
+    // Check username uniqueness
+    const [existingUsername] = await db.execute(
+      'SELECT id FROM users WHERE LOWER(TRIM(username)) = ?',
+      [usernameLower]
     );
-    if (existing.length > 0) {
+    if (existingUsername.length > 0) {
       return res.status(400).json({ status: false, error: 'Username sudah dipakai. Gunakan username lain.' });
+    }
+
+    // Check email uniqueness if provided
+    if (emailTrim) {
+      const [existingEmail] = await db.execute(
+        'SELECT id FROM users WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM(?))',
+        [emailTrim]
+      );
+      if (existingEmail.length > 0) {
+        return res.status(400).json({ status: false, error: 'Email sudah dipakai. Gunakan email lain.' });
+      }
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const profileImage = req.file ? `/uploads/${req.file.filename}` : null;
-    const emailVal = email && String(email).trim() ? String(email).trim() : null;
+    const emailVal = emailTrim || null;
     await db.execute(
       'INSERT INTO users (username, password, email, profile_image) VALUES (?, ?, ?, ?)',
-      [usernameTrim, hashedPassword, emailVal, profileImage]
+      [usernameLower, hashedPassword, emailVal, profileImage]
     );
     const [inserted] = await db.execute(
       'SELECT id, username, email, profile_image FROM users WHERE id = LAST_INSERT_ID()'
