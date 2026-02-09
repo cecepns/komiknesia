@@ -214,13 +214,13 @@ const Header = () => {
               <User className="h-4 w-4 mr-2" />
               {isAuthenticated ? 'Akun Saya' : 'Masuk / Daftar'}
             </button>
-            <button
+            {/* <button
               onClick={() => navigate('/akun')}
               className="sm:hidden p-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white transition-colors"
               aria-label="Akun"
             >
               <User className="h-5 w-5" />
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
