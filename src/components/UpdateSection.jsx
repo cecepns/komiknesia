@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Clock } from 'lucide-react';
-import LazyImage from './LazyImage';
-import { apiClient, getImageUrl } from '../utils/api';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Clock } from "lucide-react";
+import LazyImage from "./LazyImage";
+import { apiClient, getImageUrl } from "../utils/api";
 
 const UpdateSection = () => {
   const navigate = useNavigate();
@@ -10,11 +10,11 @@ const UpdateSection = () => {
   const [loading, setLoading] = useState(true);
 
   const countryFlags = {
-    'JP': '🇯🇵',
-    'KR': '🇰🇷',
-    'CN': '🇨🇳',
-    'US': '🇺🇸',
-    'ID': '🇮🇩'
+    JP: "🇯🇵",
+    KR: "🇰🇷",
+    CN: "🇨🇳",
+    US: "🇺🇸",
+    ID: "🇮🇩",
   };
 
   useEffect(() => {
@@ -28,16 +28,16 @@ const UpdateSection = () => {
       const response = await apiClient.getContents({
         page: 1,
         per_page: 14,
-        orderBy: 'Update'
+        orderBy: "Update",
       });
-      
+
       // Extract manga data from response
       const mangaData = response.data || [];
-      
+
       // Transform to match expected format
       const transformed = mangaData
-        .filter(manga => manga.lastChapters && manga.lastChapters.length > 0)
-        .map(manga => ({
+        .filter((manga) => manga.lastChapters && manga.lastChapters.length > 0)
+        .map((manga) => ({
           id: manga.id,
           title: manga.title,
           slug: manga.slug,
@@ -47,12 +47,12 @@ const UpdateSection = () => {
           hot: manga.hot,
           rating: manga.rating,
           total_views: manga.total_views,
-          lastChapters: manga.lastChapters || []
+          lastChapters: manga.lastChapters || [],
         }));
-      
+
       setMangaList(transformed);
     } catch (error) {
-      console.error('Error fetching update manga:', error);
+      console.error("Error fetching update manga:", error);
       setMangaList([]);
     } finally {
       setLoading(false);
@@ -62,10 +62,10 @@ const UpdateSection = () => {
   const getTimeAgo = (timestamp) => {
     const now = Math.floor(Date.now() / 1000);
     const diff = now - timestamp;
-    
+
     const hours = Math.floor(diff / 3600);
     const days = Math.floor(diff / (3600 * 24));
-    
+
     if (hours < 24) {
       return `${hours} jam`;
     } else {
@@ -86,7 +86,7 @@ const UpdateSection = () => {
           </h2>
         </div>
         <button
-          onClick={() => navigate('/content')}
+          onClick={() => navigate("/content")}
           className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-300"
         >
           View All
@@ -121,43 +121,52 @@ const UpdateSection = () => {
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   wrapperClassName="w-full h-full"
                 />
-                
+
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                
+
                 {/* Country Flag */}
                 <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
-                  {countryFlags[manga.country_id] || '🌍'}
+                  {countryFlags[manga.country_id] || "🌍"}
                 </div>
-                
+
                 {/* Color Badge */}
                 {manga.color && (
                   <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-md text-xs font-bold flex items-center space-x-1">
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z"/>
+                    <svg
+                      className="w-3 h-3"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z" />
                     </svg>
                     <span>COLOR</span>
                   </div>
                 )}
-                
+
                 {/* Hot Badge */}
-                {manga.hot && (
+                {/* {manga.hot && (
                   <div className="absolute bottom-2 left-2 bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
                     <span className="text-white text-xs font-bold">HOT</span>
                   </div>
-                )}
+                )} */}
               </div>
 
               {/* Info Section */}
               <div className="p-3">
+                {!!manga.hot && (
+                  <div className="mb-1 max-w-fit bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
+                    <span className="text-white text-xs font-bold">HOT</span>
+                  </div>
+                )}
                 {/* Title */}
                 <h3 className="font-bold text-sm line-clamp-2 mb-2 text-gray-900 dark:text-gray-100">
                   {manga.title}
                 </h3>
-                
+
                 <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                   <span className="font-medium">
-                    Chapter {manga.lastChapters[0]?.number || 'N/A'}
+                    Chapter {manga.lastChapters[0]?.number || "N/A"}
                   </span>
                   <span className="text-gray-500 dark:text-gray-500">
                     {getTimeAgo(manga.lastChapters[0]?.created_at?.time)}
@@ -166,8 +175,12 @@ const UpdateSection = () => {
                 {/* Rating */}
                 {manga.rating > 0 && (
                   <div className="flex items-center space-x-1">
-                    <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    <svg
+                      className="w-3 h-3 text-yellow-500"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       {manga.rating}
