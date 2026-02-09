@@ -80,19 +80,26 @@ class APIClient {
   }
 
   // Auth methods
+  async register(formData) {
+    const url = `${API_BASE_URL}/auth/register`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (data && data.status && data.data && data.data.token) {
+      this.setAuthToken(data.data.token);
+    }
+    return data;
+  }
+
   async login(username, password) {
     const response = await this.request('/auth/login', {
       method: 'POST',
       body: { username, password },
     });
-    // Ensure token is saved after successful login
     if (response && response.status && response.data && response.data.token) {
       this.setAuthToken(response.data.token);
-      // Verify token was saved
-      const savedToken = this.getAuthToken();
-      if (!savedToken || savedToken !== response.data.token) {
-        console.error('Failed to save auth token to localStorage');
-      }
     }
     return response;
   }
@@ -101,8 +108,52 @@ class APIClient {
     return this.request('/auth/me');
   }
 
+  async updateProfile(formData) {
+    return this.request('/auth/profile', {
+      method: 'PUT',
+      headers: {},
+      body: formData,
+    });
+  }
+
   logout() {
     this.setAuthToken(null);
+  }
+
+  // Bookmarks (requires auth)
+  getBookmarks() {
+    return this.request('/bookmarks');
+  }
+
+  addBookmark(mangaIdOrSlug) {
+    const key = Number.isNaN(Number(mangaIdOrSlug)) ? 'slug' : 'manga_id';
+    return this.request('/bookmarks', {
+      method: 'POST',
+      body: { [key]: mangaIdOrSlug },
+    });
+  }
+
+  removeBookmark(mangaIdOrSlug) {
+    return this.request(`/bookmarks/${encodeURIComponent(mangaIdOrSlug)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  checkBookmark(mangaIdOrSlug) {
+    return this.request(`/bookmarks/check/${encodeURIComponent(mangaIdOrSlug)}`);
+  }
+
+  // Comments
+  getComments(params) {
+    const q = new URLSearchParams(params).toString();
+    return this.request(`/comments?${q}`);
+  }
+
+  postComment(body) {
+    return this.request('/comments', {
+      method: 'POST',
+      body,
+    });
   }
 
   // Categories
@@ -168,7 +219,18 @@ class APIClient {
     });
   }
 
-  // Votes
+  // Votes (by slug; token sent when logged in so vote is per-user)
+  getVotes(slug) {
+    return this.request(`/votes/${encodeURIComponent(slug)}`);
+  }
+
+  submitVote(slug, vote_type) {
+    return this.request('/votes', {
+      method: 'POST',
+      body: { slug, vote_type },
+    });
+  }
+
   voteManga(mangaId, type) {
     return this.request('/votes', {
       method: 'POST',

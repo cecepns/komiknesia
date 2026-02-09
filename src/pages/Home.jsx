@@ -34,6 +34,8 @@ const Home = () => {
   const { ads: newUpdateAds } = useAds("new-update", 10);
   const { ads: populerAds } = useAds("populer", 10);
   const { ads: homeFooterAds } = useAds("home-footer", 10);
+  // Home-only popup/banner announcement (single image)
+  const { ads: homePopupAds } = useAds("home-popup", 1);
 
   useEffect(() => {
     AOS.init({
@@ -76,7 +78,7 @@ const Home = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Home Top Ads - 6 ads */}
         {homeTopAds.length > 0 && (
-          <div className="mb-8" data-aos="fade-up">
+          <div className="mb-4 md:mb-8" data-aos="fade-up">
             <AdBanner
               ads={homeTopAds}
               layout="grid"
@@ -84,35 +86,20 @@ const Home = () => {
             />
           </div>
         )}
+
+        {/* Home Popup Announcement Banner - single image */}
+        {homePopupAds.length > 0 && (
+          <div className="mb-6" data-aos="fade-up">
+            <AdBanner
+              ads={homePopupAds}
+              layout="grid"
+              columns={1}
+            />
+          </div>
+        )}
       </div>
       {/* Hero Section with Dark Background */}
-      <div className="bg-gray-900 py-4 mb-12" data-aos="fade-up">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-xl md:text-7xl font-black text-white mb-3 tracking-tight">
-            KomikNesia
-          </h1>
-          <h2 className="text-md md:text-4xl font-bold text-white mb-6">
-            Baca Komik, Manga, Manhwa & Manhua.
-          </h2>
-
-          {/* Separator Line */}
-          <div className="flex justify-center mb-6">
-            <div className="flex gap-2">
-              {[...Array(14)].map((_, i) => (
-                <div key={i} className="w-3 h-1 bg-white rounded-full"></div>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-xs md:text-lg text-white leading-relaxed max-w-4xl mx-auto">
-            KomikNesia merupakan situs baca komik online dengan koleksi
-            terlengkap dan terupdate. Kamu bisa membaca berbagai macam koleksi
-            komik yang kami update setiap hari secara gratis. Website ini adalah
-            tempat terbaik untuk kalian yang ingin Baca Manga (komik Jepang),
-            Manhwa (komik Korea) dan Manhua (komik China) Terbaru.
-          </p>
-        </div>
-      </div>
+   
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Featured Slider - Popular Daily */}

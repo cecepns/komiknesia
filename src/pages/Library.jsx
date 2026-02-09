@@ -1,19 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Clock, Bookmark, History, LogIn } from 'lucide-react';
+import { Clock, Bookmark, History, LogIn, Trash2 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import comingSoonImage from '../assets/coming-soon.png';
-import Header from '../components/Header';
 import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 import { apiClient, getImageUrl } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const Library = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('new-update');
   const [mangaList, setMangaList] = useState([]);
+  const [contentFilter, setContentFilter] = useState('all'); // 'all', 'manga', 'manhwa', 'manhua'
   const [historyList, setHistoryList] = useState([]);
+  const [bookmarkList, setBookmarkList] = useState([]);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Fetch ads by type
@@ -45,7 +49,9 @@ const Library = () => {
           rating: item.rating,
           total_views: item.total_views,
           lastChapters: item.lastChapters || [],
-          display_order: item.display_order || 0
+          display_order: item.display_order || 0,
+          // Ensure we keep content_type so we can filter by Manga / Manhwa / Manhua
+          content_type: item.content_type || item.contentType || 'manga',
         }))
         .sort((a, b) => {
           // Sort by display_order first, then by last chapter update time
@@ -72,7 +78,6 @@ const Library = () => {
       const history = localStorage.getItem('mangaHistory');
       if (history) {
         const parsedHistory = JSON.parse(history);
-        // Only keep last 5 items
         setHistoryList(parsedHistory.slice(0, 5));
       }
     } catch (error) {
@@ -80,10 +85,29 @@ const Library = () => {
     }
   }, []);
 
+  const loadBookmarks = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setBookmarkLoading(true);
+    try {
+      const res = await apiClient.getBookmarks();
+      if (res.status && res.data) setBookmarkList(res.data);
+      else setBookmarkList([]);
+    } catch (err) {
+      console.error('Error loading bookmarks:', err);
+      setBookmarkList([]);
+    } finally {
+      setBookmarkLoading(false);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     loadMangaUpdates();
     loadHistory();
   }, [loadMangaUpdates, loadHistory]);
+
+  useEffect(() => {
+    if (activeTab === 'bookmark' && isAuthenticated) loadBookmarks();
+  }, [activeTab, isAuthenticated, loadBookmarks]);
 
   const getTimeAgo = (timestamp) => {
     const now = Math.floor(Date.now() / 1000);
@@ -106,6 +130,10 @@ const Library = () => {
     { id: 'bookmark', label: 'Bookmark', icon: Bookmark },
     { id: 'history', label: 'History', icon: History },
   ];
+
+  const filteredMangaList = contentFilter === 'all'
+    ? mangaList
+    : mangaList.filter((manga) => (manga.content_type || '').toLowerCase() === contentFilter);
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -159,6 +187,30 @@ const Library = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Semua komik yang baru saja diperbarui
                 </p>
+                {/* Content type filter: Manga / Manhwa / Manhua */}
+                <div className="mt-3 flex space-x-2 overflow-x-auto pb-1">
+                  {[
+                    { id: 'all', label: 'Semua' },
+                    { id: 'manga', label: 'MANGA' },
+                    { id: 'manhwa', label: 'MANHWA' },
+                    { id: 'manhua', label: 'MANHUA' },
+                  ].map((filter) => {
+                    const isActive = contentFilter === filter.id;
+                    return (
+                      <button
+                        key={filter.id}
+                        onClick={() => setContentFilter(filter.id)}
+                        className={`px-4 py-1.5 rounded-full text-xs md:text-sm font-semibold tracking-wide border transition-all ${
+                          isActive
+                            ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 border-transparent shadow'
+                            : 'bg-gray-200/70 dark:bg-gray-800/70 text-gray-700 dark:text-gray-300 border-gray-300/70 dark:border-gray-700 hover:bg-gray-300 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {filter.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {loading ? (
@@ -166,7 +218,7 @@ const Library = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
                   <p className="text-gray-500 dark:text-gray-400 mt-4">Memuat...</p>
                 </div>
-              ) : mangaList.length === 0 ? (
+              ) : filteredMangaList.length === 0 ? (
                 <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
                   <p className="text-gray-500 dark:text-gray-400">
                     Tidak ada manga rekomendasi
@@ -174,7 +226,7 @@ const Library = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {mangaList.map((manga) => (
+                  {filteredMangaList.map((manga) => (
                     <div
                       key={manga.id}
                       onClick={() => navigate(`/komik/${manga.slug}`)}
@@ -245,34 +297,97 @@ const Library = () => {
 
           {/* Bookmark Tab */}
           {activeTab === 'bookmark' && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="max-w-md w-full bg-gray-900 dark:bg-gray-950 rounded-2xl overflow-hidden shadow-2xl">
-                {/* Image Section */}
-                <div className="aspect-[4/3]">
-                  <img
-                    src={comingSoonImage}
-                    alt="Login Required"
-                    className="w-full h-full object-contain"
-                  />
+            <>
+              {!isAuthenticated ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="max-w-md w-full bg-gray-900 dark:bg-gray-950 rounded-2xl overflow-hidden shadow-2xl">
+                    <div className="aspect-[4/3]">
+                      <img
+                        src={comingSoonImage}
+                        alt="Login Required"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="p-6 text-center">
+                      <h2 className="text-2xl font-bold text-white mb-2">Bookmark</h2>
+                      <p className="text-gray-300 mb-6 text-sm">
+                        Silakan login untuk melihat daftar bookmark kamu
+                      </p>
+                      <button
+                        onClick={() => navigate('/akun')}
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg flex items-center justify-center space-x-2"
+                      >
+                        <LogIn className="h-5 w-5" />
+                        <span>LOGIN</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                
-                {/* Content Section */}
-                <div className="p-6 text-center">
-                  <h2 className="text-2xl font-bold text-white mb-2">Bookmark</h2>
-                  <p className="text-gray-300 mb-6 text-sm">
-                    Silakan login untuk melihat daftar bookmark kamu
-                  </p>
-                  
-                  <button
-                    onClick={() => navigate('/akun')}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg flex items-center justify-center space-x-2"
-                  >
-                    <LogIn className="h-5 w-5" />
-                    <span>LOGIN</span>
-                  </button>
+              ) : (
+                <div>
+                  <div className="mb-4">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                      Bookmark
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Komik yang kamu simpan (tersimpan per akun)
+                    </p>
+                  </div>
+                  {bookmarkLoading ? (
+                    <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+                      <p className="text-gray-500 dark:text-gray-400 mt-4">Memuat bookmark...</p>
+                    </div>
+                  ) : bookmarkList.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
+                      <Bookmark className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400 text-lg font-medium mb-2">
+                        Belum ada bookmark
+                      </p>
+                      <p className="text-gray-400 dark:text-gray-500 text-sm">
+                        Buka detail komik dan simpan ke bookmark untuk melihat di sini
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {bookmarkList.map((item) => (
+                        <div
+                          key={item.id}
+                          className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer relative"
+                        >
+                          <div
+                            className="relative aspect-[3/4] overflow-hidden"
+                            onClick={() => navigate(`/komik/${item.slug}`)}
+                          >
+                            <LazyImage
+                              src={getImageUrl(item.cover)}
+                              alt={item.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              wrapperClassName="w-full h-full"
+                            />
+                            <div className="absolute top-2 right-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  apiClient.removeBookmark(item.manga_id).then(() => loadBookmarks());
+                                }}
+                                className="p-2 bg-red-600/90 hover:bg-red-600 text-white rounded-full shadow"
+                                title="Hapus bookmark"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+                              <h3 className="text-white font-bold text-sm line-clamp-2">{item.title}</h3>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
 
           {/* History Tab */}

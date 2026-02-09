@@ -24,6 +24,7 @@ const AdsManager = () => {
     { value: 'chapter-top', label: 'Chapter Top' },
     { value: 'list-chapter', label: 'List Chapter' },
     { value: 'top-upvote', label: 'Top Upvote' },
+    { value: 'home-popup', label: 'Home Popup (Banner Pengumuman)' },
     { value: 'popup', label: 'Popup' },
     { value: 'manga-detail-top', label: 'Manga Detail Top' },
     { value: 'manga-detail-bottom', label: 'Manga Detail Bottom' },

@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
-import { API_BASE_URL, getImageUrl } from '../utils/api';
+import { API_BASE_URL, apiClient, getImageUrl } from '../utils/api';
 import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
+import { useAuth } from '../contexts/AuthContext';
+import CommentSection from '../components/CommentSection';
 
 
 // Import vote assets
@@ -32,7 +34,10 @@ import sedihImg from '../assets/votes/sedih.png';
 const MangaDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [manga, setManga] = useState(null);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarkChecking, setBookmarkChecking] = useState(false);
   const [activeTab, setActiveTab] = useState('chapters');
   const [searchChapter, setSearchChapter] = useState('');
   const [chapters, setChapters] = useState([]);
@@ -90,31 +95,35 @@ const MangaDetail = () => {
     }
   }, [slug]);
 
-  // Fetch vote data
+  // Fetch vote data (use apiClient so token is sent when logged in -> vote per user)
   useEffect(() => {
     const fetchVoteData = async () => {
       if (!slug) return;
-      
       try {
-        const response = await fetch(`${API_BASE_URL}/votes/${slug}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.status && result.data) {
-            setVoteData(result.data);
-            // Set selected vote if user has voted
-            if (result.userVote) {
-              setSelectedVote(result.userVote);
-            }
-          }
+        const result = await apiClient.getVotes(slug);
+        if (result.status && result.data) {
+          setVoteData(result.data);
+          if (result.userVote) setSelectedVote(result.userVote);
+          else setSelectedVote(null);
         }
       } catch (err) {
         console.error('Error fetching vote data:', err);
-        // Don't show error to user, just use default values
       }
     };
-
     fetchVoteData();
   }, [slug]);
+
+  // Check bookmark when logged in
+  useEffect(() => {
+    if (!isAuthenticated || !slug) {
+      setBookmarked(false);
+      return;
+    }
+    setBookmarkChecking(true);
+    apiClient.checkBookmark(slug).then((res) => {
+      setBookmarked(res.status && res.bookmarked);
+    }).catch(() => setBookmarked(false)).finally(() => setBookmarkChecking(false));
+  }, [isAuthenticated, slug]);
 
   const generateChapters = (mangaData) => {
     // Create chapters from API response
@@ -275,72 +284,56 @@ const MangaDetail = () => {
 
   const handleVote = async (voteId) => {
     if (!slug) return;
-    
     setVoteLoading(true);
-    
     try {
-      const response = await fetch(`${API_BASE_URL}/votes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          slug: slug,
-          vote_type: voteId
-        })
-      });
-      
-      const result = await response.json();
-      
+      const result = await apiClient.submitVote(slug, voteId);
       if (result.status) {
-        // Update local state based on action
         if (result.action === 'removed') {
-          // Unvote
-          setVoteData(prev => ({
-            ...prev,
-            [voteId]: Math.max(0, prev[voteId] - 1)
-          }));
+          setVoteData(prev => ({ ...prev, [voteId]: Math.max(0, prev[voteId] - 1) }));
           setSelectedVote(null);
         } else if (result.action === 'updated') {
-          // Changed vote
           setVoteData(prev => ({
             ...prev,
             [result.previous_vote]: Math.max(0, prev[result.previous_vote] - 1),
-            [result.new_vote]: prev[result.new_vote] + 1
+            [result.new_vote]: prev[result.new_vote] + 1,
           }));
           setSelectedVote(voteId);
         } else {
-          // New vote
-          setVoteData(prev => ({
-            ...prev,
-            [voteId]: prev[voteId] + 1
-          }));
+          setVoteData(prev => ({ ...prev, [voteId]: prev[voteId] + 1 }));
           setSelectedVote(voteId);
         }
-        
-        // Refresh vote data from server to ensure accuracy
-        const refreshResponse = await fetch(`${API_BASE_URL}/votes/${slug}`);
-        if (refreshResponse.ok) {
-          const refreshResult = await refreshResponse.json();
-          if (refreshResult.status && refreshResult.data) {
-            setVoteData(refreshResult.data);
-            // Update selectedVote based on current vote
-            if (refreshResult.userVote) {
-              setSelectedVote(refreshResult.userVote);
-            } else {
-              setSelectedVote(null);
-            }
-          }
+        const refresh = await apiClient.getVotes(slug);
+        if (refresh.status && refresh.data) {
+          setVoteData(refresh.data);
+          setSelectedVote(refresh.userVote || null);
         }
-      } else {
-        console.error('Vote failed:', result.error);
-        // Optionally show error message to user
       }
     } catch (err) {
       console.error('Error submitting vote:', err);
-      // Optionally show error message to user
     } finally {
       setVoteLoading(false);
+    }
+  };
+
+  const toggleBookmark = async () => {
+    if (!isAuthenticated) {
+      navigate('/akun');
+      return;
+    }
+    if (bookmarkChecking) return;
+    setBookmarkChecking(true);
+    try {
+      if (bookmarked) {
+        await apiClient.removeBookmark(manga?.id ?? slug);
+        setBookmarked(false);
+      } else {
+        await apiClient.addBookmark(manga?.id ?? slug);
+        setBookmarked(true);
+      }
+    } catch (err) {
+      console.error('Bookmark error:', err);
+    } finally {
+      setBookmarkChecking(false);
     }
   };
 
@@ -537,19 +530,31 @@ const MangaDetail = () => {
                     </div>
                   </div>
 
-                  {/* Read Button */}
-                  <button 
-                    onClick={() => {
-                      if (chapters.length > 0) {
-                        navigate(`/view/${chapters[0].slug}`);
-                      }
-                    }}
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={chapters.length === 0}
-                  >
-                    <Play className="h-5 w-5 mr-2" />
-                    Baca
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => {
+                        if (chapters.length > 0) {
+                          navigate(`/view/${chapters[0].slug}`);
+                        }
+                      }}
+                      className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={chapters.length === 0}
+                    >
+                      <Play className="h-5 w-5 mr-2" />
+                      Baca
+                    </button>
+                    {isAuthenticated && (
+                      <button
+                        type="button"
+                        onClick={toggleBookmark}
+                        disabled={bookmarkChecking}
+                        className={`p-3 rounded-lg transition-all ${bookmarked ? 'bg-purple-600 text-white' : 'bg-primary-800 text-gray-300 hover:bg-primary-700'}`}
+                        title={bookmarked ? 'Hapus bookmark' : 'Simpan bookmark'}
+                      >
+                        <Bookmark className={`h-5 w-5 ${bookmarked ? 'fill-current' : ''}`} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -965,20 +970,11 @@ const MangaDetail = () => {
           </div>
 
           {/* Comment Section */}
-          <div className="mt-8 bg-primary-900 rounded-lg p-6">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <span>Komentar</span>
-              <span className="text-sm font-normal text-gray-400">(Coming Soon)</span>
-            </h3>
-            <div className="text-center py-12 border-2 border-dashed border-primary-700 rounded-lg">
-              <p className="text-gray-400 mb-2">
-                Fitur komentar akan segera hadir
-              </p>
-              <p className="text-sm text-gray-500">
-                Anda akan dapat berbagi pendapat dan diskusi tentang manga ini
-              </p>
+          {manga?.id && (
+            <div className="mt-8">
+              <CommentSection mangaId={manga.id} />
             </div>
-          </div>
+          )}
         </div>
       </main>
 

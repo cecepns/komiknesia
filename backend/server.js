@@ -38,6 +38,53 @@ let db;
   try {
     db = await mysql.createPool(dbConfig);
     console.log('Connected to MySQL database');
+
+    // Ensure users table has profile_image column (migration)
+    try {
+      await db.execute('ALTER TABLE users ADD COLUMN profile_image VARCHAR(512) NULL DEFAULT NULL');
+      console.log('Added profile_image column to users table');
+    } catch (e) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.warn('Users profile_image column:', e.message);
+    }
+    // Ensure votes table has user_id for logged-in users
+    try {
+      await db.execute('ALTER TABLE votes ADD COLUMN user_id INT UNSIGNED NULL DEFAULT NULL');
+      console.log('Added user_id column to votes table');
+    } catch (e) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.warn('Votes user_id column:', e.message);
+    }
+    // Create bookmarks table if not exists
+    // NOTE: Use plain INT (not UNSIGNED) so it matches existing
+    // users.id and manga.id definitions, otherwise MySQL will throw
+    // errno 150 "Foreign key constraint is incorrectly formed".
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS bookmarks (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        manga_id INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_user_manga (user_id, manga_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (manga_id) REFERENCES manga(id) ON DELETE CASCADE
+      )
+    `);
+    // Create comments table (manga and chapter comments, with replies)
+    // Also keep INT types consistent with users/manga/chapters tables
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        manga_id INT NULL,
+        chapter_id INT NULL,
+        parent_id INT NULL DEFAULT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (manga_id) REFERENCES manga(id) ON DELETE CASCADE,
+        FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
+      )
+    `);
     
     // Start server after database connection
     app.listen(PORT, () => {
@@ -112,7 +159,7 @@ const deleteFile = (filePath) => {
   }
 };
 
-// Auth Middleware
+// Auth Middleware (required - returns 401/403 if no valid token)
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -124,8 +171,8 @@ const authenticateToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Verify user still exists
-    const [users] = await db.execute('SELECT id, username, email FROM users WHERE id = ?', [decoded.userId]);
+    // Verify user still exists (include profile_image for frontend)
+    const [users] = await db.execute('SELECT id, username, email, profile_image FROM users WHERE id = ?', [decoded.userId]);
     if (users.length === 0) {
       return res.status(401).json({ status: false, error: 'User not found' });
     }
@@ -137,9 +184,80 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
+// Optional Auth Middleware (sets req.user if valid token, does not reject)
+const optionalAuthenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const [users] = await db.execute('SELECT id, username, email, profile_image FROM users WHERE id = ?', [decoded.userId]);
+    req.user = users.length > 0 ? users[0] : null;
+    next();
+  } catch {
+    req.user = null;
+    next();
+  }
+};
+
 // Routes
 
 // Auth Routes
+// Register (username must be unique, optional profile image)
+app.post('/api/auth/register', upload.single('profile_image'), async (req, res) => {
+  try {
+    const { username, password, email } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ status: false, error: 'Username dan password wajib diisi' });
+    }
+    const usernameTrim = String(username).trim().toLowerCase();
+    if (usernameTrim.length < 3) {
+      return res.status(400).json({ status: false, error: 'Username minimal 3 karakter' });
+    }
+    const [existing] = await db.execute(
+      'SELECT id FROM users WHERE LOWER(TRIM(username)) = ? OR (email IS NOT NULL AND TRIM(?) != "" AND LOWER(TRIM(email)) = LOWER(TRIM(?)))',
+      [usernameTrim, email || '', email || '']
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ status: false, error: 'Username sudah dipakai. Gunakan username lain.' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const profileImage = req.file ? `/uploads/${req.file.filename}` : null;
+    const emailVal = email && String(email).trim() ? String(email).trim() : null;
+    await db.execute(
+      'INSERT INTO users (username, password, email, profile_image) VALUES (?, ?, ?, ?)',
+      [usernameTrim, hashedPassword, emailVal, profileImage]
+    );
+    const [inserted] = await db.execute(
+      'SELECT id, username, email, profile_image FROM users WHERE id = LAST_INSERT_ID()'
+    );
+    const user = inserted[0];
+    const token = jwt.sign(
+      { userId: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({
+      status: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email || null,
+          profile_image: user.profile_image || null
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error during register:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -148,9 +266,9 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ status: false, error: 'Username and password are required' });
     }
 
-    // Find user by username or email
+    // Find user by username or email (include profile_image)
     const [users] = await db.execute(
-      'SELECT id, username, email, password FROM users WHERE username = ? OR email = ?',
+      'SELECT id, username, email, password, profile_image FROM users WHERE username = ? OR email = ?',
       [username, username]
     );
 
@@ -161,16 +279,14 @@ app.post('/api/auth/login', async (req, res) => {
     const user = users[0];
 
     // Verify password
-    // Check if password is hashed (starts with $2a$ or $2b$ for bcrypt) or plain
     const isPasswordValid = user.password.startsWith('$2')
       ? await bcrypt.compare(password, user.password)
-      : password === user.password; // Fallback for plain passwords (not recommended)
+      : password === user.password;
 
     if (!isPasswordValid) {
       return res.status(401).json({ status: false, error: 'Invalid username or password' });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, username: user.username },
       JWT_SECRET,
@@ -184,7 +300,8 @@ app.post('/api/auth/login', async (req, res) => {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          profile_image: user.profile_image || null
         }
       }
     });
@@ -201,11 +318,37 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
       data: {
         id: req.user.id,
         username: req.user.username,
-        email: req.user.email
+        email: req.user.email,
+        profile_image: req.user.profile_image || null
       }
     });
   } catch (error) {
     console.error('Error fetching user info:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
+// Update profile (optional: profile image)
+app.put('/api/auth/profile', authenticateToken, upload.single('profile_image'), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const profileImage = req.file ? `/uploads/${req.file.filename}` : null;
+    if (profileImage) {
+      await db.execute('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
+    }
+    const [users] = await db.execute('SELECT id, username, email, profile_image FROM users WHERE id = ?', [userId]);
+    const user = users[0];
+    res.json({
+      status: true,
+      data: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        profile_image: user.profile_image || null
+      }
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
     res.status(500).json({ status: false, error: 'Internal server error' });
   }
 });
@@ -1510,14 +1653,173 @@ app.delete('/api/manga/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Votes Routes
+// Bookmarks (user must be logged in)
+app.get('/api/bookmarks', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const [rows] = await db.execute(
+      `SELECT b.id, b.manga_id, b.created_at, m.slug, m.title, m.thumbnail as cover
+       FROM bookmarks b
+       JOIN manga m ON m.id = b.manga_id
+       WHERE b.user_id = ?
+       ORDER BY b.created_at DESC`,
+      [userId]
+    );
+    res.json({ status: true, data: rows });
+  } catch (error) {
+    console.error('Error fetching bookmarks:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
+app.post('/api/bookmarks', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    let { manga_id, slug } = req.body;
+    if (!manga_id && slug) {
+      const [m] = await db.execute('SELECT id FROM manga WHERE slug = ?', [slug]);
+      if (m.length > 0) manga_id = m[0].id;
+    }
+    if (!manga_id) {
+      return res.status(400).json({ status: false, error: 'manga_id or slug required' });
+    }
+    await db.execute(
+      'INSERT IGNORE INTO bookmarks (user_id, manga_id) VALUES (?, ?)',
+      [userId, manga_id]
+    );
+    res.json({ status: true, message: 'Bookmark added' });
+  } catch (error) {
+    console.error('Error adding bookmark:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/bookmarks/:mangaId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    let mangaId = req.params.mangaId;
+    if (Number.isNaN(Number(mangaId))) {
+      const [m] = await db.execute('SELECT id FROM manga WHERE slug = ?', [mangaId]);
+      if (m.length > 0) mangaId = m[0].id;
+    }
+    await db.execute('DELETE FROM bookmarks WHERE user_id = ? AND manga_id = ?', [userId, mangaId]);
+    res.json({ status: true, message: 'Bookmark removed' });
+  } catch (error) {
+    console.error('Error removing bookmark:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
+app.get('/api/bookmarks/check/:mangaId', authenticateToken, async (req, res) => {
+  try {
+    let mangaId = req.params.mangaId;
+    if (Number.isNaN(Number(mangaId))) {
+      const [m] = await db.execute('SELECT id FROM manga WHERE slug = ?', [mangaId]);
+      mangaId = m.length > 0 ? m[0].id : null;
+    }
+    if (!mangaId) {
+      return res.json({ status: true, bookmarked: false });
+    }
+    const [rows] = await db.execute(
+      'SELECT id FROM bookmarks WHERE user_id = ? AND manga_id = ?',
+      [req.user.id, mangaId]
+    );
+    res.json({ status: true, bookmarked: rows.length > 0 });
+  } catch (error) {
+    console.error('Error checking bookmark:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
+// Comments (manga or chapter; replies via parent_id; list public, add/reply require auth)
+app.get('/api/comments', async (req, res) => {
+  try {
+    const { manga_id, chapter_id } = req.query;
+    if (!manga_id && !chapter_id) {
+      return res.status(400).json({ status: false, error: 'manga_id or chapter_id required' });
+    }
+    let query = `
+      SELECT c.id, c.user_id, c.manga_id, c.chapter_id, c.parent_id, c.body, c.created_at,
+             u.username, u.profile_image
+      FROM comments c
+      JOIN users u ON u.id = c.user_id
+      WHERE c.parent_id IS NULL
+    `;
+    const params = [];
+    if (manga_id) {
+      query += ' AND c.manga_id = ?';
+      params.push(manga_id);
+    }
+    if (chapter_id) {
+      query += ' AND c.chapter_id = ?';
+      params.push(chapter_id);
+    }
+    query += ' ORDER BY c.created_at ASC';
+    const [comments] = await db.execute(query, params);
+    const parentIds = comments.map(c => c.id);
+    let replies = [];
+    if (parentIds.length > 0) {
+      const placeholders = parentIds.map(() => '?').join(',');
+      const [replyRows] = await db.execute(
+        `SELECT c.id, c.user_id, c.parent_id, c.body, c.created_at, u.username, u.profile_image
+         FROM comments c
+         JOIN users u ON u.id = c.user_id
+         WHERE c.parent_id IN (${placeholders})`,
+        parentIds
+      );
+      replies = replyRows;
+    }
+    const repliesByParent = {};
+    replies.forEach(r => {
+      if (!repliesByParent[r.parent_id]) repliesByParent[r.parent_id] = [];
+      repliesByParent[r.parent_id].push(r);
+    });
+    const data = comments.map(c => ({
+      ...c,
+      replies: (repliesByParent[c.id] || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    }));
+    res.json({ status: true, data });
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
+app.post('/api/comments', authenticateToken, async (req, res) => {
+  try {
+    const { manga_id, chapter_id, parent_id, body } = req.body;
+    if (!body || (String(body).trim().length === 0)) {
+      return res.status(400).json({ status: false, error: 'Komentar tidak boleh kosong' });
+    }
+    if (!manga_id && !chapter_id) {
+      return res.status(400).json({ status: false, error: 'manga_id or chapter_id required' });
+    }
+    const [result] = await db.execute(
+      'INSERT INTO comments (user_id, manga_id, chapter_id, parent_id, body) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, manga_id || null, chapter_id || null, parent_id || null, String(body).trim()]
+    );
+    const [rows] = await db.execute(
+      `SELECT c.id, c.user_id, c.manga_id, c.chapter_id, c.parent_id, c.body, c.created_at,
+              u.username, u.profile_image
+       FROM comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.id = ?`,
+      [result.insertId]
+    );
+    res.json({ status: true, data: rows[0] });
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+});
+
+// Votes Routes (use user_id when logged in to fix cross-browser vote bug)
 // Get vote counts by manga slug
-app.get('/api/votes/:slug', async (req, res) => {
+app.get('/api/votes/:slug', optionalAuthenticate, async (req, res) => {
   try {
     const { slug } = req.params;
     const user_ip = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
     
-    // Find manga by slug
     const [mangaRows] = await db.execute(
       'SELECT id FROM manga WHERE slug = ?',
       [slug]
@@ -1529,7 +1831,6 @@ app.get('/api/votes/:slug', async (req, res) => {
     
     const mangaId = mangaRows[0].id;
     
-    // Get vote counts grouped by vote_type
     const [votes] = await db.execute(
       `SELECT vote_type, COUNT(*) as count 
        FROM votes 
@@ -1538,13 +1839,21 @@ app.get('/api/votes/:slug', async (req, res) => {
       [mangaId]
     );
     
-    // Get current user's vote (if any)
-    const [userVote] = await db.execute(
-      'SELECT vote_type FROM votes WHERE manga_id = ? AND user_ip = ?',
-      [mangaId, user_ip]
-    );
+    let userVoteRow = null;
+    if (req.user) {
+      const [uv] = await db.execute(
+        'SELECT vote_type FROM votes WHERE manga_id = ? AND user_id = ?',
+        [mangaId, req.user.id]
+      );
+      userVoteRow = uv.length > 0 ? uv[0] : null;
+    } else {
+      const [uv] = await db.execute(
+        'SELECT vote_type FROM votes WHERE manga_id = ? AND user_ip = ? AND (user_id IS NULL OR user_id = 0)',
+        [mangaId, user_ip]
+      );
+      userVoteRow = uv.length > 0 ? uv[0] : null;
+    }
     
-    // Format response with default values
     const voteCounts = {
       senang: 0,
       biasaAja: 0,
@@ -1554,7 +1863,7 @@ app.get('/api/votes/:slug', async (req, res) => {
     };
     
     votes.forEach(vote => {
-      if (voteCounts.hasOwnProperty(vote.vote_type)) {
+      if (Object.prototype.hasOwnProperty.call(voteCounts, vote.vote_type)) {
         voteCounts[vote.vote_type] = vote.count;
       }
     });
@@ -1562,7 +1871,7 @@ app.get('/api/votes/:slug', async (req, res) => {
     res.json({
       status: true,
       data: voteCounts,
-      userVote: userVote.length > 0 ? userVote[0].vote_type : null
+      userVote: userVoteRow ? userVoteRow.vote_type : null
     });
   } catch (error) {
     console.error('Error fetching votes:', error);
@@ -1570,8 +1879,8 @@ app.get('/api/votes/:slug', async (req, res) => {
   }
 });
 
-// Submit vote by manga slug
-app.post('/api/votes', async (req, res) => {
+// Submit vote by manga slug (send Authorization when logged in so vote is per-user, not per-IP)
+app.post('/api/votes', optionalAuthenticate, async (req, res) => {
   try {
     const { slug, vote_type } = req.body;
     
@@ -1579,15 +1888,14 @@ app.post('/api/votes', async (req, res) => {
       return res.status(400).json({ status: false, error: 'Slug and vote_type are required' });
     }
     
-    // Validate vote_type
     const validVoteTypes = ['senang', 'biasaAja', 'kecewa', 'marah', 'sedih'];
     if (!validVoteTypes.includes(vote_type)) {
       return res.status(400).json({ status: false, error: 'Invalid vote_type' });
     }
     
     const user_ip = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+    const userId = req.user ? req.user.id : null;
     
-    // Find manga by slug
     const [mangaRows] = await db.execute(
       'SELECT id FROM manga WHERE slug = ?',
       [slug]
@@ -1599,50 +1907,43 @@ app.post('/api/votes', async (req, res) => {
     
     const mangaId = mangaRows[0].id;
     
-    // Check if user already voted for this manga
+    const whereClause = userId
+      ? 'manga_id = ? AND user_id = ?'
+      : 'manga_id = ? AND user_ip = ? AND (user_id IS NULL OR user_id = 0)';
+    const whereParams = userId ? [mangaId, userId] : [mangaId, user_ip];
+    
     const [existing] = await db.execute(
-      'SELECT id, vote_type FROM votes WHERE manga_id = ? AND user_ip = ?',
-      [mangaId, user_ip]
+      `SELECT id, vote_type FROM votes WHERE ${whereClause}`,
+      whereParams
     );
     
     if (existing.length > 0) {
-      // User already voted, update the vote
       if (existing[0].vote_type === vote_type) {
-        // Same vote type, remove vote (unvote)
-        await db.execute(
-          'DELETE FROM votes WHERE id = ?',
-          [existing[0].id]
-        );
-        return res.json({ 
-          status: true, 
-          message: 'Vote removed successfully',
-          action: 'removed'
-        });
+        await db.execute('DELETE FROM votes WHERE id = ?', [existing[0].id]);
+        return res.json({ status: true, message: 'Vote removed', action: 'removed' });
       } else {
-        // Different vote type, update vote
-        await db.execute(
-          'UPDATE votes SET vote_type = ? WHERE id = ?',
-          [vote_type, existing[0].id]
-        );
-        return res.json({ 
-          status: true, 
-          message: 'Vote updated successfully',
+        await db.execute('UPDATE votes SET vote_type = ? WHERE id = ?', [vote_type, existing[0].id]);
+        return res.json({
+          status: true,
+          message: 'Vote updated',
           action: 'updated',
           previous_vote: existing[0].vote_type,
           new_vote: vote_type
         });
       }
     } else {
-      // New vote
-      await db.execute(
-        'INSERT INTO votes (manga_id, vote_type, user_ip) VALUES (?, ?, ?)',
-        [mangaId, vote_type, user_ip]
-      );
-      return res.json({ 
-        status: true, 
-        message: 'Vote recorded successfully',
-        action: 'added'
-      });
+      if (userId) {
+        await db.execute(
+          'INSERT INTO votes (manga_id, vote_type, user_id) VALUES (?, ?, ?)',
+          [mangaId, vote_type, userId]
+        );
+      } else {
+        await db.execute(
+          'INSERT INTO votes (manga_id, vote_type, user_ip) VALUES (?, ?, ?)',
+          [mangaId, vote_type, user_ip]
+        );
+      }
+      return res.json({ status: true, message: 'Vote recorded', action: 'added' });
     }
   } catch (error) {
     console.error('Error recording vote:', error);
@@ -1801,7 +2102,8 @@ app.get('/api/chapters/:chapterId/images', async (req, res) => {
   }
 });
 
-app.post('/api/chapters/:chapterId/images', authenticateToken, upload.array('images', 50), async (req, res) => {
+// Allow up to 200 images per chapter upload for manual input
+app.post('/api/chapters/:chapterId/images', authenticateToken, upload.array('images', 200), async (req, res) => {
   try {
     const { chapterId } = req.params;
     

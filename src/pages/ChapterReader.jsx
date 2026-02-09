@@ -17,6 +17,7 @@ import { saveToHistory } from '../utils/historyManager';
 import { API_BASE_URL, getImageUrl } from '../utils/api';
 import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
+import CommentSection from '../components/CommentSection';
 
 const ChapterReader = () => {
   const { chapterSlug } = useParams();
@@ -405,20 +406,10 @@ const ChapterReader = () => {
 
           {/* Comment Section */}
           <div className="px-3 sm:px-4 pb-6 sm:pb-8">
-            <div className="bg-primary-900 rounded-lg p-4 sm:p-6">
-              <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
-                <span>Komentar</span>
-                <span className="text-xs sm:text-sm font-normal text-gray-400">(Coming Soon)</span>
-              </h3>
-              <div className="text-center py-8 sm:py-12 border-2 border-dashed border-primary-700 rounded-lg">
-                <p className="text-sm sm:text-base text-gray-400 mb-2">
-                  Fitur komentar akan segera hadir
-                </p>
-                <p className="text-xs sm:text-sm text-gray-500">
-                  Anda akan dapat berbagi pendapat tentang chapter ini
-                </p>
-              </div>
-            </div>
+            <CommentSection
+              mangaId={mangaData?.id}
+              chapterId={currentChapter?.id}
+            />
           </div>
         </div>
       </main>

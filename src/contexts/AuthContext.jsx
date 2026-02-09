@@ -48,6 +48,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (formData) => {
+    try {
+      const response = await apiClient.register(formData);
+      if (response.status && response.data) {
+        setUser(response.data.user);
+        return { success: true };
+      }
+      return { success: false, error: response.error || 'Registrasi gagal' };
+    } catch (err) {
+      return { success: false, error: err.message || 'Registrasi gagal' };
+    }
+  };
+
+  const updateProfile = async (formData) => {
+    try {
+      const response = await apiClient.updateProfile(formData);
+      if (response.status && response.data) {
+        setUser(response.data);
+        return { success: true };
+      }
+      return { success: false, error: response.error || 'Update gagal' };
+    } catch (error) {
+      return { success: false, error: error.message || 'Update gagal' };
+    }
+  };
+
   const logout = () => {
     apiClient.logout();
     setUser(null);
@@ -57,6 +83,8 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    register,
+    updateProfile,
     logout,
     isAuthenticated: !!user,
   };

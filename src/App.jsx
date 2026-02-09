@@ -8,7 +8,7 @@ import ChapterReader from "./pages/ChapterReader";
 import Library from "./pages/Library";
 import Content from "./pages/Content";
 import Contact from "./pages/Contact";
-import ComingSoon from "./pages/ComingSoon";
+import Akun from "./pages/Akun";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
@@ -66,7 +66,9 @@ function AppContent() {
           path="/akun"
           element={
             <>
-              <ComingSoon title="Akun" />
+              <Layout>
+                <Akun />
+              </Layout>
               <BottomNavigation />
             </>
           }
