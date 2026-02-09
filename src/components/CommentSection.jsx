@@ -241,7 +241,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
         Komentar
       </h3>
       {isAuthenticated ? (
-        <form onSubmit={handleSubmit} className="mb-6 flex gap-2">
+        <form onSubmit={handleSubmit} className="mb-6 flex flex-wrap gap-2">
           <input
             type="text"
             value={body}
