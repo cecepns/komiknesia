@@ -327,6 +327,17 @@ class APIClient {
     });
   }
 
+  getSettings() {
+    return this.request('/settings');
+  }
+
+  updateSettings(body) {
+    return this.request('/settings', {
+      method: 'PUT',
+      body,
+    });
+  }
+
   // Helper function for SSE streaming
   _handleSSEStream = (url, body, onProgress) => {
     return new Promise((resolve, reject) => {

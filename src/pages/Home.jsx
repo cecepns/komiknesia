@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import { Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, X } from "lucide-react";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
 import { Link } from "react-router-dom";
@@ -13,7 +13,9 @@ import { apiClient, getImageUrl } from "../utils/api";
 const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [bannerManga, setBannerManga] = useState([]);
-
+  const [popupBannerVisible, setPopupBannerVisible] = useState(false);
+  const [homePopupIntervalMinutes, setHomePopupIntervalMinutes] = useState(30);
+ 
   useEffect(() => {
     fetchBannerManga();
   }, []);
@@ -38,12 +40,45 @@ const Home = () => {
   const { ads: homePopupAds } = useAds("home-popup", 1);
 
   useEffect(() => {
+    apiClient.getSettings().then((s) => {
+      const v = s.home_popup_interval_minutes;
+      if (Number.isFinite(v) && [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].includes(v)) {
+        setHomePopupIntervalMinutes(v);
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     AOS.init({
       duration: 600,
       once: true,
       easing: "ease-out-cubic",
     });
   }, []);
+
+  // Home-only popup banner: tampil sesuai interval menit dari pengaturan admin
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const storageKey = "homePopupLastShownAt";
+      const lastShownRaw = localStorage.getItem(storageKey);
+      const intervalMs = homePopupIntervalMinutes * 60 * 1000;
+
+      if (!lastShownRaw) {
+        setPopupBannerVisible(true);
+        return;
+      }
+
+      const lastShown = parseInt(lastShownRaw, 10);
+      if (Number.isNaN(lastShown) || Date.now() - lastShown >= intervalMs) {
+        setPopupBannerVisible(true);
+      }
+    } catch (error) {
+      console.error("Error reading home popup timestamp:", error);
+      setPopupBannerVisible(true);
+    }
+  }, [homePopupIntervalMinutes]);
 
   useEffect(() => {
     if (bannerManga.length > 0) {
@@ -69,6 +104,19 @@ const Home = () => {
     setCurrentSlide(index);
   };
 
+  const handleClosePopupBanner = () => {
+    setPopupBannerVisible(false);
+
+    if (typeof window === "undefined") return;
+
+    try {
+      const storageKey = "homePopupLastShownAt";
+      localStorage.setItem(storageKey, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving home popup timestamp:", error);
+    }
+  };
+
   return (
     <div className="pt-5 md:pt-20 pb-4">
       <Helmet>
@@ -87,14 +135,27 @@ const Home = () => {
           </div>
         )}
 
-        {/* Home Popup Announcement Banner - single image */}
-        {homePopupAds.length > 0 && (
-          <div className="mb-6" data-aos="fade-up">
-            <AdBanner
-              ads={homePopupAds}
-              layout="grid"
-              columns={1}
-            />
+        {/* Home Popup Announcement Banner - fixed, centered, closeable */}
+        {homePopupAds.length > 0 && popupBannerVisible && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="relative max-w-64 w-full">
+              <button
+                onClick={handleClosePopupBanner}
+                className="absolute -top-2 -right-2 z-10 p-1.5 rounded-full bg-red-900 dark:bg-red-800 text-white hover:bg-gray-700 dark:hover:bg-gray-600 shadow-lg transition-colors"
+                aria-label="Tutup banner"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <AdBanner
+                ads={homePopupAds}
+                layout="grid"
+                columns={1}
+              />
+            </div>
           </div>
         )}
       </div>

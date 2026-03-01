@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Clock, Bookmark, History, LogIn, Trash2 } from "lucide-react";
 import LazyImage from "../components/LazyImage";
@@ -7,12 +7,24 @@ import comingSoonImage from "../assets/coming-soon.png";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
+import { removeFromHistory, clearHistory } from "../utils/historyManager";
 import { useAuth } from "../contexts/AuthContext";
+
+const VALID_TABS = ["rekomendasi", "bookmark", "history"];
+const TAB_ID_MAP = { rekomendasi: "new-update", bookmark: "bookmark", history: "history" };
 
 const Library = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState("new-update");
+  const tabParam = searchParams.get("tab") || "rekomendasi";
+  const activeTabId = VALID_TABS.includes(tabParam)
+    ? TAB_ID_MAP[tabParam]
+    : TAB_ID_MAP.rekomendasi;
+  const setActiveTab = (id) => {
+    const paramValue = Object.entries(TAB_ID_MAP).find(([, v]) => v === id)?.[0] ?? "rekomendasi";
+    setSearchParams({ tab: paramValue });
+  };
   const [mangaList, setMangaList] = useState([]);
   const [contentFilter, setContentFilter] = useState("all"); // 'all', 'manga', 'manhwa', 'manhua'
   const [historyList, setHistoryList] = useState([]);
@@ -83,8 +95,14 @@ const Library = () => {
       const history = localStorage.getItem("mangaHistory");
       if (history) {
         const parsedHistory = JSON.parse(history);
-        // History already stored newest-first; keep max 100 just in case
-        const trimmed = parsedHistory.slice(0, 100);
+        // Dedupe by mangaSlug (manga-only history), take newest
+        const seen = new Set();
+        const deduped = parsedHistory.filter((item) => {
+          if (seen.has(item.mangaSlug)) return false;
+          seen.add(item.mangaSlug);
+          return true;
+        });
+        const trimmed = deduped.slice(0, 100);
         setHistoryList(trimmed);
         setHistoryHasMore(trimmed.length > 10);
       } else {
@@ -128,21 +146,21 @@ const Library = () => {
 
   // Reset history pagination when tab changes
   useEffect(() => {
-    if (activeTab === "history") {
+    if (activeTabId === "history") {
       setHistoryPage(1);
     }
-  }, [activeTab]);
+  }, [activeTabId]);
 
   useEffect(() => {
-    if (activeTab === "bookmark" && isAuthenticated) loadBookmarks();
-  }, [activeTab, isAuthenticated, loadBookmarks]);
+    if (activeTabId === "bookmark" && isAuthenticated) loadBookmarks();
+  }, [activeTabId, isAuthenticated, loadBookmarks]);
 
   // Reset bookmark pagination when leaving/entering tab
   useEffect(() => {
-    if (activeTab === "bookmark") {
+    if (activeTabId === "bookmark") {
       setBookmarkPage(1);
     }
-  }, [activeTab]);
+  }, [activeTabId]);
 
   const getTimeAgo = (timestamp) => {
     const now = Math.floor(Date.now() / 1000);
@@ -210,7 +228,7 @@ const Library = () => {
           <div className="flex space-x-1 py-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
+              const isActive = activeTabId === tab.id;
               return (
                 <button
                   key={tab.id}
@@ -234,7 +252,7 @@ const Library = () => {
       <main className="pt-12 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* New Update Tab */}
-          {activeTab === "new-update" && (
+          {activeTabId === "new-update" && (
             <div>
               <div className="mb-4">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
@@ -366,7 +384,7 @@ const Library = () => {
           )}
 
           {/* Bookmark Tab */}
-          {activeTab === "bookmark" && (
+          {activeTabId === "bookmark" && (
             <>
               {!isAuthenticated ? (
                 <div className="flex flex-col items-center justify-center py-12">
@@ -483,15 +501,31 @@ const Library = () => {
           )}
 
           {/* History Tab */}
-          {activeTab === "history" && (
+          {activeTabId === "history" && (
             <div>
-              <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                  Riwayat Baca
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Maksimal 100 riwayat, ditampilkan 10 per halaman
-                </p>
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                    Riwayat Baca
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Maksimal 100 manga, ditampilkan 10 per halaman
+                  </p>
+                </div>
+                {historyList.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Hapus semua riwayat?")) {
+                        clearHistory();
+                        loadHistory();
+                      }
+                    }}
+                    className="flex max-w-fit items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Hapus Semua
+                  </button>
+                )}
               </div>
 
               {historyList.length === 0 ? (
@@ -510,11 +544,13 @@ const Library = () => {
                     .slice((historyPage - 1) * 10, historyPage * 10)
                     .map((item, index) => (
                       <div
-                        key={`${item.mangaSlug}-${item.chapterSlug}-${index}`}
-                        onClick={() => navigate(`/view/${item.chapterSlug}`)}
-                        className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex"
+                        key={`${item.mangaSlug}-${index}`}
+                        className="bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex relative"
                       >
-                        <div className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
+                        <div
+                          className="relative w-32 sm:w-40 flex-shrink-0 overflow-hidden flex-1 min-w-0"
+                          onClick={() => navigate(`/komik/${item.mangaSlug}`)}
+                        >
                           <LazyImage
                             src={getImageUrl(item.cover)}
                             alt={item.mangaTitle}
@@ -523,19 +559,29 @@ const Library = () => {
                           />
                         </div>
 
-                        <div className="flex-1 p-4 flex flex-col justify-between">
-                          <div>
-                            <h3 className="font-bold text-base md:text-lg mb-1 text-gray-900 dark:text-gray-100 line-clamp-2">
-                              {item.mangaTitle}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                              Chapter {item.chapterNumber}
-                            </p>
-                          </div>
+                        <div
+                          className="flex-1 p-4 pr-12 flex flex-col justify-between min-w-0"
+                          onClick={() => navigate(`/komik/${item.mangaSlug}`)}
+                        >
+                          <h3 className="font-bold text-base md:text-lg mb-1 text-gray-900 dark:text-gray-100 line-clamp-2">
+                            {item.mangaTitle}
+                          </h3>
                           <p className="text-xs text-gray-500 dark:text-gray-500">
                             {getTimeAgo(Math.floor(item.timestamp / 1000))}
                           </p>
                         </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFromHistory(item.mangaSlug);
+                            loadHistory();
+                          }}
+                          className="absolute top-2 right-2 p-2 bg-red-600/90 hover:bg-red-600 text-white rounded-full shadow transition-colors"
+                          title="Hapus riwayat"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     ))}
                   {historyHasMore && (

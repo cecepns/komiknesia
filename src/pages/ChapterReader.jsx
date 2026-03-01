@@ -80,9 +80,7 @@ const ChapterReader = () => {
               saveToHistory({
                 mangaSlug: extractedMangaSlug,
                 mangaTitle: result.data.content.title,
-                chapterSlug: chapterSlug,
-                chapterNumber: currentChapter.number,
-                cover: result.data.content.cover
+                cover: result.data.content.cover,
               });
             }
           }

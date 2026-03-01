@@ -1,54 +1,134 @@
 import { useState, useEffect } from 'react';
-import { getImageUrl } from '../utils/api';
+import { getImageUrl, apiClient } from '../utils/api';
 import LazyImage from './LazyImage';
 import { useAds } from '../hooks/useAds';
 
+const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
+
 /**
- * AdPopup component to display popup ads in a 2-column grid
- * Cannot be closed for the first 5 seconds
- * Will reappear after 5 minutes if user stays on the page
+ * AdPopup component to display popup ads.
+ * - Desktop: 3 kiri, 3 kanan (6 ads). Mobile: 6 items dengan jarak.
+ * - Tidak bisa di-close selama 10 detik pertama (no skip 10 detik).
+ * - Slot waktu sesuai setting menit (10, 15, 20, ..., 60) dari admin.
  */
 const AdPopup = () => {
-  const { ads, loading } = useAds('popup'); // Get all popup ads
+  const { ads, loading } = useAds('popup');
   const [isOpen, setIsOpen] = useState(false);
   const [canClose, setCanClose] = useState(false);
-  const [countdown, setCountdown] = useState(5);
-  const [lastClosedTime, setLastClosedTime] = useState(null);
+  const [countdown, setCountdown] = useState(10);
+  const [slotIntervalMinutes, setSlotIntervalMinutes] = useState(20);
 
-  // Effect to show popup when ads are loaded
+  const UNLOCK_SECONDS = 10;
+
   useEffect(() => {
-    // Show popup on every page refresh if there's an ad
-    if (!loading && ads.length > 0) {
-      setIsOpen(true);
-      setCountdown(5); // Reset countdown when popup opens
-    }
-  }, [ads, loading]);
+    apiClient.getSettings().then((s) => {
+      const v = s.popup_ads_interval_minutes;
+      if (Number.isFinite(v) && POPUP_INTERVAL_OPTIONS.includes(v)) {
+        setSlotIntervalMinutes(v);
+      }
+    }).catch(() => {});
+  }, []);
 
-  // Effect to track time and show popup again after 5 minutes
+  const getCurrentSlotKey = () => {
+    if (typeof window === 'undefined') return null;
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+
+    const slotIndex = Math.floor(minute / slotIntervalMinutes);
+    const slotMinute = slotIndex * slotIntervalMinutes;
+
+    return `${year}-${month}-${day}-${hour}-${slotMinute}`;
+  };
+
+  // Jadwal popup berdasarkan slot waktu (00, 20, 40) dengan penyimpanan di localStorage
   useEffect(() => {
     if (!ads.length || loading) return;
 
-    // If popup is open, don't check for re-show timer
-    if (isOpen) return;
+    const STORAGE_KEY = 'adPopupState';
+    const UNLOCK_MS = UNLOCK_SECONDS * 1000;
 
-    // If no last closed time, don't start timer yet
-    if (lastClosedTime === null) return;
+    const checkAndHandleSlot = () => {
+      if (typeof window === 'undefined') return;
 
-    // Check every second if 10 minutes have passed
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const timeSinceClosed = now - lastClosedTime;
-      const fiveMinutes = 10 * 60 * 1000; // 10 minutes in milliseconds
+      const currentSlotKey = getCurrentSlotKey();
+      if (!currentSlotKey) return;
 
-      if (timeSinceClosed >= fiveMinutes) {
-        setIsOpen(true);
-        setCountdown(5); // Reset countdown when popup reopens
-        setLastClosedTime(null); // Reset to prevent immediate re-trigger
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        let state = raw ? JSON.parse(raw) : null;
+        const now = Date.now();
+
+        // Slot baru -> buka popup dan catat waktu buka
+        if (!state || state.slotKey !== currentSlotKey) {
+          state = {
+            slotKey: currentSlotKey,
+            openedAt: now,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+          setIsOpen(true);
+          setCanClose(false);
+          setCountdown(UNLOCK_SECONDS);
+          return;
+        }
+
+        // Slot yang sama: cek sudah berapa lama popup "aktif"
+        const elapsedMs = now - state.openedAt;
+
+        // Jika sudah lewat dari 10 detik -> jendela slot selesai, jangan buka lagi
+        if (elapsedMs >= UNLOCK_MS) {
+          if (isOpen) {
+            setIsOpen(false);
+          }
+          setCanClose(true);
+          setCountdown(0);
+          return;
+        }
+
+        // Masih dalam jendela 10 detik -> pastikan popup tetap terbuka
+        const remainingSeconds = Math.max(
+          0,
+          UNLOCK_SECONDS - Math.floor(elapsedMs / 1000)
+        );
+
+        if (!isOpen) {
+          setIsOpen(true);
+        }
+
+        // Selama masih ada sisa detik, tombol close tetap disabled (no skip)
+        setCanClose(remainingSeconds === 0);
+        setCountdown(remainingSeconds);
+
+        // Jika tepat mencapai 0, auto-close popup
+        if (remainingSeconds === 0 && isOpen) {
+          setIsOpen(false);
+        }
+      } catch (error) {
+        console.error('Error handling ad popup slot timing:', error);
+        // Fallback: kalau ada error localStorage, tetap buka popup
+        if (!isOpen) {
+          setIsOpen(true);
+          setCanClose(false);
+          setCountdown(UNLOCK_SECONDS);
+        }
       }
-    }, 1000);
+    };
+
+    // Cek sekali di awal (untuk kasus user masuk di tengah slot)
+    checkAndHandleSlot();
+
+    // Lalu cek berkala, supaya kalau user stay dan lewat menit 00/20/40 tetap muncul
+    const interval = setInterval(() => {
+      checkAndHandleSlot();
+    }, 1000); // cek tiap detik, cukup ringan
 
     return () => clearInterval(interval);
-  }, [isOpen, lastClosedTime, ads.length, loading]);
+  }, [ads.length, loading, isOpen, slotIntervalMinutes]);
 
   // Effect to prevent body scroll when popup is open
   useEffect(() => {
@@ -65,35 +145,9 @@ const AdPopup = () => {
     }
   }, [isOpen]);
 
-  // Effect to handle countdown timer when popup is open
-  useEffect(() => {
-    if (!isOpen) {
-      // Reset canClose when popup is closed
-      setCanClose(false);
-      return;
-    }
-
-    // Reset countdown when popup opens
-    setCountdown(5);
-
-    // Start countdown timer
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          setCanClose(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isOpen]);
-
   const handleClose = () => {
     if (canClose) {
       setIsOpen(false);
-      setLastClosedTime(Date.now()); // Save the time when popup is closed
     }
   };
 
@@ -108,51 +162,80 @@ const AdPopup = () => {
     return null;
   }
 
+  const displayAds = ads.slice(0, 6);
+  const leftAds = displayAds.slice(0, 3);
+  const rightAds = displayAds.slice(3, 6);
+  const gapClass = 'gap-3 sm:gap-4';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
-      <div className="relative max-w-4xl w-full mx-4">
-        {/* Close Button */}
+    <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-black">
+      {/* Fullscreen overlay - menutupi seluruh app di desktop & mobile */}
+      <div className="absolute inset-0 flex flex-col w-full h-full">
+        {/* Close Button - di atas konten */}
         <button
           onClick={handleClose}
           disabled={!canClose}
-          className={`absolute -top-10 right-0 text-white hover:text-gray-300 transition-opacity ${
-            canClose ? 'opacity-100 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+          className={`absolute top-4 right-4 z-10 px-3 py-1.5 rounded text-white text-sm font-medium transition-opacity ${
+            canClose ? 'opacity-100 cursor-pointer bg-red-600 hover:bg-red-700' : 'opacity-50 cursor-not-allowed bg-gray-600'
           }`}
           aria-label="Close popup"
         >
-          <span className="text-red-600">Close</span>
+          Close
         </button>
 
         {/* Countdown Timer */}
         {!canClose && (
-          <div className="absolute -top-10 left-0 text-white text-sm font-medium">
+          <div className="absolute top-4 left-4 z-10 text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded">
             Dapat ditutup dalam {countdown} detik
           </div>
         )}
 
-        {/* Ads Grid - 2 columns */}
-        <div className="grid bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-4">
-          {ads.map((ad, index) => (
-            <div
-              key={ad.id || index}
-              onClick={() => handleAdClick(ad)}
-              className={`relative bg-white dark:bg-gray-800 rounded-lg overflow-hidden ${
-                ad.link_url ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
-              }`}
-            >
-              <LazyImage
-                src={getImageUrl(ad.image)}
-                alt="Advertisement"
-                className="w-full h-auto"
-                wrapperClassName="w-full"
-              />
-            </div>
-          ))}
+        {/* Ads: fullscreen - Mobile 6 stacked; Desktop 3 kiri + 3 kanan */}
+        <div className={`flex-1 flex flex-col md:flex-row ${gapClass} w-full h-full p-4 overflow-auto min-h-0`}>
+          {/* Mobile: satu kolom 6 item */}
+          <div className={`flex flex-col md:hidden flex-1 ${gapClass}`}>
+            {displayAds.map((ad, index) => (
+              <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} fullscreen />
+            ))}
+          </div>
+          {/* Desktop: 3 kiri, 3 kanan */}
+          <div className={`hidden md:flex flex-col flex-1 ${gapClass}`}>
+            {leftAds.map((ad, index) => (
+              <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} fullscreen />
+            ))}
+          </div>
+          <div className={`hidden md:flex flex-col flex-1 ${gapClass}`}>
+            {rightAds.map((ad, index) => (
+              <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} fullscreen />
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+function AdItem({ ad, onAdClick, fullscreen }) {
+  const alt = ad.image_alt || ad.title || 'Advertisement';
+  const title = ad.title || ad.image_alt || '';
+  return (
+    <div
+      onClick={() => onAdClick(ad)}
+      className={`relative flex-1 min-h-0 rounded-lg overflow-hidden flex items-center justify-center ${
+        ad.link_url ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
+      } ${fullscreen ? 'bg-black' : 'bg-white dark:bg-gray-800'}`}
+      title={title || undefined}
+    >
+      <LazyImage
+        src={getImageUrl(ad.image)}
+        alt={alt}
+        title={title || undefined}
+        className={fullscreen ? 'w-full h-full object-contain' : 'w-full h-auto max-h-[70vh] object-contain'}
+        wrapperClassName="w-full h-full"
+      />
+    </div>
+  );
+}
 
 export default AdPopup;
 

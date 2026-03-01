@@ -10,10 +10,16 @@ const AdsManager = () => {
     link_url: '', 
     ads_type: 'home-top',
     image: null,
-    imagePreview: null
+    imagePreview: null,
+    image_alt: '',
+    title: ''
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [settings, setSettings] = useState({ popup_ads_interval_minutes: 20, home_popup_interval_minutes: 30 });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
 
   const adsTypes = [
     { value: 'home-top', label: 'Home Top' },
@@ -33,6 +39,10 @@ const AdsManager = () => {
 
   useEffect(() => {
     fetchAds();
+  }, []);
+
+  useEffect(() => {
+    apiClient.getSettings().then(setSettings).catch(() => {});
   }, []);
 
   const fetchAds = async () => {
@@ -94,13 +104,17 @@ const AdsManager = () => {
       formData.append('image', newAd.image);
       formData.append('link_url', newAd.link_url || '');
       formData.append('ads_type', newAd.ads_type);
+      formData.append('image_alt', newAd.image_alt || '');
+      formData.append('title', newAd.title || '');
 
       await apiClient.createAd(formData);
       setNewAd({ 
         link_url: '', 
         ads_type: 'home-top',
         image: null,
-        imagePreview: null
+        imagePreview: null,
+        image_alt: '',
+        title: ''
       });
       setShowAddForm(false);
       fetchAds();
@@ -121,6 +135,8 @@ const AdsManager = () => {
       }
       formData.append('link_url', data.link_url || '');
       formData.append('ads_type', data.ads_type);
+      formData.append('image_alt', data.image_alt ?? '');
+      formData.append('title', data.title ?? '');
 
       await apiClient.updateAd(id, formData);
       setEditingAd(null);
@@ -139,10 +155,25 @@ const AdsManager = () => {
     const updated = {
       link_url: editingAd.link_url || '',
       ads_type: editingAd.ads_type,
-      image: editingAd.image
+      image: editingAd.image,
+      image_alt: editingAd.image_alt ?? '',
+      title: editingAd.title ?? ''
     };
     
     await handleUpdate(editingAd.id, updated);
+  };
+
+  const handleSaveSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      await apiClient.updateSettings(settings);
+      alert('Pengaturan popup disimpan.');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Gagal menyimpan pengaturan.');
+    } finally {
+      setSettingsLoading(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -163,7 +194,9 @@ const AdsManager = () => {
       link_url: ad.link_url || '',
       ads_type: ad.ads_type || 'home-top',
       image: null,
-      imagePreview: getImageUrl(ad.image)
+      imagePreview: getImageUrl(ad.image),
+      image_alt: ad.image_alt ?? '',
+      title: ad.title ?? ''
     });
   };
 
@@ -193,6 +226,48 @@ const AdsManager = () => {
           <Plus className="h-4 w-4 mr-2" />
           Tambah Iklan
         </button>
+      </div>
+
+      {/* Pengaturan interval popup ads & popup pengumuman */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+          Pengaturan interval popup (menit)
+        </h4>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Popup Iklan (muncul tiap ... menit)</label>
+            <select
+              value={settings.popup_ads_interval_minutes}
+              onChange={(e) => setSettings(prev => ({ ...prev, popup_ads_interval_minutes: Number(e.target.value) }))}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              {POPUP_INTERVAL_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m} menit</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Popup Pengumuman (Home)</label>
+            <select
+              value={settings.home_popup_interval_minutes}
+              onChange={(e) => setSettings(prev => ({ ...prev, home_popup_interval_minutes: Number(e.target.value) }))}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              {POPUP_INTERVAL_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m} menit</option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveSettings}
+            disabled={settingsLoading}
+            className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {settingsLoading ? 'Menyimpan...' : 'Simpan pengaturan'}
+          </button>
+        </div>
       </div>
 
       {/* Add Ad Form */}
@@ -229,6 +304,30 @@ const AdsManager = () => {
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Format: JPG, PNG, GIF, WEBP. Maksimal 5MB
               </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Alt Gambar
+              </label>
+              <input
+                type="text"
+                value={newAd.image_alt}
+                onChange={(e) => setNewAd(prev => ({ ...prev, image_alt: e.target.value }))}
+                placeholder="Teks alternatif untuk aksesibilitas"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Title
+              </label>
+              <input
+                type="text"
+                value={newAd.title}
+                onChange={(e) => setNewAd(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Title untuk tooltip/link"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -276,7 +375,9 @@ const AdsManager = () => {
                     link_url: '', 
                     ads_type: 'home-top',
                     image: null,
-                    imagePreview: null
+                    imagePreview: null,
+                    image_alt: '',
+                    title: ''
                   });
                 }}
                 className="inline-flex items-center px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"
@@ -299,6 +400,9 @@ const AdsManager = () => {
                   Gambar
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Alt / Title
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   URL Tautan
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -315,7 +419,7 @@ const AdsManager = () => {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {ads.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     Belum ada iklan. Klik &quot;Tambah Iklan&quot; untuk menambahkan.
                   </td>
                 </tr>
@@ -358,6 +462,37 @@ const AdsManager = () => {
                             <div className="w-full h-full flex items-center justify-center">
                               <ImageIcon className="w-6 h-6 text-gray-400" />
                             </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 max-w-[180px]">
+                      {editingAd && editingAd.id === ad.id ? (
+                        <div className="space-y-1">
+                          <input
+                            type="text"
+                            value={editingAd.image_alt}
+                            onChange={(e) => setEditingAd(prev => ({ ...prev, image_alt: e.target.value }))}
+                            placeholder="Alt"
+                            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={editingAd.title}
+                            onChange={(e) => setEditingAd(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="Title"
+                            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          {ad.image_alt || ad.title ? (
+                            <>
+                              {ad.image_alt && <div>Alt: {ad.image_alt}</div>}
+                              {ad.title && <div>Title: {ad.title}</div>}
+                            </>
+                          ) : (
+                            <span className="text-gray-400">-</span>
                           )}
                         </div>
                       )}

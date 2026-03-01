@@ -85,6 +85,16 @@ let db;
         FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
       )
     `);
+
+    // Ensure comments table has external_slug column used by comments queries
+    try {
+      await db.execute(
+        'ALTER TABLE comments ADD COLUMN external_slug VARCHAR(255) NULL DEFAULT NULL AFTER manga_id'
+      );
+      console.log('Added external_slug column to comments table');
+    } catch (e) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.warn('Comments external_slug column:', e.message);
+    }
     
     // Start server after database connection
     app.listen(PORT, () => {
@@ -2279,8 +2289,13 @@ app.post('/api/votes', optionalAuthenticate, async (req, res) => {
     
     if (existing.length > 0) {
       if (existing[0].vote_type === vote_type) {
-        await db.execute('DELETE FROM votes WHERE id = ?', [existing[0].id]);
-        return res.json({ status: true, message: 'Vote removed', action: 'removed' });
+        // Only allow toggle (remove) for logged-in users. Anonymous users may share IP
+        // (NAT, mobile carrier), so deleting would remove another person's vote.
+        if (userId) {
+          await db.execute('DELETE FROM votes WHERE id = ?', [existing[0].id]);
+          return res.json({ status: true, message: 'Vote removed', action: 'removed' });
+        }
+        return res.json({ status: true, message: 'Already voted', action: 'unchanged' });
       } else {
         await db.execute('UPDATE votes SET vote_type = ? WHERE id = ?', [vote_type, existing[0].id]);
         return res.json({
@@ -2969,12 +2984,12 @@ app.get('/api/ads', async (req, res) => {
 
 app.post('/api/ads', authenticateToken, upload.single('image'), async (req, res) => {
   try {
-    const { link_url, ads_type } = req.body;
+    const { link_url, ads_type, image_alt, title } = req.body;
     const image = req.file ? `/uploads/${req.file.filename}` : null;
     
     const [result] = await db.execute(
-      'INSERT INTO ads (image, link_url, ads_type) VALUES (?, ?, ?)',
-      [image, link_url, ads_type]
+      'INSERT INTO ads (image, link_url, ads_type, image_alt, title) VALUES (?, ?, ?, ?, ?)',
+      [image, link_url || null, ads_type || null, image_alt || null, title || null]
     );
     
     res.status(201).json({ id: result.insertId, message: 'Ad created successfully' });
@@ -2987,10 +3002,10 @@ app.post('/api/ads', authenticateToken, upload.single('image'), async (req, res)
 app.put('/api/ads/:id', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { link_url, ads_type } = req.body;
+    const { link_url, ads_type, image_alt, title } = req.body;
     
-    let query = 'UPDATE ads SET link_url = ?, ads_type = ?';
-    let params = [link_url, ads_type];
+    let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?';
+    let params = [link_url || null, ads_type || null, image_alt || null, title || null];
     
     if (req.file) {
       query += ', image = ?';
@@ -3016,6 +3031,42 @@ app.delete('/api/ads/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Ad deleted successfully' });
   } catch (error) {
     console.error('Error deleting ad:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Settings (popup intervals etc.)
+const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
+
+app.get('/api/settings', async (req, res) => {
+  try {
+    const [rows] = await db.execute("SELECT `key`, `value` FROM settings WHERE `key` IN ('popup_ads_interval_minutes', 'home_popup_interval_minutes')");
+    const map = Object.fromEntries((rows || []).map((r) => [r.key, r.value]));
+    const popupAds = parseInt(map.popup_ads_interval_minutes, 10);
+    const homePopup = parseInt(map.home_popup_interval_minutes, 10);
+    res.json({
+      popup_ads_interval_minutes: Number.isFinite(popupAds) && POPUP_INTERVAL_OPTIONS.includes(popupAds) ? popupAds : 20,
+      home_popup_interval_minutes: Number.isFinite(homePopup) && POPUP_INTERVAL_OPTIONS.includes(homePopup) ? homePopup : 30,
+    });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.json({ popup_ads_interval_minutes: 20, home_popup_interval_minutes: 30 });
+  }
+});
+
+app.put('/api/settings', authenticateToken, async (req, res) => {
+  try {
+    const { popup_ads_interval_minutes, home_popup_interval_minutes } = req.body;
+    const set = (key, value) => {
+      const v = parseInt(value, 10);
+      if (!Number.isFinite(v) || !POPUP_INTERVAL_OPTIONS.includes(v)) return;
+      return db.execute('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?', [key, String(v), String(v)]);
+    };
+    if (popup_ads_interval_minutes !== undefined) await set('popup_ads_interval_minutes', popup_ads_interval_minutes);
+    if (home_popup_interval_minutes !== undefined) await set('home_popup_interval_minutes', home_popup_interval_minutes);
+    res.json({ message: 'Settings updated' });
+  } catch (error) {
+    console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

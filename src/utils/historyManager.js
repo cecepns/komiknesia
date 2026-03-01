@@ -1,28 +1,24 @@
 /**
- * Save manga reading history to localStorage
+ * Save manga to reading history (manga-only, no chapter)
  * Keeps only the last 100 items
+ * @param {Object} item - { mangaSlug, mangaTitle, cover }
  */
-export const saveToHistory = (historyItem) => {
+export const saveToHistory = (item) => {
   try {
-    // Get existing history
     const existingHistory = localStorage.getItem('mangaHistory');
     let history = existingHistory ? JSON.parse(existingHistory) : [];
 
-    // Remove duplicate entries (same manga and chapter)
-    history = history.filter(
-      item => !(item.mangaSlug === historyItem.mangaSlug && item.chapterSlug === historyItem.chapterSlug)
-    );
+    // Remove duplicate by manga slug (manga-only history)
+    history = history.filter((h) => h.mangaSlug !== item.mangaSlug);
 
-    // Add new item at the beginning
     history.unshift({
-      ...historyItem,
-      timestamp: Date.now()
+      mangaSlug: item.mangaSlug,
+      mangaTitle: item.mangaTitle,
+      cover: item.cover,
+      timestamp: Date.now(),
     });
 
-    // Keep only last 100 items (newest first)
     history = history.slice(0, 100);
-
-    // Save to localStorage
     localStorage.setItem('mangaHistory', JSON.stringify(history));
   } catch (error) {
     console.error('Error saving history:', error);
@@ -39,6 +35,21 @@ export const getHistory = () => {
   } catch (error) {
     console.error('Error getting history:', error);
     return [];
+  }
+};
+
+/**
+ * Remove single manga from history
+ * @param {string} mangaSlug
+ */
+export const removeFromHistory = (mangaSlug) => {
+  try {
+    const existingHistory = localStorage.getItem('mangaHistory');
+    if (!existingHistory) return;
+    const history = JSON.parse(existingHistory).filter((h) => h.mangaSlug !== mangaSlug);
+    localStorage.setItem('mangaHistory', JSON.stringify(history));
+  } catch (error) {
+    console.error('Error removing from history:', error);
   }
 };
 

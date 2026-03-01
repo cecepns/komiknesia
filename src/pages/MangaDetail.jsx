@@ -298,6 +298,8 @@ const MangaDetail = () => {
             [result.new_vote]: prev[result.new_vote] + 1,
           }));
           setSelectedVote(voteId);
+        } else if (result.action === 'unchanged') {
+          setSelectedVote(voteId);
         } else {
           setVoteData(prev => ({ ...prev, [voteId]: prev[voteId] + 1 }));
           setSelectedVote(voteId);
