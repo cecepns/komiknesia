@@ -22,22 +22,28 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
   if (layout === 'carousel') {
     return (
       <div className={`flex overflow-x-auto pb-2 scrollbar-hide ${className}`}>
-        {ads.map((ad) => (
-          <div
-            key={ad.id}
-            onClick={() => handleAdClick(ad)}
-            className={`flex-shrink-0 cursor-pointer transition-transform duration-300 hover:scale-20 ${
-              ad.link_url ? 'hover:opacity-90' : ''
-            }`}
-          >
-            <LazyImage
-              src={getImageUrl(ad.image)}
-              alt="Advertisement"
-              className="rounded-lg shadow-md"
-              wrapperClassName="w-full"
-            />
-          </div>
-        ))}
+        {ads.map((ad) => {
+          const alt = ad.image_alt || ad.title || 'Advertisement';
+          const title = ad.title || ad.image_alt || '';
+          return (
+            <div
+              key={ad.id}
+              onClick={() => handleAdClick(ad)}
+              className={`flex-shrink-0 cursor-pointer transition-transform duration-300 hover:scale-20 ${
+                ad.link_url ? 'hover:opacity-90' : ''
+              }`}
+              title={title || undefined}
+            >
+              <LazyImage
+                src={getImageUrl(ad.image)}
+                alt={alt}
+                title={title || undefined}
+                className="rounded-lg shadow-md"
+                wrapperClassName="w-full"
+              />
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -54,22 +60,28 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
 
   return (
     <div className={`grid ${gridCols[columns] || gridCols[1]} ${className}`}>
-      {ads.map((ad) => (
-        <div
-          key={ad.id}
-          onClick={() => handleAdClick(ad)}
-          className={`cursor-pointer transition-transform duration-300 hover:scale-20 ${
-            ad.link_url ? 'hover:opacity-90' : ''
-          }`}
-        >
-          <LazyImage
-            src={getImageUrl(ad.image)}
-            alt="Advertisement"
-            className="w-full rounded-lg shadow-md"
-            wrapperClassName="w-full"
-          />
-        </div>
-      ))}
+      {ads.map((ad) => {
+        const alt = ad.image_alt || ad.title || 'Advertisement';
+        const title = ad.title || ad.image_alt || '';
+        return (
+          <div
+            key={ad.id}
+            onClick={() => handleAdClick(ad)}
+            className={`cursor-pointer transition-transform duration-300 hover:scale-20 ${
+              ad.link_url ? 'hover:opacity-90' : ''
+            }`}
+            title={title || undefined}
+          >
+            <LazyImage
+              src={getImageUrl(ad.image)}
+              alt={alt}
+              title={title || undefined}
+              className="w-full rounded-lg shadow-md"
+              wrapperClassName="w-full"
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };
