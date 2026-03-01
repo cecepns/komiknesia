@@ -163,75 +163,59 @@ const AdPopup = () => {
   }
 
   const displayAds = ads.slice(0, 6);
-  const leftAds = displayAds.slice(0, 3);
-  const rightAds = displayAds.slice(3, 6);
-  const gapClass = 'gap-3 sm:gap-4';
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-black">
-      {/* Fullscreen overlay - menutupi seluruh app di desktop & mobile */}
+    <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-slate-800">
+      {/* Fullscreen: mobile = 1 kolom 6 ke bawah; desktop = 3 kiri + 3 kanan */}
       <div className="absolute inset-0 flex flex-col w-full h-full">
-        {/* Close Button - di atas konten */}
-        <button
-          onClick={handleClose}
-          disabled={!canClose}
-          className={`absolute top-4 right-4 z-10 px-3 py-1.5 rounded text-white text-sm font-medium transition-opacity ${
-            canClose ? 'opacity-100 cursor-pointer bg-red-600 hover:bg-red-700' : 'opacity-50 cursor-not-allowed bg-gray-600'
-          }`}
-          aria-label="Close popup"
-        >
-          Close
-        </button>
+        {/* Bar atas: countdown kiri, tombol close kanan (seperti screenshot mobile) */}
+        <div className="flex-shrink-0 flex items-center justify-between md:justify-center md:gap-5 px-4 py-3 bg-slate-800 z-10">
+          {!canClose ? (
+            <span className="text-white text-sm font-medium">Close in {countdown}</span>
+          ) : (
+            <span />
+          )}
+          <button
+            onClick={handleClose}
+            disabled={!canClose}
+            className={`px-3 py-1.5 rounded text-white text-sm font-medium transition-opacity ${
+              canClose ? 'opacity-100 cursor-pointer bg-red-600 hover:bg-red-700' : 'opacity-50 cursor-not-allowed bg-gray-600'
+            }`}
+            aria-label="Close popup"
+          >
+            Close
+          </button>
+        </div>
 
-        {/* Countdown Timer */}
-        {!canClose && (
-          <div className="absolute top-4 left-4 z-10 text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded">
-            Dapat ditutup dalam {countdown} detik
-          </div>
-        )}
-
-        {/* Ads: fullscreen - Mobile 6 stacked; Desktop 3 kiri + 3 kanan */}
-        <div className={`flex-1 flex flex-col md:flex-row ${gapClass} w-full h-full p-4 overflow-auto min-h-0`}>
-          {/* Mobile: satu kolom 6 item */}
-          <div className={`flex flex-col md:hidden flex-1 ${gapClass}`}>
-            {displayAds.map((ad, index) => (
-              <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} fullscreen />
-            ))}
-          </div>
-          {/* Desktop: 3 kiri, 3 kanan */}
-          <div className={`hidden md:flex flex-col flex-1 ${gapClass}`}>
-            {leftAds.map((ad, index) => (
-              <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} fullscreen />
-            ))}
-          </div>
-          <div className={`hidden md:flex flex-col flex-1 ${gapClass}`}>
-            {rightAds.map((ad, index) => (
-              <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} fullscreen />
-            ))}
-          </div>
+        {/* Mobile: 1 kolom 6 baris sama tinggi, jarak antar banner. Desktop: 2 kolom × 3 baris */}
+        <div className="flex-1 grid grid-cols-1 grid-rows-6 md:grid-cols-2 md:grid-rows-3 md:grid-flow-col gap-3 p-4 w-full min-h-0 overflow-auto">
+          {displayAds.map((ad, index) => (
+            <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} />
+          ))}
         </div>
       </div>
     </div>
   );
 };
 
-function AdItem({ ad, onAdClick, fullscreen }) {
+function AdItem({ ad, onAdClick }) {
   const alt = ad.image_alt || ad.title || 'Advertisement';
   const title = ad.title || ad.image_alt || '';
   return (
     <div
       onClick={() => onAdClick(ad)}
-      className={`relative flex-1 min-h-0 rounded-lg overflow-hidden flex items-center justify-center ${
+      className={`relative rounded-lg overflow-hidden flex items-center justify-center bg-black min-h-0 ${
         ad.link_url ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
-      } ${fullscreen ? 'bg-black' : 'bg-white dark:bg-gray-800'}`}
+      }`}
       title={title || undefined}
     >
+      {/* Mobile: isi tinggi baris (1/6). Desktop: max 28vh agar tidak terlalu besar */}
       <LazyImage
         src={getImageUrl(ad.image)}
         alt={alt}
         title={title || undefined}
-        className={fullscreen ? 'w-full h-full object-contain' : 'w-full h-auto max-h-[70vh] object-contain'}
-        wrapperClassName="w-full h-full"
+        className="w-full h-full max-h-full md:max-h-[28vh] object-contain"
+        wrapperClassName="w-full h-full min-h-0 flex items-center justify-center"
       />
     </div>
   );
