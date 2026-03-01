@@ -167,7 +167,7 @@ const AdPopup = () => {
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-slate-800">
       {/* Fullscreen: mobile = 1 kolom 6 ke bawah; desktop = 3 kiri + 3 kanan */}
-      <div className="absolute inset-0 flex flex-col w-full h-full">
+      <div className="absolute inset-0 flex flex-col justify-center w-full h-full">
         {/* Bar atas: countdown kiri, tombol close kanan (seperti screenshot mobile) */}
         <div className="flex-shrink-0 flex items-center justify-between md:justify-center md:gap-5 px-4 py-3 bg-slate-800 z-10">
           {!canClose ? (
@@ -188,7 +188,7 @@ const AdPopup = () => {
         </div>
 
         {/* Mobile: 1 kolom 6 baris sama tinggi, jarak antar banner. Desktop: 2 kolom × 3 baris */}
-        <div className="flex-1 grid grid-cols-1 grid-rows-6 md:grid-cols-2 md:grid-rows-3 md:grid-flow-col gap-3 p-4 w-full min-h-0 overflow-auto">
+        <div className="grid md:grid-cols-2 p-4 gap-2">
           {displayAds.map((ad, index) => (
             <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} />
           ))}
@@ -204,7 +204,7 @@ function AdItem({ ad, onAdClick }) {
   return (
     <div
       onClick={() => onAdClick(ad)}
-      className={`relative rounded-lg overflow-hidden flex items-center justify-center bg-black min-h-0 ${
+      className={`relative rounded-lg overflow-hidden flex items-center justify-center min-h-0 ${
         ad.link_url ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
       }`}
       title={title || undefined}
@@ -214,7 +214,7 @@ function AdItem({ ad, onAdClick }) {
         src={getImageUrl(ad.image)}
         alt={alt}
         title={title || undefined}
-        className="w-full h-full max-h-full md:max-h-[28vh] object-contain"
+        className="w-full h-full object-cover"
         wrapperClassName="w-full h-full min-h-0 flex items-center justify-center"
       />
     </div>
