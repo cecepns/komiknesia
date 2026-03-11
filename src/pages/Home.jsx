@@ -14,8 +14,9 @@ const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [bannerManga, setBannerManga] = useState([]);
   const [popupBannerVisible, setPopupBannerVisible] = useState(false);
-  const [homePopupIntervalMinutes, setHomePopupIntervalMinutes] = useState(30);
- 
+  const [homePopupIntervalMinutes, setHomePopupIntervalMinutes] = useState(10);
+  const [popupSettingsReady, setPopupSettingsReady] = useState(false);
+
   useEffect(() => {
     fetchBannerManga();
   }, []);
@@ -40,12 +41,16 @@ const Home = () => {
   const { ads: homePopupAds } = useAds("home-popup", 1);
 
   useEffect(() => {
-    apiClient.getSettings().then((s) => {
-      const v = s.home_popup_interval_minutes;
-      if (Number.isFinite(v) && [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].includes(v)) {
-        setHomePopupIntervalMinutes(v);
-      }
-    }).catch(() => {});
+    apiClient
+      .getSettings()
+      .then((s) => {
+        const v = s.home_popup_interval_minutes;
+        if (Number.isFinite(v) && [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].includes(v)) {
+          setHomePopupIntervalMinutes(v);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setPopupSettingsReady(true));
   }, []);
 
   useEffect(() => {
@@ -56,9 +61,9 @@ const Home = () => {
     });
   }, []);
 
-  // Home-only popup banner: tampil sesuai interval menit dari pengaturan admin
+  // Home-only popup banner: jangan tampil sampai getSettings selesai (default 10 menit), baru pakai interval dari admin
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !popupSettingsReady) return;
 
     try {
       const storageKey = "homePopupLastShownAt";
@@ -78,7 +83,7 @@ const Home = () => {
       console.error("Error reading home popup timestamp:", error);
       setPopupBannerVisible(true);
     }
-  }, [homePopupIntervalMinutes]);
+  }, [popupSettingsReady, homePopupIntervalMinutes]);
 
   useEffect(() => {
     if (bannerManga.length > 0) {

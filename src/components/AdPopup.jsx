@@ -16,17 +16,22 @@ const AdPopup = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [canClose, setCanClose] = useState(false);
   const [countdown, setCountdown] = useState(10);
-  const [slotIntervalMinutes, setSlotIntervalMinutes] = useState(20);
+  const [slotIntervalMinutes, setSlotIntervalMinutes] = useState(10);
+  const [settingsReady, setSettingsReady] = useState(false);
 
   const UNLOCK_SECONDS = 10;
 
   useEffect(() => {
-    apiClient.getSettings().then((s) => {
-      const v = s.popup_ads_interval_minutes;
-      if (Number.isFinite(v) && POPUP_INTERVAL_OPTIONS.includes(v)) {
-        setSlotIntervalMinutes(v);
-      }
-    }).catch(() => {});
+    apiClient
+      .getSettings()
+      .then((s) => {
+        const v = s.popup_ads_interval_minutes;
+        if (Number.isFinite(v) && POPUP_INTERVAL_OPTIONS.includes(v)) {
+          setSlotIntervalMinutes(v);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSettingsReady(true));
   }, []);
 
   const getCurrentSlotKey = () => {
@@ -45,9 +50,9 @@ const AdPopup = () => {
     return `${year}-${month}-${day}-${hour}-${slotMinute}`;
   };
 
-  // Jadwal popup berdasarkan slot waktu (00, 20, 40) dengan penyimpanan di localStorage
+  // Jadwal popup: jangan jalan sampai getSettings selesai (default 10 menit), baru pakai interval dari admin
   useEffect(() => {
-    if (!ads.length || loading) return;
+    if (!settingsReady || !ads.length || loading) return;
 
     const STORAGE_KEY = 'adPopupState';
     const UNLOCK_MS = UNLOCK_SECONDS * 1000;
@@ -128,7 +133,7 @@ const AdPopup = () => {
     }, 1000); // cek tiap detik, cukup ringan
 
     return () => clearInterval(interval);
-  }, [ads.length, loading, isOpen, slotIntervalMinutes]);
+  }, [settingsReady, ads.length, loading, isOpen, slotIntervalMinutes]);
 
   // Effect to prevent body scroll when popup is open
   useEffect(() => {

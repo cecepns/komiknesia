@@ -842,21 +842,21 @@ const Content = () => {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                         {/* Country Flag */}
-                        <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
+                        {/* <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
                           {countryFlags[manga.country_id] || "🌍"}
-                        </div>
+                        </div> */}
 
                         {/* Color Badge */}
-                        {manga.color && (
+                        {/* {manga.color && (
                           <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-md text-xs font-bold flex items-center space-x-1">
-                            {/* <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z"/>
-                            </svg> */}
+                            </svg>
                             <span className="block text-[10px] md:text-sm">
                               COLOR
                             </span>
                           </div>
-                        )}
+                        )} */}
 
                         {/* Hot Badge */}
                         {/* {manga.hot && (

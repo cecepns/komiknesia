@@ -318,11 +318,11 @@ const Library = () => {
 
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                        <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
+                        {/* <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
                           {countryFlags[manga.country_id] || "🌍"}
-                        </div>
+                        </div> */}
 
-                        {manga.color && (
+                        {/* {manga.color && (
                           <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-md text-xs font-bold flex items-center space-x-1">
                             <svg
                               className="w-3 h-3"
@@ -333,7 +333,7 @@ const Library = () => {
                             </svg>
                             <span>COLOR</span>
                           </div>
-                        )}
+                        )} */}
 
 
                         <div className="absolute bottom-0 left-0 right-0 p-3">
