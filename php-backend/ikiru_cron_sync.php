@@ -53,6 +53,10 @@ function callCronSync($url, $timeoutSeconds)
         CURLOPT_CONNECTTIMEOUT => 30,
         CURLOPT_TIMEOUT        => $timeoutSeconds,
         CURLOPT_USERAGENT      => 'Komiknesia Cron PHP Client/1.0',
+        // Our API route is defined as POST /api/admin/ikiru-sync/cron-sync
+        CURLOPT_POST           => true,
+        // No body required; we rely on query params in the URL.
+        CURLOPT_POSTFIELDS    => '',
     ]);
 
     $responseBody = curl_exec($ch);

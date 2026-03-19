@@ -196,8 +196,43 @@ async function scrapeMangaDetail(slug) {
   const mangaUrl = `${BASE_URL}/manga/${slug}/`;
   const $ = await fetchHtml(mangaUrl);
 
+  // Prefer schema title if available.
+  const titleEl = $('[itemprop="name"]').first();
   const title =
-    cleanText($('h1').first().text()) || cleanText($('h2').first().text()) || slug.replace(/-/g, ' ');
+    cleanText(titleEl.text()) ||
+    cleanText($('h1').first().text()) ||
+    cleanText($('h2').first().text()) ||
+    slug.replace(/-/g, ' ');
+
+  // Ikiru often renders alternative name as a line underneath the main title.
+  // Example: <h1 itemprop="name">...</h1><div class="... line-clamp-1">Alternative...</div>
+  let alternativeName = '';
+  if (titleEl && titleEl.length) {
+    const parent = titleEl.parent();
+
+    // Most common: alternative is directly after the title node.
+    alternativeName = cleanText(titleEl.next('div').first().text());
+
+    // Fallback: look for a "line-clamp-1" div within the same block.
+    if (!alternativeName) alternativeName = cleanText(parent.find('div.line-clamp-1').first().text());
+
+    // Final fallback: any non-empty div directly under the title parent, excluding the title itself.
+    if (!alternativeName) {
+      alternativeName = cleanText(
+        parent
+          .find('div')
+          .filter((_, el) => {
+            const $el = $(el);
+            const t = cleanText($el.text());
+            if (!t) return false;
+            if ($el.attr('itemprop')) return false;
+            return true;
+          })
+          .first()
+          .text()
+      );
+    }
+  }
 
   let coverImage = null;
   const coverImgEl = $('div[itemprop="image"] img').first() || $('main img').first();
@@ -210,12 +245,21 @@ async function scrapeMangaDetail(slug) {
     }
   }
 
-  const synopsisHeader = $('h3, h4')
-    .filter((_, el) => cleanText($(el).text()).toLowerCase() === 'synopsis')
-    .first();
+  // Prefer schema description if available.
   let synopsis = '';
-  if (synopsisHeader.length) {
-    synopsis = cleanText(synopsisHeader.parent().text().replace(/Synopsis/i, ''));
+  const descEl = $('div[itemprop="description"]').first();
+  if (descEl && descEl.length) {
+    synopsis = cleanText(descEl.find('p').first().text() || descEl.text());
+    // Remove "baca cuma di ..." footer if present.
+    synopsis = synopsis.replace(/\s*baca\s+cuma\s+di\s*ikiru\.id\.?\s*$/i, '').trim();
+  } else {
+    // Fallback: old "Synopsis" header-based extraction.
+    const synopsisHeader = $('h3, h4')
+      .filter((_, el) => cleanText($(el).text()).toLowerCase() === 'synopsis')
+      .first();
+    if (synopsisHeader.length) {
+      synopsis = cleanText(synopsisHeader.parent().text().replace(/Synopsis/i, ''));
+    }
   }
 
   const genres = new Set();
@@ -318,6 +362,7 @@ async function scrapeMangaDetail(slug) {
     url: mangaUrl,
     title,
     coverImage,
+    alternativeName: alternativeName || null,
     synopsis,
     genres: Array.from(genres),
     chapters,
@@ -349,6 +394,29 @@ async function upsertMangaFromIkiru(detail) {
     }
     if (Array.isArray(detail.genres) && detail.genres.length) {
       await upsertMangaGenres(existing.id, detail.genres);
+    }
+
+    // If fields are empty, try to backfill them.
+    const shouldUpdateAlternative =
+      (!existing.alternative_name || String(existing.alternative_name).trim() === '') &&
+      detail.alternativeName;
+    const shouldUpdateSynopsis =
+      (!existing.synopsis || String(existing.synopsis).trim() === '') && detail.synopsis;
+
+    if (shouldUpdateAlternative || shouldUpdateSynopsis) {
+      const setClauses = [];
+      const values = [];
+      if (shouldUpdateAlternative) {
+        setClauses.push('alternative_name = ?');
+        values.push(detail.alternativeName);
+      }
+      if (shouldUpdateSynopsis) {
+        setClauses.push('synopsis = ?');
+        values.push(detail.synopsis || null);
+      }
+      values.push(existing.id);
+
+      await db.execute(`UPDATE manga SET ${setClauses.join(', ')} WHERE id = ?`, values);
     }
     return { mangaId: existing.id, created: false };
   }
@@ -388,7 +456,7 @@ async function upsertMangaFromIkiru(detail) {
       null,
       coverUrl,
       null,
-      null,
+      detail.alternativeName || null,
       'manga',
       null,
       null,
@@ -555,6 +623,8 @@ async function syncFeed(feedItems, { mode }) {
       } else {
         summary.mangaSkipped += 1;
         const detail = await scrapeMangaDetail(item.slug);
+        // Backfill alternative_name/synopsis (and genres) when they are still empty.
+        await upsertMangaFromIkiru(detail);
         const chaptersRes = await insertChaptersIfMissing(localManga, detail.chapters, {
           mode: mode === 'delta' ? 'latestOnly' : 'all',
         });
@@ -656,6 +726,8 @@ const syncSelected = async (req, res) => {
         } else {
           mangaId = local.id;
           summary.mangaUpdated += 1;
+          // Backfill alternative_name/synopsis (and genres) when they are still empty.
+          await upsertMangaFromIkiru(detail);
         }
 
         const chaptersStats = {
@@ -772,6 +844,8 @@ const cronSyncFeed = async (req, res) => {
         } else {
           mangaId = local.id;
           summary.mangaUpdated += 1;
+          // Backfill alternative_name/synopsis (and genres) when they are still empty.
+          await upsertMangaFromIkiru(detail);
         }
 
         const chaptersStats = {
@@ -851,6 +925,9 @@ const syncMangaBySlug = async (req, res) => {
         chaptersSkipped: chaptersRes.skipped,
       });
     }
+
+    // Backfill alternative_name/synopsis (and genres) when they are still empty.
+    await upsertMangaFromIkiru(detail);
 
     const chaptersRes = await insertChaptersIfMissing(
       local,
