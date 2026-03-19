@@ -3,8 +3,8 @@
 // export const API_BASE_URL = 'http://localhost:8080/api';
 // export const API_BASE_URL_WITHOUT_API = 'http://localhost:8080';
 
-export const API_BASE_URL = 'http://202.10.48.156:3001/api';
-export const API_BASE_URL_WITHOUT_API = 'http://202.10.48.156:3001';
+export const API_BASE_URL = 'https://be-api-node.komiknesia.net//api';
+export const API_BASE_URL_WITHOUT_API = 'https://be-api-node.komiknesia.net/';
 
 /**
  * Get full image URL with endpoint prefix if the path is relative
