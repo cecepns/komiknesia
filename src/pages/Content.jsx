@@ -113,7 +113,7 @@ const Content = () => {
 
       // Common parameters
       params.append("page", currentPage);
-      params.append("per_page", "40");
+      params.append("per_page", "24");
 
       // Add genre filters (can be combined with search)
       selectedGenres.forEach((genreId) => {

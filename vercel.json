@@ -2,22 +2,22 @@
   "routes": [
     {
       "src": "/sitemap.xml",
-      "dest": "https://api.komiknesia.net/sitemap.xml",
+      "dest": "https://be-api.komiknesia.net/sitemap.xml",
       "status": 308
     },
     {
       "src": "/sitemap-index.xml",
-      "dest": "https://api.komiknesia.net/sitemap-index.xml",
+      "dest": "https://be-api.komiknesia.net/sitemap-index.xml",
       "status": 308
     },
     {
       "src": "/sitemap-manga.xml",
-      "dest": "https://api.komiknesia.net/sitemap-manga.xml",
+      "dest": "https://be-api.komiknesia.net/sitemap-manga.xml",
       "status": 308
     },
     {
       "src": "/sitemap-chapters.xml",
-      "dest": "https://api.komiknesia.net/sitemap-chapters.xml",
+      "dest": "https://be-api.komiknesia.net/sitemap-chapters.xml",
       "status": 308
     },
     {

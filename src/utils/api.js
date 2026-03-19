@@ -1,9 +1,10 @@
-// export const API_BASE_URL = 'http://localhost:5000/api';
-// const API_BASE_URL_WITHOUT_API = 'http://localhost:5000';
-// export const API_BASE_URL = 'https://api-inventory.isavralabel.com/komiknesia/api';
-// export const API_BASE_URL_WITHOUT_API = 'https://api-inventory.isavralabel.com/komiknesia';
-export const API_BASE_URL = 'https://api.komiknesia.net/api';
-export const API_BASE_URL_WITHOUT_API = 'https://api.komiknesia.net';
+// export const API_BASE_URL = 'https://be-api.komiknesia.net/api';
+// export const API_BASE_URL_WITHOUT_API = 'https://be-api.komiknesia.net';
+// export const API_BASE_URL = 'http://localhost:8080/api';
+// export const API_BASE_URL_WITHOUT_API = 'http://localhost:8080';
+
+export const API_BASE_URL = 'http://202.10.48.156:3001/api';
+export const API_BASE_URL_WITHOUT_API = 'http://202.10.48.156:3001';
 
 /**
  * Get full image URL with endpoint prefix if the path is relative
@@ -13,18 +14,26 @@ export const API_BASE_URL_WITHOUT_API = 'https://api.komiknesia.net';
 export const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
   
+  // Normalize escaped slashes from JSON (e.g. "\/uploads\/file.png" -> "/uploads/file.png")
+  const path = typeof imagePath === 'string' ? imagePath.replace(/\\\//g, '/') : String(imagePath);
+  
   // If already a full URL (starts with http:// or https://), return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
   }
   
-  // If it's a relative path starting with /uploads/, add the base URL
-  if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/')) {
-    return `${API_BASE_URL_WITHOUT_API}${imagePath}`;
+  // If it's a relative path, add the base URL
+  // Map /uploads/ -> /uploads-komiknesia/ (backend stores files in uploads-komiknesia)
+  let resolvedPath = path;
+  if (path.startsWith('/uploads/') && !path.startsWith('/uploads-komiknesia/')) {
+    resolvedPath = '/uploads-komiknesia/' + path.slice('/uploads/'.length);
+  }
+  if (resolvedPath.startsWith('/uploads-komiknesia/') || resolvedPath.startsWith('/')) {
+    return `${API_BASE_URL_WITHOUT_API}${resolvedPath}`;
   }
   
   // Otherwise return as is (might be a data URL or other format)
-  return imagePath;
+  return path;
 };
 
 class APIClient {
@@ -300,6 +309,55 @@ class APIClient {
     });
   }
 
+  // Admin: Ikiru sync
+  syncIkiruLatest(body = {}) {
+    return this.request('/admin/ikiru-sync/latest', {
+      method: 'POST',
+      body,
+    });
+  }
+
+  syncIkiruProject(body = {}) {
+    return this.request('/admin/ikiru-sync/project', {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getIkiruSyncFeed(type = 'latest', page = 1) {
+    const params = new URLSearchParams({
+      type: String(type || 'latest'),
+      page: String(page || 1),
+    });
+    return this.request(`/admin/ikiru-sync/feed?${params.toString()}`);
+  }
+
+  syncIkiruSelected(slugs, body = {}) {
+    return this.request('/admin/ikiru-sync/selected', {
+      method: 'POST',
+      body: { slugs, ...body },
+    });
+  }
+
+  syncIkiruManga(slug, body = {}) {
+    return this.request(`/admin/ikiru-sync/manga/${encodeURIComponent(slug)}`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  syncIkiruChapterImages(mangaSlug, chapterSlug, body = {}) {
+    return this.request(
+      `/admin/ikiru-sync/manga/${encodeURIComponent(mangaSlug)}/chapter/${encodeURIComponent(
+        chapterSlug
+      )}/images`,
+      {
+        method: 'POST',
+        body,
+      }
+    );
+  }
+
   // Ads
   getAds() {
     return this.request('/ads');
@@ -314,10 +372,21 @@ class APIClient {
   }
 
   updateAd(id, formData) {
+    // Use POST with _method override so multipart form-data
+    // is parsed correctly by the backend for updates
+    const fd = new FormData();
+    // Copy existing fields
+    if (formData instanceof FormData) {
+      for (const [key, value] of formData.entries()) {
+        fd.append(key, value);
+      }
+    }
+    fd.append('_method', 'PUT');
+
     return this.request(`/ads/${id}`, {
-      method: 'PUT',
+      method: 'POST',
       headers: {},
-      body: formData,
+      body: fd,
     });
   }
 

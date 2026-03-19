@@ -1,0 +1,20 @@
+{
+  "name": "komiknesia/php-backend",
+  "description": "PHP API for Komiknesia (Lumen)",
+  "type": "project",
+  "require": {
+    "php": "^8.0",
+    "laravel/lumen-framework": "^10.0",
+    "vlucas/phpdotenv": "^5.5",
+    "firebase/php-jwt": "^6.10",
+    "illuminate/database": "^10.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  },
+  "scripts": {
+    "start": "php -S localhost:8081 -t public"
+  }
+}

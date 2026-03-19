@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3, Star, Mail, LogOut } from 'lucide-react';
+import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3, Star, Mail, LogOut, CloudDownload } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminLayout = ({ children }) => {
@@ -18,6 +18,7 @@ const AdminLayout = ({ children }) => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/admin/dashboard' },
     { id: 'categories', label: 'Kategori', icon: List, path: '/admin/categories' },
     { id: 'manga', label: 'Manga', icon: BookOpen, path: '/admin/manga' },
+    { id: 'ikiru-sync', label: 'Ikiru Sync', icon: CloudDownload, path: '/admin/ikiru-sync' },
     { id: 'featured', label: 'Featured Items', icon: Star, path: '/admin/featured' },
     { id: 'ads', label: 'Iklan', icon: FileText, path: '/admin/ads' },
     { id: 'contact', label: 'Kontak', icon: Mail, path: '/admin/contact' },

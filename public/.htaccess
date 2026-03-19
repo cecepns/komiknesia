@@ -5,10 +5,10 @@
 RewriteEngine On
 
 # Redirect sitemap requests to API
-RewriteRule ^sitemap\.xml$ https://api.komiknesia.net/sitemap.xml [R=301,L]
-RewriteRule ^sitemap-index\.xml$ https://api.komiknesia.net/sitemap-index.xml [R=301,L]
-RewriteRule ^sitemap-manga\.xml$ https://api.komiknesia.net/sitemap-manga.xml [R=301,L]
-RewriteRule ^sitemap-chapters\.xml$ https://api.komiknesia.net/sitemap-chapters.xml [R=301,L]
+RewriteRule ^sitemap\.xml$ https://be-api.komiknesia.net/sitemap.xml [R=301,L]
+RewriteRule ^sitemap-index\.xml$ https://be-api.komiknesia.net/sitemap-index.xml [R=301,L]
+RewriteRule ^sitemap-manga\.xml$ https://be-api.komiknesia.net/sitemap-manga.xml [R=301,L]
+RewriteRule ^sitemap-chapters\.xml$ https://be-api.komiknesia.net/sitemap-chapters.xml [R=301,L]
 
 # Handle React Router (SPA)
 # If the requested file or directory doesn't exist, serve index.html

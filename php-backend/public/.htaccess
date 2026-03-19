@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pastikan base URL sesuai lokasi folder "public"
+    RewriteBase /
+
+    # Akses langsung file dan folder yang ada (assets, uploads, dll.)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Semua request lain diarahkan ke index.php (Lumen)
+    RewriteRule ^ index.php [L]
+</IfModule>
+

@@ -13,6 +13,7 @@ import { apiClient, getImageUrl } from "../utils/api";
 const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [bannerManga, setBannerManga] = useState([]);
+  const [bannerLoading, setBannerLoading] = useState(true);
   const [popupBannerVisible, setPopupBannerVisible] = useState(false);
   const [homePopupIntervalMinutes, setHomePopupIntervalMinutes] = useState(10);
   const [popupSettingsReady, setPopupSettingsReady] = useState(false);
@@ -23,12 +24,16 @@ const Home = () => {
 
   const fetchBannerManga = async () => {
     try {
-      const items = await apiClient.getFeaturedItems('banner', true);
+      const items = await apiClient.getFeaturedItems("banner", true);
       // Sort by display_order and limit to 5
-      const sorted = items.sort((a, b) => a.display_order - b.display_order).slice(0, 5);
+      const sorted = items
+        .sort((a, b) => a.display_order - b.display_order)
+        .slice(0, 5);
       setBannerManga(sorted);
     } catch (error) {
-      console.error('Error fetching banner manga:', error);
+      console.error("Error fetching banner manga:", error);
+    } finally {
+      setBannerLoading(false);
     }
   };
 
@@ -175,9 +180,31 @@ const Home = () => {
           data-aos-delay="100"
         >
           <div className="relative h-[500px] md:h-[500px] rounded-2xl overflow-hidden">
-            {bannerManga.length === 0 ? (
+            {bannerLoading ? (
+              <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 animate-pulse">
+                <div className="h-full w-full flex flex-col md:flex-row">
+                  <div className="w-full md:w-1/2 h-full p-8 flex flex-col justify-end md:justify-center space-y-4">
+                    <div className="h-8 md:h-12 w-3/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
+                    <div className="flex gap-3">
+                      <div className="h-6 w-24 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+                      <div className="h-6 w-20 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
+                      <div className="h-4 w-5/6 bg-gray-300 dark:bg-gray-700 rounded"></div>
+                    </div>
+                    <div className="hidden md:block h-10 w-40 bg-gray-300 dark:bg-gray-700 rounded-lg mt-2"></div>
+                  </div>
+                  <div className="hidden md:block w-1/2 h-full p-8">
+                    <div className="h-full w-64 max-w-full mx-auto bg-gray-300 dark:bg-gray-700 rounded-2xl"></div>
+                  </div>
+                </div>
+              </div>
+            ) : bannerManga.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                <p className="text-gray-500 dark:text-gray-400">Tidak ada banner tersedia</p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Tidak ada banner tersedia
+                </p>
               </div>
             ) : (
               bannerManga.map((item, index) => (

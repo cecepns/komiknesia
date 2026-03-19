@@ -6,6 +6,7 @@ import Dashboard from './admin/Dashboard';
 import AdsManager from './admin/AdsManager';
 import FeaturedManager from './admin/FeaturedManager';
 import ContactManager from './admin/ContactManager';
+import IkiruSync from './admin/IkiruSync';
 
 const Admin = () => {
   return (
@@ -18,6 +19,7 @@ const Admin = () => {
         <Route path="ads" element={<AdsManager />} />
         <Route path="featured" element={<FeaturedManager />} />
         <Route path="contact" element={<ContactManager />} />
+        <Route path="ikiru-sync" element={<IkiruSync />} />
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </AdminLayout>

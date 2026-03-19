@@ -6,8 +6,6 @@ import {
   PencilIcon,
   RefreshCw,
   X,
-  CheckCircle2,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -29,27 +27,6 @@ const MangaManager = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [showForm, setShowForm] = useState(false);
-  const [showSyncModal, setShowSyncModal] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
-  const [syncForm, setSyncForm] = useState({ page: 1, limit: 25, syncType: 'full' }); // 'full', 'manga-only', or 'manga-chapters'
-  const [syncProgress, setSyncProgress] = useState({
-    status: '',
-    message: '',
-    processed: 0,
-    total: 0,
-    percentage: 0,
-    currentManga: '',
-    synced: 0,
-    updated: 0,
-    errors: 0,
-    chaptersSynced: 0,
-    imagesSynced: 0
-  });
-  const [syncFormInput, setSyncFormInput] = useState({
-    page: "1",
-    limit: "25",
-  });
   const [editingManga, setEditingManga] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -67,9 +44,7 @@ const MangaManager = () => {
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState("all"); // 'all', 'manual', 'westmanga'
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedMangaForChapters, setSelectedMangaForChapters] =
     useState(null);
   const [chapters, setChapters] = useState([]);
@@ -94,7 +69,13 @@ const MangaManager = () => {
   const fetchManga = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.getManga(currentPage, 10, "", "", sourceFilter);
+      const response = await apiClient.getManga(
+        currentPage,
+        10,
+        debouncedSearchQuery.trim(),
+        "",
+        "all"
+      );
       setManga(response.manga);
       setTotalPages(response.totalPages);
       setTotalCount(response.totalCount);
@@ -103,7 +84,16 @@ const MangaManager = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sourceFilter]);
+  }, [currentPage, debouncedSearchQuery]);
+
+  // Debounce pencarian: tunggu 1 detik setelah user berhenti mengetik
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 1000);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchManga();
@@ -318,150 +308,12 @@ const MangaManager = () => {
     }
   };
 
-  const handleSync = async (e) => {
-    e.preventDefault();
-    setSyncing(true);
-    setSyncResult(null);
-    setSyncProgress({
-      status: '',
-      message: 'Memulai sinkronisasi...',
-      processed: 0,
-      total: syncForm.limit,
-      percentage: 0,
-      currentManga: '',
-      synced: 0,
-      updated: 0,
-      errors: 0,
-      chaptersSynced: 0,
-      imagesSynced: 0
-    });
-
-    try {
-      // Use appropriate sync function based on syncType
-      let syncFunction;
-      if (syncForm.syncType === 'manga-only') {
-        syncFunction = apiClient.syncWestMangaOnly;
-      } else if (syncForm.syncType === 'manga-chapters') {
-        syncFunction = apiClient.syncWestMangaChapters;
-      } else {
-        syncFunction = apiClient.syncWestManga; // full sync
-      }
-
-      const result = await syncFunction(
-        syncForm.page,
-        syncForm.limit,
-        (progressData) => {
-          // Update progress state in real-time
-          setSyncProgress((prev) => ({
-            ...prev,
-            status: progressData.status || prev.status,
-            message: progressData.message || prev.message,
-            processed: progressData.processed || prev.processed,
-            total: progressData.total || prev.total,
-            percentage: progressData.percentage || prev.percentage,
-            currentManga: progressData.currentManga || prev.currentManga,
-            synced: progressData.synced !== undefined ? progressData.synced : prev.synced,
-            updated: progressData.updated !== undefined ? progressData.updated : prev.updated,
-            errors: progressData.errors !== undefined ? progressData.errors : prev.errors,
-            chaptersSynced: progressData.chaptersSynced !== undefined ? progressData.chaptersSynced : prev.chaptersSynced,
-            imagesSynced: progressData.imagesSynced !== undefined ? progressData.imagesSynced : prev.imagesSynced
-          }));
-        }
-      );
-      setSyncResult(result);
-      // Update final progress
-      setSyncProgress((prev) => ({
-        ...prev,
-        status: 'complete',
-        message: 'Sinkronisasi selesai!',
-        synced: result.synced || 0,
-        updated: result.updated || 0,
-        errors: result.errors || 0,
-        chaptersSynced: result.chaptersSynced || 0,
-        imagesSynced: result.imagesSynced || 0
-      }));
-      // Auto refresh manga list after sync
-      await fetchManga();
-    } catch (error) {
-      console.error("Error syncing manga:", error);
-      setSyncResult({
-        error: error.message || "Failed to sync manga from WestManga",
-      });
-      setSyncProgress((prev) => ({
-        ...prev,
-        status: 'error',
-        message: `Error: ${error.message || 'Gagal sinkronisasi'}`,
-      }));
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
-    setSearching(true);
-    try {
-      // Use /contents API so the result is consistent with Content page
-      const response = await apiClient.getContents({
-        q: searchQuery.trim(),
-        page: 1,
-        per_page: 40,
-        project: 'false'
-      });
-
-      if (response?.status && Array.isArray(response.data)) {
-        setSearchResults(response.data);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error("Error searching manga:", error);
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const handleImportFromSearch = async (mangaData) => {
-    if (!confirm(`Apakah Anda yakin ingin mengimport "${mangaData.title}" ke database?`)) {
-      return;
-    }
-
-    try {
-      // Import manga spesifik dari WestManga menggunakan slug
-      if (!mangaData.slug) {
-        alert("Error: Slug manga tidak ditemukan");
-        return;
-      }
-
-      console.log("Importing manga:", mangaData.slug, mangaData.title);
-      const result = await apiClient.syncMangaBySlug(mangaData.slug);
-      console.log("Import result:", result);
-      
-      // Refresh manga list first to update state
-      await fetchManga();
-      
-      // Then refresh search results to update status
-      if (searchQuery.trim()) {
-        const response = await apiClient.getContents({
-          q: searchQuery.trim(),
-          page: 1,
-          per_page: 40,
-          project: 'false'
-        });
-        if (response?.status && Array.isArray(response.data)) {
-          setSearchResults(response.data);
-        }
-      }
-      
-      alert("Manga berhasil diimport ke database!");
-    } catch (error) {
-      console.error("Error importing manga:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Terjadi kesalahan";
-      alert("Gagal mengimport manga: " + errorMessage);
-    }
+    // Reset ke halaman pertama saat melakukan pencarian;
+    // data akan diambil ulang lewat fetchManga (useEffect) dengan searchQuery saat ini.
+    setCurrentPage(1);
   };
 
   const fetchChapters = async (mangaId) => {
@@ -697,44 +549,6 @@ const MangaManager = () => {
             Manajemen Manga
           </h3>
           <div className="flex gap-3 flex-wrap">
-            {/* Source Filter */}
-            <select
-              value={sourceFilter}
-              onChange={(e) => {
-                setSourceFilter(e.target.value);
-                setCurrentPage(1); // Reset to first page when filter changes
-              }}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-            >
-              <option value="all">Semua Sumber</option>
-              <option value="manual">Input Manual</option>
-              <option value="westmanga">Dari API</option>
-            </select>
-            <button
-              onClick={() => {
-                setShowSyncModal(true);
-                setSyncForm({ page: 1, limit: 25, syncType: 'full' });
-                setSyncFormInput({ page: "1", limit: "25" });
-                setSyncResult(null);
-                setSyncProgress({
-                  status: '',
-                  message: '',
-                  processed: 0,
-                  total: 0,
-                  percentage: 0,
-                  currentManga: '',
-                  synced: 0,
-                  updated: 0,
-                  errors: 0,
-                  chaptersSynced: 0,
-                  imagesSynced: 0
-                });
-              }}
-              className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Sync dari WestManga
-            </button>
             <button
               onClick={() => setShowForm(true)}
               className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
@@ -753,33 +567,26 @@ const MangaManager = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari manga dari API (WestManga)..."
+              placeholder="Cari manga di database..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
           </div>
           <button
             type="submit"
-            disabled={searching || !searchQuery.trim()}
+            disabled={!searchQuery.trim()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
-            {searching ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Mencari...
-              </>
-            ) : (
-              <>
-                <Search className="h-4 w-4 mr-2" />
-                Cari
-              </>
-            )}
+            <>
+              <Search className="h-4 w-4 mr-2" />
+              Cari
+            </>
           </button>
-          {searchResults && (
+          {searchQuery && (
             <button
               type="button"
               onClick={() => {
-                setSearchResults(null);
                 setSearchQuery("");
+                setCurrentPage(1);
               }}
               className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"
             >
@@ -788,432 +595,6 @@ const MangaManager = () => {
           )}
         </form>
       </div>
-
-      {/* Sync Modal */}
-      {showSyncModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                  Sync Manga dari WestManga
-                </h4>
-                <button
-                  onClick={() => {
-                    setShowSyncModal(false);
-                    setSyncResult(null);
-                    setSyncForm({ page: 1, limit: 25, syncType: 'full' });
-                    setSyncFormInput({ page: "1", limit: "25" });
-                    setSyncProgress({
-                      status: '',
-                      message: '',
-                      processed: 0,
-                      total: 0,
-                      percentage: 0,
-                      currentManga: '',
-                      synced: 0,
-                      updated: 0,
-                      errors: 0,
-                      chaptersSynced: 0,
-                      imagesSynced: 0
-                    });
-                  }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {!syncResult ? (
-                <form onSubmit={handleSync} className="space-y-4">
-                  {/* Sync Type Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Tipe Sinkronisasi
-                    </label>
-                    <div className="space-y-2">
-                      {/* <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <input
-                          type="radio"
-                          name="syncType"
-                          value="full"
-                          checked={syncForm.syncType === 'full'}
-                          onChange={(e) => setSyncForm((prev) => ({ ...prev, syncType: e.target.value }))}
-                          className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600"
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900 dark:text-gray-100">
-                            Full Sync
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Sinkronkan manga, chapter, gambar, dan genre
-                          </div>
-                        </div>
-                      </label>
-                      <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <input
-                          type="radio"
-                          name="syncType"
-                          value="manga-chapters"
-                          checked={syncForm.syncType === 'manga-chapters'}
-                          onChange={(e) => setSyncForm((prev) => ({ ...prev, syncType: e.target.value }))}
-                          className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600"
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900 dark:text-gray-100">
-                            Manga + Chapters
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Sinkronkan manga, chapter, dan genre (tanpa gambar)
-                          </div>
-                        </div>
-                      </label> */}
-                      <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <input
-                          type="radio"
-                          name="syncType"
-                          value="manga-only"
-                          checked={syncForm.syncType === 'manga-only'}
-                          onChange={(e) => setSyncForm((prev) => ({ ...prev, syncType: e.target.value }))}
-                          className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600"
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900 dark:text-gray-100">
-                            Only Manga
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Hanya sinkronkan daftar manga dan genre (tanpa chapter dan gambar)
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Progress Indicator */}
-                  {syncing && (
-                    <div className="space-y-3 mb-4">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-700 dark:text-gray-300 font-medium">
-                          {syncProgress.message || 'Memproses...'}
-                        </span>
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {syncProgress.processed} / {syncProgress.total} ({syncProgress.percentage}%)
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-green-600 h-3 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${syncProgress.percentage}%` }}
-                        ></div>
-                      </div>
-                      {syncProgress.currentManga && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                          Sedang memproses: <span className="font-medium">{syncProgress.currentManga}</span>
-                        </p>
-                      )}
-                      {syncProgress.status && (
-                        <div className={`grid gap-2 text-xs ${syncForm.syncType === 'manga-only' ? 'grid-cols-2' : syncForm.syncType === 'full' ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                          <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-2">
-                            <span className="text-gray-600 dark:text-gray-400">Baru:</span>
-                            <span className="ml-2 font-semibold text-blue-600 dark:text-blue-400">
-                              {syncProgress.synced}
-                            </span>
-                          </div>
-                          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded p-2">
-                            <span className="text-gray-600 dark:text-gray-400">Diperbarui:</span>
-                            <span className="ml-2 font-semibold text-yellow-600 dark:text-yellow-400">
-                              {syncProgress.updated}
-                            </span>
-                          </div>
-                          {(syncForm.syncType === 'full' || syncForm.syncType === 'manga-chapters') && syncProgress.chaptersSynced > 0 && (
-                            <div className="bg-purple-50 dark:bg-purple-900/20 rounded p-2">
-                              <span className="text-gray-600 dark:text-gray-400">Chapter:</span>
-                              <span className="ml-2 font-semibold text-purple-600 dark:text-purple-400">
-                                {syncProgress.chaptersSynced}
-                              </span>
-                            </div>
-                          )}
-                          {syncForm.syncType === 'full' && syncProgress.imagesSynced > 0 && (
-                            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded p-2">
-                              <span className="text-gray-600 dark:text-gray-400">Gambar:</span>
-                              <span className="ml-2 font-semibold text-indigo-600 dark:text-indigo-400">
-                                {syncProgress.imagesSynced}
-                              </span>
-                            </div>
-                          )}
-                          {syncProgress.errors > 0 && (
-                            <div className="bg-red-50 dark:bg-red-900/20 rounded p-2">
-                              <span className="text-gray-600 dark:text-gray-400">Error:</span>
-                              <span className="ml-2 font-semibold text-red-600 dark:text-red-400">
-                                {syncProgress.errors}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Page
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={syncFormInput.page}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSyncFormInput((prev) => ({ ...prev, page: value }));
-                        const numValue = parseInt(value);
-                        if (!isNaN(numValue) && numValue > 0) {
-                          setSyncForm((prev) => ({ ...prev, page: numValue }));
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const value = e.target.value;
-                        const numValue = parseInt(value);
-                        if (isNaN(numValue) || numValue < 1) {
-                          setSyncFormInput((prev) => ({ ...prev, page: "1" }));
-                          setSyncForm((prev) => ({ ...prev, page: 1 }));
-                        } else {
-                          setSyncFormInput((prev) => ({
-                            ...prev,
-                            page: value,
-                          }));
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Limit (jumlah manga per sync)
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={syncFormInput.limit}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSyncFormInput((prev) => ({ ...prev, limit: value }));
-                        const numValue = parseInt(value);
-                        if (
-                          !isNaN(numValue) &&
-                          numValue > 0 &&
-                          numValue <= 100
-                        ) {
-                          setSyncForm((prev) => ({ ...prev, limit: numValue }));
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const value = e.target.value;
-                        const numValue = parseInt(value);
-                        if (isNaN(numValue) || numValue < 1) {
-                          setSyncFormInput((prev) => ({
-                            ...prev,
-                            limit: "25",
-                          }));
-                          setSyncForm((prev) => ({ ...prev, limit: 25 }));
-                        } else if (numValue > 100) {
-                          setSyncFormInput((prev) => ({
-                            ...prev,
-                            limit: "100",
-                          }));
-                          setSyncForm((prev) => ({ ...prev, limit: 100 }));
-                        } else {
-                          setSyncFormInput((prev) => ({
-                            ...prev,
-                            limit: value,
-                          }));
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      required
-                    />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Maksimal 100 manga per sync
-                    </p>
-                  </div>
-
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSyncModal(false);
-                        setSyncForm({ page: 1, limit: 25, syncType: 'full' });
-                        setSyncFormInput({ page: "1", limit: "25" });
-                        setSyncResult(null);
-                        setSyncProgress({
-                          status: '',
-                          message: '',
-                          processed: 0,
-                          total: 0,
-                          percentage: 0,
-                          currentManga: '',
-                          synced: 0,
-                          updated: 0,
-                          errors: 0,
-                          chaptersSynced: 0,
-                          imagesSynced: 0
-                        });
-                      }}
-                      className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"
-                      disabled={syncing}
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={syncing}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                    >
-                      {syncing ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Mulai Sync
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-4">
-                  {syncResult.error ? (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-2" />
-                        <p className="text-red-800 dark:text-red-200 font-medium">
-                          Error: {syncResult.error}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                        <div className="flex items-center mb-2">
-                          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
-                          <p className="text-green-800 dark:text-green-200 font-medium">
-                            Sync Selesai!
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className={`grid gap-4 ${syncForm.syncType === 'manga-only' ? 'grid-cols-2' : syncForm.syncType === 'full' ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Manga Baru
-                          </p>
-                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            {syncResult.synced || 0}
-                          </p>
-                        </div>
-                        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Diperbarui
-                          </p>
-                          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                            {syncResult.updated || 0}
-                          </p>
-                        </div>
-                        {(syncForm.syncType === 'full' || syncForm.syncType === 'manga-chapters') && syncResult.chaptersSynced > 0 && (
-                          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Chapter Disinkronkan
-                            </p>
-                            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                              {syncResult.chaptersSynced || 0}
-                            </p>
-                          </div>
-                        )}
-                        {syncForm.syncType === 'full' && syncResult.imagesSynced > 0 && (
-                          <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Gambar Disinkronkan
-                            </p>
-                            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                              {syncResult.imagesSynced || 0}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {syncResult.errors > 0 && (
-                        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Error
-                          </p>
-                          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                            {syncResult.errors}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Total Diproses
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                          {syncResult.total || 0}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      onClick={() => {
-                        setShowSyncModal(false);
-                        setSyncResult(null);
-                        setSyncForm({ page: 1, limit: 25, syncType: 'full' });
-                        setSyncFormInput({ page: "1", limit: "25" });
-                        setSyncProgress({
-                          status: '',
-                          message: '',
-                          processed: 0,
-                          total: 0,
-                          percentage: 0,
-                          currentManga: '',
-                          synced: 0,
-                          updated: 0,
-                          errors: 0,
-                          chaptersSynced: 0,
-                          imagesSynced: 0
-                        });
-                      }}
-                      className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"
-                    >
-                      Tutup
-                    </button>
-                    <button
-                      onClick={() => {
-                        const nextPage = syncForm.page + 1;
-                        setSyncResult(null);
-                        setSyncForm((prev) => ({ ...prev, page: nextPage }));
-                        setSyncFormInput((prev) => ({
-                          ...prev,
-                          page: nextPage.toString(),
-                        }));
-                      }}
-                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
-                    >
-                      Sync Halaman Selanjutnya
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Form Modal */}
       {showForm && (
@@ -1518,104 +899,6 @@ const MangaManager = () => {
                 </div>
               </form>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Search Results */}
-      {Array.isArray(searchResults) && searchResults.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Hasil Pencarian ({searchResults.length} hasil)
-            </h4>
-            <button
-              onClick={() => {
-                setSearchResults(null);
-                setSearchQuery("");
-              }}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {searchResults.map((item) => {
-              // Check if manga exists in local database
-              // Manga is in local DB if:
-              // 1. It has is_input_manual = true (manual input)
-              // 2. It exists in our current manga list (already synced from WestManga)
-              //    - Match by slug (most reliable)
-              //    - Match by westmanga_id (item.id from search is westmanga_id)
-              //    - Match by database id (less common, but possible)
-              const existsInLocal = item.is_input_manual === true || 
-                manga.some(m => {
-                  // Match by slug (most reliable)
-                  if (m.slug === item.slug) return true;
-                  // Match by westmanga_id (item.id from search results is westmanga_id)
-                  if (m.westmanga_id && m.westmanga_id === item.id) return true;
-                  // Match by database id (fallback)
-                  if (m.id && m.id === item.id) return true;
-                  return false;
-                });
-
-              return (
-                <div
-                  key={item.id || item.slug}
-                  className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
-                >
-                  <div className="aspect-[3/4] relative overflow-hidden rounded-lg mb-2">
-                    <LazyImage
-                      src={
-                        getImageUrl(item.cover) ||
-                        getImageUrl(item.thumbnail) ||
-                        "https://images.pexels.com/photos/1591447/pexels-photo-1591447.jpeg?auto=compress&cs=tinysrgb&w=400"
-                      }
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                      wrapperClassName="w-full h-full"
-                    />
-                  </div>
-                  <h6 className="font-medium text-gray-900 dark:text-gray-100 mb-1 line-clamp-1 text-sm">
-                    {item.title}
-                  </h6>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
-                    {item.author || "Unknown"}
-                  </p>
-                  {existsInLocal ? (
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          item.is_input_manual
-                            ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-                            : "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
-                        }`}
-                      >
-                        {item.is_input_manual ? "Manual" : "API"}
-                      </span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleImportFromSearch(item)}
-                      className="w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
-                    >
-                      Import ke Database
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {Array.isArray(searchResults) && searchResults.length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="text-center py-8">
-            <p className="text-gray-500 dark:text-gray-400">
-              Tidak ada hasil ditemukan
-            </p>
           </div>
         </div>
       )}
@@ -2045,7 +1328,7 @@ const MangaManager = () => {
                     {item.title}
                   </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    {item.author}
+                    {!!item.author}
                   </p>
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex flex-wrap gap-1">
