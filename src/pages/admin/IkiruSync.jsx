@@ -23,12 +23,14 @@ export default function IkiruSync() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [queueProgress, setQueueProgress] = useState(null);
 
   const selectedSlugs = useMemo(() => Array.from(selected), [selected]);
 
   const run = async (fn) => {
     setBusy(true);
     setError(null);
+    setQueueProgress(null);
     try {
       const res = await fn();
       setResult(res);
@@ -37,6 +39,145 @@ export default function IkiruSync() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const syncMangaQueue = async (mangaSlug, { totalManga = 1, mangaIndex = 0 } = {}) => {
+    const chaptersResult = [];
+
+    setQueueProgress({
+      status: 'running',
+      totalManga,
+      processedManga: mangaIndex,
+      currentMangaSlug: mangaSlug,
+      totalChapters: 0,
+      currentChapterIndex: 0,
+      currentChapterSlug: null,
+      stage: 'fetch_manga_init',
+    });
+
+    const saveToS3 = false; // new default: store Ikiru URLs directly (no S3 download/upload)
+
+    // Init + plan queue (scrapes manga meta + returns the chapter list to process)
+    const init = await apiClient.syncIkiruMangaInit(mangaSlug, {
+      mode,
+      withImages,
+      saveToS3,
+    });
+
+    const totalChapters = init?.chapters?.length || 0;
+    setQueueProgress((prev) => ({
+      ...prev,
+      totalChapters,
+      currentChapterIndex: 0,
+      currentChapterSlug: null,
+      stage: 'sync_chapters',
+    }));
+
+    for (let i = 0; i < (init?.chapters || []).length; i++) {
+      const ch = init.chapters[i];
+      setQueueProgress((prev) => ({
+        ...prev,
+        currentChapterIndex: i + 1,
+        totalChapters,
+        currentChapterSlug: ch.ikiruSlug,
+        stage: withImages ? 'fetch_and_save_chapter_images' : 'sync_chapter_only',
+      }));
+
+      try {
+        const res = await apiClient.syncIkiruChapter(mangaSlug, ch.ikiruSlug, {
+          title: ch.title,
+          chapterNumber: ch.chapterNumber,
+          withImages,
+          saveToS3,
+        });
+        chaptersResult.push(res);
+      } catch (e) {
+        chaptersResult.push({
+          status: false,
+          error: e?.message || String(e),
+          chapterId: null,
+          chapterCreated: null,
+          ikiruSlug: ch.ikiruSlug,
+          imagesInserted: 0,
+        });
+      }
+    }
+
+    setQueueProgress((prev) => ({
+      ...prev,
+      processedManga: mangaIndex + 1,
+      stage: 'done',
+      status: 'done',
+    }));
+
+    return {
+      mangaSlug,
+      mangaId: init?.mangaId ?? null,
+      mangaCreated: init?.mangaCreated ?? null,
+      chapters: chaptersResult,
+    };
+  };
+
+  const syncSelectedQueue = async () => {
+    const results = [];
+
+    setQueueProgress({
+      status: 'running',
+      totalManga: selectedSlugs.length,
+      processedManga: 0,
+      currentMangaSlug: null,
+      totalChapters: 0,
+      currentChapterIndex: 0,
+      currentChapterSlug: null,
+      stage: 'sync_selected_start',
+    });
+
+    for (let m = 0; m < selectedSlugs.length; m++) {
+      const mangaSlug = selectedSlugs[m];
+      setQueueProgress((prev) => ({
+        ...prev,
+        processedManga: m,
+        currentMangaSlug: mangaSlug,
+        totalChapters: 0,
+        currentChapterIndex: 0,
+        currentChapterSlug: null,
+        stage: 'fetch_manga_init',
+      }));
+
+      try {
+        const mangaRes = await syncMangaQueue(mangaSlug, {
+          totalManga: selectedSlugs.length,
+          mangaIndex: m,
+        });
+        results.push(mangaRes);
+      } catch (e) {
+        results.push({
+          mangaSlug,
+          mangaId: null,
+          mangaCreated: null,
+          error: e?.message || String(e),
+          chapters: [],
+        });
+      }
+
+      setQueueProgress((prev) => ({
+        ...prev,
+        processedManga: m + 1,
+      }));
+    }
+
+    setQueueProgress((prev) => ({
+      ...prev,
+      stage: 'done',
+      status: 'done',
+    }));
+
+    return {
+      status: true,
+      mode,
+      withImages,
+      results,
+    };
   };
 
   const loadFeed = async () => {
@@ -189,9 +330,7 @@ export default function IkiruSync() {
             </button>
             <button
               onClick={() =>
-                run(() =>
-                  apiClient.syncIkiruSelected(selectedSlugs, { mode, withImages })
-                )
+                run(() => syncSelectedQueue())
               }
               disabled={busy || feedLoading || selected.size === 0}
               className="h-10 flex items-center justify-center px-4 rounded-lg bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-60"
@@ -277,7 +416,7 @@ export default function IkiruSync() {
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() =>
-                run(() => apiClient.syncIkiruManga(slug.trim(), { mode, withImages }))
+                run(() => syncMangaQueue(slug.trim(), { totalManga: 1, mangaIndex: 0 }))
               }
               disabled={busy || !slug.trim()}
               className="h-10 flex items-center justify-center px-4 rounded-lg bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-60"
@@ -322,6 +461,22 @@ export default function IkiruSync() {
         <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
           Output
         </h4>
+        {queueProgress?.status === 'running' && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
+            <div className="text-sm font-medium">Queue progress</div>
+            <div className="text-xs mt-1">
+              Manga: {queueProgress.processedManga + 1}/{queueProgress.totalManga} - {queueProgress.currentMangaSlug || '-'}
+            </div>
+            {!!queueProgress.totalChapters && (
+              <div className="text-xs mt-1">
+                Chapter: {queueProgress.currentChapterIndex}/{queueProgress.totalChapters} - {queueProgress.currentChapterSlug || '-'}
+              </div>
+            )}
+            <div className="text-xs mt-1">
+              Stage: {queueProgress.stage || '-'}
+            </div>
+          </div>
+        )}
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-200">
             {error}

@@ -346,6 +346,27 @@ class APIClient {
     });
   }
 
+  // Init + return chapter queue plan (does upsert manga cover/meta).
+  syncIkiruMangaInit(slug, body = {}) {
+    return this.request(`/admin/ikiru-sync/manga/${encodeURIComponent(slug)}/init`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  // Sync a single chapter (optionally images) for progress queue.
+  syncIkiruChapter(slug, chapterSlug, body = {}) {
+    return this.request(
+      `/admin/ikiru-sync/manga/${encodeURIComponent(slug)}/chapter/${encodeURIComponent(
+        chapterSlug
+      )}`,
+      {
+        method: 'POST',
+        body,
+      }
+    );
+  }
+
   syncIkiruChapterImages(mangaSlug, chapterSlug, body = {}) {
     return this.request(
       `/admin/ikiru-sync/manga/${encodeURIComponent(mangaSlug)}/chapter/${encodeURIComponent(
