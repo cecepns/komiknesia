@@ -865,8 +865,8 @@ const cronSyncFeed = async (req, res) => {
     const mode = req.query?.mode === 'full' ? 'full' : 'delta';
     // Default cron: withImages = true kecuali eksplisit dimatikan
     const withImages = parseBooleanFlag(req.query?.withImages, true);
-    // New param: default false => store Ikiru URL directly (no download/upload to S3).
-    const saveToS3 = parseBooleanFlag(req.query?.saveToS3, false);
+    // Default cron: saveToS3 = true kecuali eksplisit dimatikan.
+    const saveToS3 = parseBooleanFlag(req.query?.saveToS3, true);
 
     const feed =
       type === 'project' ? await scrapeProjectFeed({ page }) : await scrapeLatestFeed({ page });

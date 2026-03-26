@@ -820,7 +820,7 @@ const Content = () => {
             ) : (
               <>
                 {/* Manga Grid */}
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
                   {mangaList.map((manga) => (
                     <div
                       key={manga.id}
@@ -865,7 +865,7 @@ const Content = () => {
                       </div>
 
                       {/* Info Section */}
-                      <div className="p-3">
+                      <div className="p-3 flex flex-col h-[192px]">
                         {/* Title */}
                         {!!manga.hot && (
                           <div className="mb-1 max-w-fit bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
@@ -874,12 +874,14 @@ const Content = () => {
                             </span>
                           </div>
                         )}
-                        <h3 className="font-bold text-xs md:text-sm line-clamp-1 md:line-clamp-2 mb-2 text-gray-900 dark:text-gray-100">
-                          {manga.title}
-                        </h3>
+                        <div className="min-h-[2.75rem] md:min-h-[3rem] mb-2 flex items-center">
+                          <h3 className="font-bold text-xs md:text-sm line-clamp-2 text-gray-900 dark:text-gray-100">
+                            {manga.title}
+                          </h3>
+                        </div>
 
                         {manga.lastChapters?.length > 0 ? (
-                          <div className="space-y-1 mb-1">
+                          <div className="space-y-2 mb-1 mt-auto">
                             {manga.lastChapters.slice(0, 3).map((chapter) => (
                               <button
                                 key={chapter.slug}
@@ -888,19 +890,14 @@ const Content = () => {
                                   e.stopPropagation();
                                   navigate(`/view/${chapter.slug}`);
                                 }}
-                                className="w-full flex items-center justify-between text-xs text-left text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                className="w-full flex items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 dark:bg-primary-800/70 px-2.5 py-2 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700 transition-colors"
                               >
-                                <span className="text-xs md:text-sm font-medium flex items-center gap-1">
-                                  <span className="block md:d-none text-[12px] md:text-sm">
-                                    Ch
-                                  </span>
-                                  <span className="hidden md:d-block">Chapter</span>
-                                  <span className="text-[12px] md:text-sm">
-                                    {chapter.number || "N/A"}
-                                  </span>
+                                <span className="text-xs md:text-sm font-semibold flex items-center gap-1">
+                                  <span>Chapter</span>
+                                  <span>{chapter.number || "N/A"}</span>
                                 </span>
                                 {chapter?.created_at?.time && (
-                                  <span className="text-[12px] md:text-sm text-gray-500 dark:text-gray-500">
+                                  <span className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400">
                                     {getTimeAgo(chapter.created_at.time)}
                                   </span>
                                 )}
@@ -908,7 +905,7 @@ const Content = () => {
                             ))}
                           </div>
                         ) : (
-                          <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mb-1 mt-auto">
                             Chapter N/A
                           </div>
                         )}

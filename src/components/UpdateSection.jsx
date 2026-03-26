@@ -154,19 +154,21 @@ const UpdateSection = () => {
               </div>
 
               {/* Info Section */}
-              <div className="p-3">
+              <div className="p-3 flex flex-col h-[192px]">
                 {!!manga.hot && (
                   <div className="mb-1 max-w-fit bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
                     <span className="text-white text-xs font-bold">HOT</span>
                   </div>
                 )}
                 {/* Title */}
-                <h3 className="font-bold text-sm line-clamp-2 mb-2 text-gray-900 dark:text-gray-100">
-                  {manga.title}
-                </h3>
+                <div className="min-h-[2.75rem] md:min-h-[3rem] mb-2 flex items-center">
+                  <h3 className="font-bold text-sm line-clamp-2 text-gray-900 dark:text-gray-100">
+                    {manga.title}
+                  </h3>
+                </div>
 
                 {manga.lastChapters?.length > 0 ? (
-                  <div className="space-y-1 mb-1">
+                  <div className="space-y-2 mb-1 mt-auto">
                     {manga.lastChapters.slice(0, 3).map((chapter) => (
                       <button
                         key={chapter.slug}
@@ -175,13 +177,13 @@ const UpdateSection = () => {
                           e.stopPropagation();
                           navigate(`/view/${chapter.slug}`);
                         }}
-                        className="w-full flex items-center justify-between text-xs text-left text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        className="w-full flex items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 dark:bg-primary-800/70 px-2.5 py-2 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700 transition-colors"
                       >
-                        <span className="font-medium">
+                        <span className="font-semibold">
                           Chapter {chapter.number || "N/A"}
                         </span>
                         {chapter?.created_at?.time && (
-                          <span className="text-gray-500 dark:text-gray-500">
+                          <span className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400">
                             {getTimeAgo(chapter.created_at.time)}
                           </span>
                         )}
@@ -189,7 +191,7 @@ const UpdateSection = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-500 mb-1 mt-auto">
                     Chapter N/A
                   </div>
                 )}
