@@ -103,38 +103,34 @@ const index = async (req, res) => {
       const [lastChapterRows] = await db.execute(
         `
         SELECT
-          t.manga_id,
+          c.manga_id,
           c.chapter_number AS number,
           c.title,
           c.slug,
           c.created_at,
           UNIX_TIMESTAMP(c.created_at) AS created_at_timestamp
-        FROM (
-          SELECT
-            manga_id,
-            MAX(CAST(chapter_number AS UNSIGNED)) AS max_chapter_number
-          FROM chapters
-          WHERE manga_id IN (${idPlaceholders})
-          GROUP BY manga_id
-        ) t
-        JOIN chapters c
-          ON c.manga_id = t.manga_id
-         AND CAST(c.chapter_number AS UNSIGNED) = t.max_chapter_number
+        FROM chapters c
+        WHERE c.manga_id IN (${idPlaceholders})
+        ORDER BY c.manga_id ASC, CAST(c.chapter_number AS UNSIGNED) DESC, c.created_at DESC
       `,
         mangaIds
       );
 
       lastChapterByMangaId = lastChapterRows.reduce((acc, row) => {
-        acc[row.manga_id] = [
-          {
-            number: row.number,
-            title: row.title,
-            slug: row.slug,
-            created_at: {
-              time: parseInt(row.created_at_timestamp, 10),
-            },
+        if (!acc[row.manga_id]) {
+          acc[row.manga_id] = [];
+        }
+        if (acc[row.manga_id].length >= 3) {
+          return acc;
+        }
+        acc[row.manga_id].push({
+          number: row.number,
+          title: row.title,
+          slug: row.slug,
+          created_at: {
+            time: parseInt(row.created_at_timestamp, 10),
           },
-        ];
+        });
         return acc;
       }, {});
     } catch (err) {

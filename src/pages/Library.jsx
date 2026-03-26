@@ -566,6 +566,19 @@ const Library = () => {
                           <h3 className="font-bold text-base md:text-lg mb-1 text-gray-900 dark:text-gray-100 line-clamp-2">
                             {item.mangaTitle}
                           </h3>
+                          {item.chapterSlug ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/view/${item.chapterSlug}`);
+                              }}
+                              className="max-w-fit mb-1 text-xs md:text-sm text-blue-600 dark:text-blue-400 hover:underline text-left"
+                            >
+                              Lanjut baca: Chapter{" "}
+                              {item.chapterNumber || item.chapterTitle || "terakhir"}
+                            </button>
+                          ) : null}
                           <p className="text-xs text-gray-500 dark:text-gray-500">
                             {getTimeAgo(Math.floor(item.timestamp / 1000))}
                           </p>

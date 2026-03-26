@@ -7,7 +7,7 @@ const axios = require('axios');
 
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://is3.cloudhost.id';
 const S3_REGION = process.env.S3_REGION || 'auto';
-const S3_BUCKET = process.env.S3_BUCKET || 'komiknesia';
+const S3_BUCKET = process.env.S3_BUCKET || 'data.komikneisa';
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '6VVTGTBLJWBOCA41Z9IT';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'GqwJ0GNPAArraf1vZmhRYDDGyDaXO7kNH8YEwhpo';
 

@@ -60,6 +60,7 @@ const UpdateSection = () => {
   };
 
   const getTimeAgo = (timestamp) => {
+    if (!timestamp) return "";
     const now = Math.floor(Date.now() / 1000);
     const diff = now - timestamp;
 
@@ -164,14 +165,34 @@ const UpdateSection = () => {
                   {manga.title}
                 </h3>
 
-                <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  <span className="font-medium">
-                    Chapter {manga.lastChapters[0]?.number || "N/A"}
-                  </span>
-                  <span className="text-gray-500 dark:text-gray-500">
-                    {getTimeAgo(manga.lastChapters[0]?.created_at?.time)}
-                  </span>
-                </div>
+                {manga.lastChapters?.length > 0 ? (
+                  <div className="space-y-1 mb-1">
+                    {manga.lastChapters.slice(0, 3).map((chapter) => (
+                      <button
+                        key={chapter.slug}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/view/${chapter.slug}`);
+                        }}
+                        className="w-full flex items-center justify-between text-xs text-left text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        <span className="font-medium">
+                          Chapter {chapter.number || "N/A"}
+                        </span>
+                        {chapter?.created_at?.time && (
+                          <span className="text-gray-500 dark:text-gray-500">
+                            {getTimeAgo(chapter.created_at.time)}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                    Chapter N/A
+                  </div>
+                )}
                 {/* Rating */}
                 {manga.rating > 0 && (
                   <div className="flex items-center space-x-1">

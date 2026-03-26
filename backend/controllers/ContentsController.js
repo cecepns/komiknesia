@@ -10,6 +10,8 @@ async function fetchLocalManga(filters) {
     type,
     orderBy = 'Update',
     project,
+    page = 1,
+    perPage = 24,
   } = filters || {};
 
   const whereConditions = ['m.is_input_manual = TRUE'];
@@ -52,21 +54,16 @@ async function fetchLocalManga(filters) {
     ? genreArray.map((g) => parseInt(g, 10)).filter((g) => !Number.isNaN(g))
     : [];
 
-  let query = 'SELECT DISTINCT m.* FROM manga m';
-  if (genreIds.length > 0) {
-    query += ' INNER JOIN manga_genres mg ON m.id = mg.manga_id';
-  }
-  query += ' WHERE ' + whereConditions.join(' AND ');
-
-  if (genreIds.length > 0) {
-    query += ' AND mg.category_id IN (' + genreIds.map(() => '?').join(',') + ')';
-    params.push(...genreIds);
-  }
-
-  if (genreIds.length > 0) {
-    query += ' GROUP BY m.id HAVING COUNT(DISTINCT mg.category_id) = ?';
-    params.push(genreIds.length);
-  }
+  const fromClause = genreIds.length > 0
+    ? ' FROM manga m INNER JOIN manga_genres mg ON m.id = mg.manga_id'
+    : ' FROM manga m';
+  const whereClause = ' WHERE ' + whereConditions.join(' AND ');
+  const genreFilterClause = genreIds.length > 0
+    ? ' AND mg.category_id IN (' + genreIds.map(() => '?').join(',') + ')'
+    : '';
+  const groupHavingClause = genreIds.length > 0
+    ? ' GROUP BY m.id HAVING COUNT(DISTINCT mg.category_id) = ?'
+    : '';
 
   let orderClause = '';
   switch (orderBy) {
@@ -88,13 +85,49 @@ async function fetchLocalManga(filters) {
     default:
       orderClause = 'ORDER BY m.updated_at DESC';
   }
-  query += ' ' + orderClause;
 
-  query += ' LIMIT 100';
+  const baseParams = [...params];
+  if (genreIds.length > 0) {
+    baseParams.push(...genreIds, genreIds.length);
+  }
 
-  const [mangaRows] = await db.execute(query, params);
+  const offset = (Math.max(1, page) - 1) * Math.max(1, perPage);
+  const dataQuery =
+    'SELECT m.*' +
+    fromClause +
+    whereClause +
+    genreFilterClause +
+    groupHavingClause +
+    ' ' +
+    orderClause +
+    ' LIMIT ? OFFSET ?';
+  const dataParams = [...baseParams, perPage, offset];
+
+  const countQuery = genreIds.length > 0
+    ? `
+      SELECT COUNT(*) AS total
+      FROM (
+        SELECT m.id
+        ${fromClause}
+        ${whereClause}
+        ${genreFilterClause}
+        ${groupHavingClause}
+      ) AS filtered_manga
+    `
+    : `
+      SELECT COUNT(*) AS total
+      ${fromClause}
+      ${whereClause}
+    `;
+  const [countRows] = await db.execute(countQuery, baseParams);
+  const totalItems = Number(countRows?.[0]?.total || 0);
+
+  const [mangaRows] = await db.execute(dataQuery, dataParams);
   if (!mangaRows || mangaRows.length === 0) {
-    return [];
+    return {
+      items: [],
+      total: totalItems,
+    };
   }
 
   const mangaIds = mangaRows.map((m) => m.id);
@@ -126,53 +159,51 @@ async function fetchLocalManga(filters) {
     genresByMangaId = {};
   }
 
-  let lastChapterByMangaId = {};
+  let lastChaptersByMangaId = {};
   try {
     const chapterPlaceholders = mangaIds.map(() => '?').join(',');
     const [lastChapterRows] = await db.execute(
       `
         SELECT
-          t.manga_id,
+          c.manga_id,
           c.chapter_number AS number,
           c.title,
           c.slug,
           c.created_at,
           UNIX_TIMESTAMP(c.created_at) AS created_at_timestamp
-        FROM (
-          SELECT
-            manga_id,
-            MAX(CAST(chapter_number AS UNSIGNED)) AS max_chapter_number
-          FROM chapters
-          WHERE manga_id IN (${chapterPlaceholders})
-          GROUP BY manga_id
-        ) t
-        JOIN chapters c
-          ON c.manga_id = t.manga_id
-         AND CAST(c.chapter_number AS UNSIGNED) = t.max_chapter_number
+        FROM chapters c
+        WHERE c.manga_id IN (${chapterPlaceholders})
+        ORDER BY c.manga_id ASC, CAST(c.chapter_number AS UNSIGNED) DESC, c.created_at DESC
       `,
       mangaIds
     );
 
-    lastChapterByMangaId = lastChapterRows.reduce((acc, row) => {
-      acc[row.manga_id] = {
+    lastChaptersByMangaId = lastChapterRows.reduce((acc, row) => {
+      if (!acc[row.manga_id]) {
+        acc[row.manga_id] = [];
+      }
+      if (acc[row.manga_id].length >= 3) {
+        return acc;
+      }
+      acc[row.manga_id].push({
         number: row.number,
         title: row.title,
         slug: row.slug,
         created_at: {
           time: parseInt(row.created_at_timestamp, 10),
         },
-      };
+      });
       return acc;
     }, {});
   } catch (err) {
     console.error('Error loading last chapters for local manga:', err);
-    lastChapterByMangaId = {};
+    lastChaptersByMangaId = {};
   }
 
   const mangaList = mangaRows.map((manga) => {
     const coverUrl = manga.thumbnail || null;
     const genres = genresByMangaId[manga.id] || [];
-    const lastChapter = lastChapterByMangaId[manga.id];
+    const lastChapters = lastChaptersByMangaId[manga.id] || [];
 
     return {
       id: manga.id,
@@ -196,11 +227,14 @@ async function fetchLocalManga(filters) {
       release: manga.release || null,
       status: manga.status || 'ongoing',
       genres,
-      lastChapters: lastChapter ? [lastChapter] : [],
+      lastChapters,
     };
   });
 
-  return mangaList;
+  return {
+    items: mangaList,
+    total: totalItems,
+  };
 }
 
 const genres = async (req, res) => {
@@ -253,8 +287,9 @@ const list = async (req, res) => {
     // NOTE: cache logic stays in server.js for now; this controller focuses on data fetching
 
     let localManga = [];
+    let totalItems = 0;
     try {
-      localManga = await fetchLocalManga({
+      const localResult = await fetchLocalManga({
         q,
         genreArray,
         status,
@@ -262,46 +297,18 @@ const list = async (req, res) => {
         type,
         orderBy,
         project,
+        page: pageNum,
+        perPage,
       });
+      localManga = localResult.items || [];
+      totalItems = Number(localResult.total || 0);
     } catch (localError) {
       console.error('Error fetching local manga:', localError);
     }
 
-    const localMangaList = [...localManga];
-
-    const sortManga = (mangaArray) => {
-      switch (orderBy) {
-        case 'Az':
-          return mangaArray.sort((a, b) => a.title.localeCompare(b.title));
-        case 'Za':
-          return mangaArray.sort((a, b) => b.title.localeCompare(a.title));
-        case 'Added':
-          return mangaArray.sort((a, b) => (b.id || 0) - (a.id || 0));
-        case 'Popular':
-          return mangaArray.sort(
-            (a, b) =>
-              (b.total_views || 0) - (a.total_views || 0) ||
-              (b.rating || 0) - (a.rating || 0)
-          );
-        case 'Update':
-        default:
-          return mangaArray.sort((a, b) => {
-            const aTime = a.lastChapters?.[0]?.created_at?.time || 0;
-            const bTime = b.lastChapters?.[0]?.created_at?.time || 0;
-            return bTime - aTime;
-          });
-      }
-    };
-
-    const sortedLocal = sortManga(localMangaList);
-
-    const totalItems = sortedLocal.length;
-    const startIndex = (pageNum - 1) * perPage;
-    const paginatedLocal = sortedLocal.slice(startIndex, startIndex + perPage);
-
     const responsePayload = {
       status: true,
-      data: paginatedLocal,
+      data: localManga,
       meta: {
         page: pageNum,
         per_page: perPage,

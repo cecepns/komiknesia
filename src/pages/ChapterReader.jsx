@@ -81,6 +81,9 @@ const ChapterReader = () => {
                 mangaSlug: extractedMangaSlug,
                 mangaTitle: result.data.content.title,
                 cover: result.data.content.cover,
+                chapterSlug: currentChapter.slug,
+                chapterNumber: currentChapter.number || currentChapter.chapter_number || null,
+                chapterTitle: currentChapter.title || null,
               });
             }
           }

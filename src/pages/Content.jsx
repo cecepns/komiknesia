@@ -142,11 +142,9 @@ const Content = () => {
       );
       const data = await response.json();
 
-      if (data.status && data.data) {
+      if (data.status && Array.isArray(data.data)) {
         setMangaList(data.data);
-        if (data.paginator) {
-          setTotalPages(data.paginator.last_page);
-        }
+        setTotalPages(Math.max(1, Number(data.meta?.total_pages) || 1));
       }
     } catch (error) {
       console.error("Error fetching manga:", error);
@@ -880,24 +878,40 @@ const Content = () => {
                           {manga.title}
                         </h3>
 
-                        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-                          <span className="text-xs md:text-sm font-medium flex items-center gap-1">
-                            <span className="block md:d-none text-[12px] md:text-sm">
-                              Ch
-                            </span>
-                            <span className="hidden md:d-block">Chapter</span>
-                            <span className="text-[12px] md:text-sm">
-                              {manga.lastChapters?.[0]?.number || "N/A"}
-                            </span>
-                          </span>
-                          {manga.lastChapters?.[0]?.created_at?.time && (
-                            <span className="text-[12px] md:text-sm text-gray-500 dark:text-gray-500">
-                              {getTimeAgo(
-                                manga.lastChapters[0].created_at.time,
-                              )}
-                            </span>
-                          )}
-                        </div>
+                        {manga.lastChapters?.length > 0 ? (
+                          <div className="space-y-1 mb-1">
+                            {manga.lastChapters.slice(0, 3).map((chapter) => (
+                              <button
+                                key={chapter.slug}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/view/${chapter.slug}`);
+                                }}
+                                className="w-full flex items-center justify-between text-xs text-left text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                              >
+                                <span className="text-xs md:text-sm font-medium flex items-center gap-1">
+                                  <span className="block md:d-none text-[12px] md:text-sm">
+                                    Ch
+                                  </span>
+                                  <span className="hidden md:d-block">Chapter</span>
+                                  <span className="text-[12px] md:text-sm">
+                                    {chapter.number || "N/A"}
+                                  </span>
+                                </span>
+                                {chapter?.created_at?.time && (
+                                  <span className="text-[12px] md:text-sm text-gray-500 dark:text-gray-500">
+                                    {getTimeAgo(chapter.created_at.time)}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                            Chapter N/A
+                          </div>
+                        )}
                         {/* Rating */}
                         {manga.rating > 0 && (
                           <div className="flex items-center space-x-1">

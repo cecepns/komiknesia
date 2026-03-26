@@ -1,7 +1,7 @@
 /**
- * Save manga to reading history (manga-only, no chapter)
+ * Save manga to reading history (includes last read chapter)
  * Keeps only the last 100 items
- * @param {Object} item - { mangaSlug, mangaTitle, cover }
+ * @param {Object} item - { mangaSlug, mangaTitle, cover, chapterSlug?, chapterNumber?, chapterTitle? }
  */
 export const saveToHistory = (item) => {
   try {
@@ -15,6 +15,9 @@ export const saveToHistory = (item) => {
       mangaSlug: item.mangaSlug,
       mangaTitle: item.mangaTitle,
       cover: item.cover,
+      chapterSlug: item.chapterSlug || null,
+      chapterNumber: item.chapterNumber || null,
+      chapterTitle: item.chapterTitle || null,
       timestamp: Date.now(),
     });
 
