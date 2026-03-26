@@ -875,9 +875,15 @@ const Content = () => {
                           </div>
                         )}
                         <div className="min-h-[2.75rem] md:min-h-[3rem] mb-2 flex items-center">
-                          <h3 className="font-bold text-xs md:text-sm line-clamp-2 text-gray-900 dark:text-gray-100">
-                            {manga.title}
-                          </h3>
+                          <Link
+                            to={`/komik/${manga.slug}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="block w-full"
+                          >
+                            <h3 className="font-bold text-xs md:text-sm line-clamp-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                              {manga.title}
+                            </h3>
+                          </Link>
                         </div>
 
                         {manga.lastChapters?.length > 0 ? (
