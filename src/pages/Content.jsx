@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import LazyImage from "../components/LazyImage";
@@ -883,13 +883,10 @@ const Content = () => {
                         {manga.lastChapters?.length > 0 ? (
                           <div className="space-y-2 mb-1 mt-auto">
                             {manga.lastChapters.slice(0, 3).map((chapter) => (
-                              <button
+                              <Link
                                 key={chapter.slug}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/view/${chapter.slug}`);
-                                }}
+                                to={`/view/${chapter.slug}`}
+                                onClick={(e) => e.stopPropagation()}
                                 className="w-full flex items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 dark:bg-primary-800/70 px-2.5 py-2 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700 transition-colors"
                               >
                                 <span className="text-xs md:text-sm font-semibold flex items-center gap-1">
@@ -901,7 +898,7 @@ const Content = () => {
                                     {getTimeAgo(chapter.created_at.time)}
                                   </span>
                                 )}
-                              </button>
+                              </Link>
                             ))}
                           </div>
                         ) : (

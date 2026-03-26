@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Clock } from "lucide-react";
 import LazyImage from "./LazyImage";
 import { apiClient, getImageUrl } from "../utils/api";
@@ -170,13 +170,10 @@ const UpdateSection = () => {
                 {manga.lastChapters?.length > 0 ? (
                   <div className="space-y-2 mb-1 mt-auto">
                     {manga.lastChapters.slice(0, 3).map((chapter) => (
-                      <button
+                      <Link
                         key={chapter.slug}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/view/${chapter.slug}`);
-                        }}
+                        to={`/view/${chapter.slug}`}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-full flex items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 dark:bg-primary-800/70 px-2.5 py-2 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700 transition-colors"
                       >
                         <span className="font-semibold">
@@ -187,7 +184,7 @@ const UpdateSection = () => {
                             {getTimeAgo(chapter.created_at.time)}
                           </span>
                         )}
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 ) : (
