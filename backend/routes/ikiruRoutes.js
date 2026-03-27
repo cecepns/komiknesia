@@ -12,6 +12,9 @@ router.get('/manga/:slug/chapter/:chapterSlug/images', IkiruScrapController.getC
 // List feed untuk admin pilih manga sebelum sync.
 // GET /api/ikiru/feed?type=latest|project&page=1
 router.get('/feed', IkiruSyncController.listFeed);
+// Cron sync endpoint alias for scripts/Postman:
+// POST /api/ikiru/cron-sync?type=latest|project&page=1&mode=delta|full&withImages=true&saveToS3=true
+router.post('/cron-sync', IkiruSyncController.cronSyncFeed);
 
 // Sync berdasarkan pilihan admin (otomatis detail + chapters + images).
 // POST /api/ikiru/sync { slugs: string[] }

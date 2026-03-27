@@ -54,9 +54,17 @@ async function fetchLocalManga(filters) {
     ? genreArray.map((g) => parseInt(g, 10)).filter((g) => !Number.isNaN(g))
     : [];
 
-  const fromClause = genreIds.length > 0
-    ? ' FROM manga m INNER JOIN manga_genres mg ON m.id = mg.manga_id'
-    : ' FROM manga m';
+  const shouldSortByLatestChapter = orderBy === 'Update' || !orderBy;
+  const fromClause =
+    ' FROM manga m' +
+    (shouldSortByLatestChapter
+      ? ' LEFT JOIN (' +
+        '   SELECT manga_id, MAX(COALESCE(updated_at, created_at)) AS last_chapter_activity_at' +
+        '   FROM chapters' +
+        '   GROUP BY manga_id' +
+        ' ) lc ON lc.manga_id = m.id'
+      : '') +
+    (genreIds.length > 0 ? ' INNER JOIN manga_genres mg ON m.id = mg.manga_id' : '');
   const whereClause = ' WHERE ' + whereConditions.join(' AND ');
   const genreFilterClause = genreIds.length > 0
     ? ' AND mg.category_id IN (' + genreIds.map(() => '?').join(',') + ')'
@@ -74,7 +82,8 @@ async function fetchLocalManga(filters) {
       orderClause = 'ORDER BY m.title DESC';
       break;
     case 'Update':
-      orderClause = 'ORDER BY m.updated_at DESC';
+      orderClause =
+        'ORDER BY COALESCE(lc.last_chapter_activity_at, m.updated_at, m.created_at) DESC, m.id DESC';
       break;
     case 'Added':
       orderClause = 'ORDER BY m.created_at DESC';
@@ -83,7 +92,8 @@ async function fetchLocalManga(filters) {
       orderClause = 'ORDER BY m.views DESC, m.rating DESC';
       break;
     default:
-      orderClause = 'ORDER BY m.updated_at DESC';
+      orderClause =
+        'ORDER BY COALESCE(lc.last_chapter_activity_at, m.updated_at, m.created_at) DESC, m.id DESC';
   }
 
   const baseParams = [...params];

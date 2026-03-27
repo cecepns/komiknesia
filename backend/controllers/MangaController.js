@@ -421,10 +421,9 @@ const destroy = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [mangaRows] = await db.execute(
-      'SELECT thumbnail, cover_background, is_input_manual FROM manga WHERE id = ?',
-      [id]
-    );
+    const [mangaRows] = await db.execute('SELECT thumbnail, cover_background FROM manga WHERE id = ?', [
+      id,
+    ]);
 
     if (mangaRows.length === 0) {
       return res.status(404).json({ error: 'Manga not found' });
@@ -432,46 +431,40 @@ const destroy = async (req, res) => {
 
     const manga = mangaRows[0];
 
-    if (manga.is_input_manual) {
-      // Best-effort delete for both local uploads and S3 URLs
-      deleteFile(manga.thumbnail);
-      deleteFile(manga.cover_background);
+    // Best-effort delete for both local uploads and S3 URLs
+    deleteFile(manga.thumbnail);
+    deleteFile(manga.cover_background);
+    try {
+      await deleteUrlFromS3(manga.thumbnail);
+    } catch (e) {
+      console.warn('Failed deleting manga thumbnail from S3:', e.message);
+    }
+    try {
+      await deleteUrlFromS3(manga.cover_background);
+    } catch (e) {
+      console.warn('Failed deleting manga cover_background from S3:', e.message);
+    }
+
+    const [chapters] = await db.execute('SELECT id, cover FROM chapters WHERE manga_id = ?', [id]);
+
+    for (const chapter of chapters) {
+      deleteFile(chapter.cover);
       try {
-        await deleteUrlFromS3(manga.thumbnail);
+        await deleteUrlFromS3(chapter.cover);
       } catch (e) {
-        console.warn('Failed deleting manga thumbnail from S3:', e.message);
-      }
-      try {
-        await deleteUrlFromS3(manga.cover_background);
-      } catch (e) {
-        console.warn('Failed deleting manga cover_background from S3:', e.message);
+        console.warn('Failed deleting chapter cover from S3:', e.message);
       }
 
-      const [chapters] = await db.execute(
-        'SELECT id, cover FROM chapters WHERE manga_id = ?',
-        [id]
-      );
+      const [images] = await db.execute('SELECT image_path FROM chapter_images WHERE chapter_id = ?', [
+        chapter.id,
+      ]);
 
-      for (const chapter of chapters) {
-        deleteFile(chapter.cover);
+      for (const image of images) {
+        deleteFile(image.image_path);
         try {
-          await deleteUrlFromS3(chapter.cover);
+          await deleteUrlFromS3(image.image_path);
         } catch (e) {
-          console.warn('Failed deleting chapter cover from S3:', e.message);
-        }
-
-        const [images] = await db.execute(
-          'SELECT image_path FROM chapter_images WHERE chapter_id = ?',
-          [chapter.id]
-        );
-
-        for (const image of images) {
-          deleteFile(image.image_path);
-          try {
-            await deleteUrlFromS3(image.image_path);
-          } catch (e) {
-            console.warn('Failed deleting chapter image from S3:', e.message);
-          }
+          console.warn('Failed deleting chapter image from S3:', e.message);
         }
       }
     }

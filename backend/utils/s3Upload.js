@@ -80,18 +80,51 @@ async function uploadUrlToS3(key, url, contentType) {
 
 function tryParseS3KeyFromUrl(url) {
   if (!url) return null;
-  const raw = String(url);
-  const endpoint = S3_ENDPOINT.replace(/\/$/, '');
+  const raw = String(url).trim();
+  if (!raw) return null;
 
-  if (!raw.startsWith(endpoint)) return null;
-  // expected: `${endpoint}/${bucket}/${key}`
-  const withoutEndpoint = raw.slice(endpoint.length).replace(/^\/+/, '');
-  const parts = withoutEndpoint.split('/');
-  if (!parts.length) return null;
-  const bucket = parts.shift();
-  if (!bucket || bucket !== S3_BUCKET) return null;
-  const key = parts.join('/');
-  return key || null;
+  // Raw key already stored (not a URL), e.g. "komiknesia/manga/..."
+  if (!/^https?:\/\//i.test(raw)) {
+    const normalized = raw.replace(/^\/+/, '');
+    return normalized || null;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+
+  const pathname = decodeURIComponent(parsed.pathname || '').replace(/^\/+/, '');
+  if (!pathname) return null;
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length === 0) return null;
+
+  // Path-style URL: https://endpoint/<bucket>/<key>
+  if (parts[0] === S3_BUCKET && parts.length > 1) {
+    return parts.slice(1).join('/');
+  }
+
+  // Virtual-hosted-style URL: https://<bucket>.endpoint/<key>
+  if (parsed.hostname === S3_BUCKET || parsed.hostname.startsWith(`${S3_BUCKET}.`)) {
+    return parts.join('/');
+  }
+
+  // Fallback for CDN/custom domains that still include /<bucket>/<key> in path
+  const bucketSegment = `${S3_BUCKET}/`;
+  const bucketIndex = pathname.indexOf(bucketSegment);
+  if (bucketIndex >= 0) {
+    const key = pathname.slice(bucketIndex + bucketSegment.length);
+    return key || null;
+  }
+
+  // Last resort: if path already looks like our object key, use it.
+  if (pathname.startsWith('komiknesia/')) {
+    return pathname;
+  }
+
+  return null;
 }
 
 async function deleteKeyFromS3(key) {
