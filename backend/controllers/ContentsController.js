@@ -1,5 +1,63 @@
 const db = require('../db');
 
+/** Short TTL cache + in-flight dedupe for GET /contents (reduces parallel heavy queries). */
+const CONTENTS_LIST_CACHE_TTL_MS = 20 * 1000;
+const CONTENTS_LIST_CACHE_MAX_KEYS = 80;
+
+if (!global.__CONTENTS_LIST_CACHE__) {
+  global.__CONTENTS_LIST_CACHE__ = new Map();
+}
+if (!global.__CONTENTS_LIST_INFLIGHT__) {
+  global.__CONTENTS_LIST_INFLIGHT__ = new Map();
+}
+
+function normalizeGenreKey(genre) {
+  if (!genre) return '';
+  if (Array.isArray(genre)) {
+    return [...genre].map(String).sort().join(',');
+  }
+  if (typeof genre === 'object') {
+    return Object.values(genre)
+      .map(String)
+      .sort()
+      .join(',');
+  }
+  return String(genre);
+}
+
+function buildContentsListCacheKey(query) {
+  const {
+    q = '',
+    page = 1,
+    per_page = 40,
+    genre,
+    status,
+    country,
+    type,
+    orderBy = 'Update',
+    project,
+  } = query;
+  return JSON.stringify({
+    q: String(q || '').trim(),
+    page: String(page),
+    per_page: String(per_page),
+    g: normalizeGenreKey(genre),
+    status: status != null ? String(status) : '',
+    country: country != null ? String(country) : '',
+    type: type != null ? String(type) : '',
+    orderBy: String(orderBy || 'Update'),
+    project: project != null ? String(project) : '',
+  });
+}
+
+function pruneContentsCacheIfNeeded() {
+  const map = global.__CONTENTS_LIST_CACHE__;
+  while (map.size > CONTENTS_LIST_CACHE_MAX_KEYS) {
+    const k = map.keys().next().value;
+    map.delete(k);
+  }
+}
+
 // Helper function copied from server.js, kept internal to contents controller
 async function fetchLocalManga(filters) {
   const {
@@ -278,54 +336,81 @@ const list = async (req, res) => {
       project,
     } = req.query;
 
-    let genreArray = [];
-    if (genre) {
-      if (Array.isArray(genre)) {
-        genreArray = genre;
-      } else if (typeof genre === 'object') {
-        genreArray = Object.values(genre);
-      } else {
-        genreArray = [genre];
+    const cacheKey = buildContentsListCacheKey(req.query);
+    const cacheMap = global.__CONTENTS_LIST_CACHE__;
+    const inflightMap = global.__CONTENTS_LIST_INFLIGHT__;
+    const cached = cacheMap.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return res.json(cached.payload);
+    }
+
+    if (inflightMap.has(cacheKey)) {
+      const payload = await inflightMap.get(cacheKey);
+      return res.json(payload);
+    }
+
+    const run = (async () => {
+      let genreArray = [];
+      if (genre) {
+        if (Array.isArray(genre)) {
+          genreArray = genre;
+        } else if (typeof genre === 'object') {
+          genreArray = Object.values(genre);
+        } else {
+          genreArray = [genre];
+        }
       }
-    }
 
-    const rawPageNum = parseInt(page, 10) || 1;
-    const rawPerPage = parseInt(per_page, 10) || 40;
-    const pageNum = Math.min(Math.max(rawPageNum, 1), 200);
-    const perPage = Math.min(Math.max(rawPerPage, 10), 60);
+      const rawPageNum = parseInt(page, 10) || 1;
+      const rawPerPage = parseInt(per_page, 10) || 40;
+      const pageNum = Math.min(Math.max(rawPageNum, 1), 200);
+      const perPage = Math.min(Math.max(rawPerPage, 10), 60);
 
-    // NOTE: cache logic stays in server.js for now; this controller focuses on data fetching
+      let localManga = [];
+      let totalItems = 0;
+      try {
+        const localResult = await fetchLocalManga({
+          q,
+          genreArray,
+          status,
+          country,
+          type,
+          orderBy,
+          project,
+          page: pageNum,
+          perPage,
+        });
+        localManga = localResult.items || [];
+        totalItems = Number(localResult.total || 0);
+      } catch (localError) {
+        console.error('Error fetching local manga:', localError);
+      }
 
-    let localManga = [];
-    let totalItems = 0;
+      return {
+        status: true,
+        data: localManga,
+        meta: {
+          page: pageNum,
+          per_page: perPage,
+          total: totalItems,
+          total_pages: Math.ceil(totalItems / perPage),
+        },
+      };
+    })();
+
+    inflightMap.set(cacheKey, run);
+    let responsePayload;
     try {
-      const localResult = await fetchLocalManga({
-        q,
-        genreArray,
-        status,
-        country,
-        type,
-        orderBy,
-        project,
-        page: pageNum,
-        perPage,
-      });
-      localManga = localResult.items || [];
-      totalItems = Number(localResult.total || 0);
-    } catch (localError) {
-      console.error('Error fetching local manga:', localError);
+      responsePayload = await run;
+    } finally {
+      inflightMap.delete(cacheKey);
     }
 
-    const responsePayload = {
-      status: true,
-      data: localManga,
-      meta: {
-        page: pageNum,
-        per_page: perPage,
-        total: totalItems,
-        total_pages: Math.ceil(totalItems / perPage),
-      },
-    };
+    pruneContentsCacheIfNeeded();
+    cacheMap.set(cacheKey, {
+      expiresAt: Date.now() + CONTENTS_LIST_CACHE_TTL_MS,
+      payload: responsePayload,
+    });
 
     res.json(responsePayload);
   } catch (error) {

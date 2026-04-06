@@ -1,8 +1,7 @@
 /* eslint-disable no-undef */
 /* eslint-env node */
-const axios = require('axios');
-const cheerio = require('cheerio');
 const db = require('../db');
+const { ikiruFetchHtml, getIkiruAxios } = require('../utils/ikiruSession');
 const { uploadUrlToS3 } = require('../utils/s3Upload');
 const path = require('path');
 
@@ -20,14 +19,7 @@ function cleanText(text) {
 }
 
 async function fetchHtml(url) {
-  const response = await axios.get(url, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    },
-    timeout: 20000,
-  });
-  return cheerio.load(response.data);
+  return ikiruFetchHtml(url, { timeout: 20000 });
 }
 
 async function getCategorySlugToIdMap() {
@@ -86,6 +78,61 @@ async function upsertMangaGenres(mangaId, genreSlugs) {
 function normalizePage(pageRaw) {
   const page = parseInt(pageRaw, 10);
   return Number.isFinite(page) && page > 0 ? page : 1;
+}
+
+/**
+ * Ikiru detail page: aggregateRating (schema.org) or star block next to "Ratings" label.
+ */
+function parseIkiruMangaRating($) {
+  const scope = $('[itemprop="aggregateRating"], [itemtype*="AggregateRating"]').first();
+  if (scope && scope.length) {
+    const metaRv = scope.find('meta[itemprop="ratingValue"]').first();
+    if (metaRv && metaRv.length) {
+      const c = metaRv.attr('content');
+      if (c != null && String(c).trim() !== '') {
+        const n = parseFloat(String(c).replace(',', '.'));
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+    const rv = scope.find('[itemprop="ratingValue"]').first();
+    if (rv && rv.length) {
+      const fromAttr = rv.attr('content');
+      if (fromAttr != null && String(fromAttr).trim() !== '') {
+        const n = parseFloat(String(fromAttr).replace(',', '.'));
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      const fromText = cleanText(rv.text());
+      if (fromText) {
+        const n = parseFloat(fromText.replace(',', '.'));
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+  }
+
+  let el = $('div[itemprop="ratingValue"], span[itemprop="ratingValue"]').first();
+  if (el && el.length) {
+    const fromAttr = el.attr('content');
+    if (fromAttr != null && String(fromAttr).trim() !== '') {
+      const n = parseFloat(String(fromAttr).replace(',', '.'));
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    const n = parseFloat(cleanText(el.text()).replace(',', '.'));
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+
+  const ratingsLabel = $('small')
+    .filter((_, node) => /ratings/i.test(cleanText($(node).text())))
+    .first();
+  if (ratingsLabel && ratingsLabel.length) {
+    const li = ratingsLabel.closest('li');
+    const bold = li.find('span.font-bold').first();
+    if (bold && bold.length) {
+      const n = parseFloat(cleanText(bold.text()).replace(',', '.'));
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+
+  return null;
 }
 
 function buildPagedUrl(basePath, page) {
@@ -357,6 +404,8 @@ async function scrapeMangaDetail(slug) {
     });
   }
 
+  const rating = parseIkiruMangaRating($);
+
   return {
     slug,
     url: mangaUrl,
@@ -366,6 +415,7 @@ async function scrapeMangaDetail(slug) {
     synopsis,
     genres: Array.from(genres),
     chapters,
+    rating,
   };
 }
 
@@ -417,6 +467,10 @@ async function upsertMangaFromIkiru(detail, { saveToS3 = false } = {}) {
       values.push(existing.id);
 
       await db.execute(`UPDATE manga SET ${setClauses.join(', ')} WHERE id = ?`, values);
+    }
+
+    if (detail.rating != null && Number.isFinite(Number(detail.rating)) && Number(detail.rating) > 0) {
+      await db.execute('UPDATE manga SET rating = ? WHERE id = ?', [Number(detail.rating), existing.id]);
     }
 
     // Backfill cover only when it's still empty; by default we store Ikiru URL (no download/upload).
@@ -493,7 +547,11 @@ async function upsertMangaFromIkiru(detail, { saveToS3 = false } = {}) {
       null,
       null,
       'ongoing',
-      null,
+      detail.rating != null &&
+      Number.isFinite(Number(detail.rating)) &&
+      Number(detail.rating) > 0
+        ? Number(detail.rating)
+        : null,
       false,
       SOURCE,
       true,
@@ -855,6 +913,7 @@ const syncProject = async (req, res) => {
 
 // Endpoint untuk cronjob:
 // POST /api/ikiru/cron-sync?type=latest|project&page=1&mode=delta|full&withImages=true
+// - Sama seperti sync admin: semua GET ke Ikiru lewat utils/ikiruSession (login + cookie).
 // - Auto insert manga + semua chapter (sesuai mode) yang belum ada di DB kita
 // - Untuk chapter baru, sekaligus insert images-nya
 // - Manga yang sudah ada tidak dihapus/diganti; hanya dilengkapi chapter/images baru
@@ -867,6 +926,8 @@ const cronSyncFeed = async (req, res) => {
     const withImages = parseBooleanFlag(req.query?.withImages, true);
     // Default cron: saveToS3 = true kecuali eksplisit dimatikan.
     const saveToS3 = parseBooleanFlag(req.query?.saveToS3, true);
+
+    await getIkiruAxios();
 
     const feed =
       type === 'project' ? await scrapeProjectFeed({ page }) : await scrapeLatestFeed({ page });

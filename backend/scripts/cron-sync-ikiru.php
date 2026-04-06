@@ -19,6 +19,9 @@ declare(strict_types=1);
  * Env vars:
  *   CRON_SYNC_BASE_URL  (default: https://be-api-node.komiknesia.net)
  *   CRON_SYNC_TIMEOUT   (default: 1200 seconds)
+ *
+ * Di sisi Node, endpoint ini memicu scrape ke Ikiru lewat utils/ikiruSession.js
+ * (login web + cookie — sama seperti sync manual admin).
  */
 
 function parseBoolArg(string $value, bool $default): bool
@@ -29,17 +32,28 @@ function parseBoolArg(string $value, bool $default): bool
     return $default;
 }
 
-$type = isset($argv[1]) ? strtolower(trim((string)$argv[1])) : 'latest';
+// Support both:
+// - CLI: php cron-sync-ikiru.php project 2 full true true
+// - Web query params: cron-sync-ikiru.php?type=project&page=2&mode=full&withImages=true&saveToS3=true
+$isCli = PHP_SAPI === 'cli';
+$query = (!$isCli && isset($_GET) && is_array($_GET)) ? $_GET : [];
+
+$typeInput = $query['type'] ?? ($argv[1] ?? 'latest');
+$type = strtolower(trim((string)$typeInput));
 $type = in_array($type, ['latest', 'project'], true) ? $type : 'latest';
 
-$page = isset($argv[2]) ? (int)$argv[2] : 1;
+$pageInput = $query['page'] ?? ($argv[2] ?? 1);
+$page = (int)$pageInput;
 if ($page < 1) $page = 1;
 
-$mode = isset($argv[3]) ? strtolower(trim((string)$argv[3])) : 'delta';
+$modeInput = $query['mode'] ?? ($argv[3] ?? 'delta');
+$mode = strtolower(trim((string)$modeInput));
 $mode = $mode === 'full' ? 'full' : 'delta';
 
-$withImages = isset($argv[4]) ? parseBoolArg((string)$argv[4], true) : true;
-$saveToS3 = isset($argv[5]) ? parseBoolArg((string)$argv[5], true) : true;
+$withImagesInput = $query['withImages'] ?? ($argv[4] ?? 'true');
+$saveToS3Input = $query['saveToS3'] ?? ($argv[5] ?? 'true');
+$withImages = parseBoolArg((string)$withImagesInput, true);
+$saveToS3 = parseBoolArg((string)$saveToS3Input, true);
 
 $baseUrl = rtrim((string)(getenv('CRON_SYNC_BASE_URL') ?: 'https://be-api-node.komiknesia.net'), '/');
 $timeoutSeconds = (int)(getenv('CRON_SYNC_TIMEOUT') ?: 1200);

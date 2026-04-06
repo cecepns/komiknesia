@@ -3,8 +3,24 @@
 // export const API_BASE_URL = 'http://localhost:8080/api';
 // export const API_BASE_URL_WITHOUT_API = 'http://localhost:8080';
 
-export const API_BASE_URL = 'https://be-api-node.komiknesia.net//api';
-export const API_BASE_URL_WITHOUT_API = 'https://be-api-node.komiknesia.net/';
+// export const API_BASE_URL = 'https://be-api-node.komiknesia.net//api';
+// export const API_BASE_URL_WITHOUT_API = 'https://be-api-node.komiknesia.net/';
+export const API_BASE_URL = 'https://api-be.komiknesia.my.id/api';
+export const API_BASE_URL_WITHOUT_API = 'https://api-be.komiknesia.my.id/';
+
+/** Origin for static files (no trailing slash). Same host as API, path /uploads is served by backend. */
+const STATIC_ORIGIN = API_BASE_URL_WITHOUT_API.replace(/\/+$/, '');
+
+/**
+ * Map legacy /uploads-komiknesia/... to public /uploads/... (Express serves disk folder at /uploads).
+ * @param {string} pathname - URL pathname starting with /
+ */
+function normalizeUploadsPathname(pathname) {
+  if (pathname.startsWith('/uploads-komiknesia/')) {
+    return '/uploads/' + pathname.slice('/uploads-komiknesia/'.length);
+  }
+  return pathname;
+}
 
 /**
  * Get full image URL with endpoint prefix if the path is relative
@@ -13,26 +29,31 @@ export const API_BASE_URL_WITHOUT_API = 'https://be-api-node.komiknesia.net/';
  */
 export const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  
-  // Normalize escaped slashes from JSON (e.g. "\/uploads\/file.png" -> "/uploads/file.png")
-  const path = typeof imagePath === 'string' ? imagePath.replace(/\\\//g, '/') : String(imagePath);
-  
-  // If already a full URL (starts with http:// or https://), return as is
+
+  let path = typeof imagePath === 'string' ? imagePath.replace(/\\\//g, '/').trim() : String(imagePath);
+
   if (path.startsWith('http://') || path.startsWith('https://')) {
+    try {
+      const u = new URL(path);
+      const next = normalizeUploadsPathname(u.pathname);
+      if (next !== u.pathname) {
+        u.pathname = next;
+        return u.toString();
+      }
+    } catch {
+      /* ignore */
+    }
     return path;
   }
-  
-  // If it's a relative path, add the base URL
-  // Map /uploads/ -> /uploads-komiknesia/ (backend stores files in uploads-komiknesia)
-  let resolvedPath = path;
-  if (path.startsWith('/uploads/') && !path.startsWith('/uploads-komiknesia/')) {
-    resolvedPath = '/uploads-komiknesia/' + path.slice('/uploads/'.length);
+
+  if (path.startsWith('uploads/')) {
+    path = `/${path}`;
   }
-  if (resolvedPath.startsWith('/uploads-komiknesia/') || resolvedPath.startsWith('/')) {
-    return `${API_BASE_URL_WITHOUT_API}${resolvedPath}`;
+
+  if (path.startsWith('/')) {
+    return `${STATIC_ORIGIN}${normalizeUploadsPathname(path)}`;
   }
-  
-  // Otherwise return as is (might be a data URL or other format)
+
   return path;
 };
 

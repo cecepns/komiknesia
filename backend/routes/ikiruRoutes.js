@@ -13,7 +13,7 @@ router.get('/manga/:slug/chapter/:chapterSlug/images', IkiruScrapController.getC
 // GET /api/ikiru/feed?type=latest|project&page=1
 router.get('/feed', IkiruSyncController.listFeed);
 // Cron sync endpoint alias for scripts/Postman:
-// POST /api/ikiru/cron-sync?type=latest|project&page=1&mode=delta|full&withImages=true&saveToS3=true
+// POST /api/ikiru/cron-sync — scrape memakai ikiruSession (login Ikiru di server, sama cron & admin)
 router.post('/cron-sync', IkiruSyncController.cronSyncFeed);
 
 // Sync berdasarkan pilihan admin (otomatis detail + chapters + images).

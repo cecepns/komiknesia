@@ -1,27 +1,19 @@
+/* eslint-disable no-undef */
+/* eslint-env node */
 const db = require('../db');
+const { createShortLivedCache } = require('../utils/shortLivedCache');
 
-// Using simple global cache for ads list
-if (!global.__ADS_CACHE__) {
-  global.__ADS_CACHE__ = { data: null, expiresAt: 0 };
-}
+const adsListCache = createShortLivedCache({ ttlMs: 60 * 1000, maxKeys: 8 });
 
-const invalidateCache = () => {
-  global.__ADS_CACHE__.data = null;
-  global.__ADS_CACHE__.expiresAt = 0;
-};
+const invalidateCache = () => adsListCache.invalidate();
 
 const index = async (req, res) => {
   try {
-    const now = Date.now();
-    if (global.__ADS_CACHE__.data && global.__ADS_CACHE__.expiresAt > now) {
-      return res.json(global.__ADS_CACHE__.data);
-    }
-
-    const [ads] = await db.execute('SELECT * FROM ads ORDER BY created_at DESC LIMIT 20');
-
-    global.__ADS_CACHE__.data = ads;
-    global.__ADS_CACHE__.expiresAt = now + 60 * 1000; // cache 60 detik
-
+    const ads = await adsListCache.wrap('list', async () => {
+      // Tanpa LIMIT supaya UI edit bisa mengambil ad mana pun.
+      const [rows] = await db.execute('SELECT * FROM ads ORDER BY created_at DESC');
+      return rows;
+    });
     res.json(ads);
   } catch (error) {
     console.error('Error fetching ads:', error);

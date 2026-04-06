@@ -1,7 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-env node */
-const axios = require('axios');
-const cheerio = require('cheerio');
+const { ikiruFetchHtml } = require('../utils/ikiruSession');
 
 const BASE_URL = 'https://02.ikiru.wtf';
 
@@ -11,15 +10,7 @@ function cleanText(text) {
 
 async function fetchHtml(url) {
   try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      },
-      timeout: 15000,
-    });
-
-    return cheerio.load(response.data);
+    return await ikiruFetchHtml(url, { timeout: 15000 });
   } catch (error) {
     console.error(`Error fetching ${url}:`, error.message);
     throw new Error('Gagal mengambil data dari sumber');

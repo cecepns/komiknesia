@@ -9,6 +9,7 @@ import Library from "./pages/Library";
 import Content from "./pages/Content";
 import Contact from "./pages/Contact";
 import Akun from "./pages/Akun";
+import Leaderboard from "./pages/Leaderboard";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
@@ -68,6 +69,17 @@ function AppContent() {
             <>
               <Layout>
                 <Akun />
+              </Layout>
+              <BottomNavigation />
+            </>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <>
+              <Layout>
+                <Leaderboard />
               </Layout>
               <BottomNavigation />
             </>

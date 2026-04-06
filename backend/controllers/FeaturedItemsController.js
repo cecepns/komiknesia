@@ -1,24 +1,12 @@
 const db = require('../db');
+const { createShortLivedCache } = require('../utils/shortLivedCache');
 
-if (!global.__FEATURED_CACHE__) {
-  global.__FEATURED_CACHE__ = { data: null, key: null, expiresAt: 0 };
-}
+const featuredListCache = createShortLivedCache({ ttlMs: 30 * 1000, maxKeys: 48 });
 
-const index = async (req, res) => {
-  try {
-    const { type, active } = req.query;
+async function fetchFeaturedPayload(req) {
+  const { type, active } = req.query;
 
-    const cacheState = global.__FEATURED_CACHE__;
-    const cacheKey = JSON.stringify({
-      type: type || null,
-      active: active === undefined ? null : active === 'true',
-    });
-    const now = Date.now();
-    if (cacheState.key === cacheKey && cacheState.expiresAt > now) {
-      return res.json(cacheState.data);
-    }
-
-    let query = `
+  let query = `
       SELECT 
         fi.*,
         m.id as manga_id,
@@ -63,10 +51,7 @@ const index = async (req, res) => {
     const [items] = await db.execute(query, params);
 
     if (items.length === 0) {
-      cacheState.key = cacheKey;
-      cacheState.data = [];
-      cacheState.expiresAt = now + 30 * 1000;
-      return res.json([]);
+      return [];
     }
 
     const mangaIds = items.map((i) => i.manga_id);
@@ -138,17 +123,22 @@ const index = async (req, res) => {
       lastChapterByMangaId = {};
     }
 
-    const enriched = items.map((item) => ({
-      ...item,
-      genres: genresByMangaId[item.manga_id] || [],
-      lastChapters: lastChapterByMangaId[item.manga_id] || [],
-    }));
+  return items.map((item) => ({
+    ...item,
+    genres: genresByMangaId[item.manga_id] || [],
+    lastChapters: lastChapterByMangaId[item.manga_id] || [],
+  }));
+}
 
-    cacheState.key = cacheKey;
-    cacheState.data = enriched;
-    cacheState.expiresAt = now + 30 * 1000;
-
-    res.json(enriched);
+const index = async (req, res) => {
+  try {
+    const { type, active } = req.query;
+    const cacheKey = JSON.stringify({
+      type: type || null,
+      active: active === undefined ? null : active === 'true',
+    });
+    const payload = await featuredListCache.wrap(cacheKey, () => fetchFeaturedPayload(req));
+    res.json(payload);
   } catch (error) {
     console.error('Error fetching featured items:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -200,6 +190,7 @@ const store = async (req, res) => {
         'UPDATE featured_items SET display_order = ?, is_active = ? WHERE id = ?',
         [display_order, is_active, existing[0].id]
       );
+      featuredListCache.invalidate();
       return res.json({ id: existing[0].id, message: 'Featured item updated successfully' });
     }
 
@@ -208,6 +199,7 @@ const store = async (req, res) => {
       [manga_id, featured_type, display_order, is_active]
     );
 
+    featuredListCache.invalidate();
     res.status(201).json({ id: result.insertId, message: 'Featured item created successfully' });
   } catch (error) {
     console.error('Error creating featured item:', error);
@@ -252,6 +244,7 @@ const update = async (req, res) => {
 
     await db.execute(`UPDATE featured_items SET ${updates.join(', ')} WHERE id = ?`, params);
 
+    featuredListCache.invalidate();
     res.json({ message: 'Featured item updated successfully' });
   } catch (error) {
     console.error('Error updating featured item:', error);
@@ -263,6 +256,7 @@ const destroy = async (req, res) => {
   try {
     const { id } = req.params;
     await db.execute('DELETE FROM featured_items WHERE id = ?', [id]);
+    featuredListCache.invalidate();
     res.json({ message: 'Featured item deleted successfully' });
   } catch (error) {
     console.error('Error deleting featured item:', error);
