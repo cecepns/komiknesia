@@ -214,7 +214,7 @@ const ChapterReader = () => {
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
-        <link rel="canonical" href={`https://komiknesia.net/view/${chapterSlug}`} />
+        <link rel="canonical" href={`https://02.komiknesia.asia/view/${chapterSlug}`} />
       </Helmet>
       {/* Fixed Header */}
       <header className="bg-primary-950 shadow-lg fixed top-0 left-0 right-0 z-50">

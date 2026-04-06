@@ -1,11 +1,11 @@
 # robots.txt for KomikNesia
-# https://komiknesia.net
+# https://02.komiknesia.asia
 
 User-agent: *
 Allow: /
 
 # Sitemap locations (served from API)
-Sitemap: https://be-api.komiknesia.net/sitemap.xml
+Sitemap: https://api-be.komiknesia.my.id/sitemap.xml
 
 # Disallow admin and login pages
 Disallow: /admin

@@ -1,7 +1,7 @@
 const db = require('../db');
 
-const SITE_URL = 'https://komiknesia.net';
-const API_URL = 'https://be-api.komiknesia.net';
+const SITE_URL = 'https://02.komiknesia.asia';
+const API_URL = 'https://api-be.komiknesia.my.id';
 
 // NOTE: We reuse the in-memory cache from server via getCache/setCache signatures,
 // but since this controller is standalone, it keeps its own lightweight cache here.

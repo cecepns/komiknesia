@@ -387,7 +387,7 @@ const MangaDetail = () => {
   };
 
   // SEO data
-  const siteUrl = 'https://komiknesia.net';
+  const siteUrl = 'https://02.komiknesia.asia';
   const pageUrl = `${siteUrl}/komik/${slug}`;
   const coverImage = manga ? getImageUrl(manga.cover) : `${siteUrl}/logo.png`;
   const seriesType = manga?.content_type || 'Komik';
