@@ -341,7 +341,7 @@ const ChapterReader = () => {
                     src={getImageUrl(image)}
                     alt={`Page ${index + 1}`}
                     className="w-full h-auto block"
-                    wrapperClassName="w-full block"
+                    wrapperClassName="w-full block min-h-[320px] sm:min-h-[480px] md:min-h-[640px]"
                   />
                 </div>
               ))

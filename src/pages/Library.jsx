@@ -26,7 +26,6 @@ const Library = () => {
     setSearchParams({ tab: paramValue });
   };
   const [mangaList, setMangaList] = useState([]);
-  const [contentFilter, setContentFilter] = useState("all"); // 'all', 'manga', 'manhwa', 'manhua'
   const [historyList, setHistoryList] = useState([]);
   const [bookmarkList, setBookmarkList] = useState([]);
   const [bookmarkPage, setBookmarkPage] = useState(1);
@@ -37,48 +36,15 @@ const Library = () => {
   // Fetch ads by type
   const { ads: libraryTopAds } = useAds("library-top", 6);
 
-  const countryFlags = {
-    JP: "🇯🇵",
-    KR: "🇰🇷",
-    CN: "🇨🇳",
-    US: "🇺🇸",
-    ID: "🇮🇩",
-  };
-
   const loadMangaUpdates = useCallback(async () => {
     try {
       setLoading(true);
-      const items = await apiClient.getFeaturedItems("rekomendasi", true);
-
-      // Transform to match expected format and sort by display_order
-      const transformed = items
-        .map((item) => ({
-          id: item.manga_id,
-          title: item.title,
-          slug: item.slug,
-          cover: item.cover,
-          country_id: item.country_id,
-          color: item.color,
-          hot: item.hot,
-          rating: item.rating,
-          total_views: item.total_views,
-          lastChapters: item.lastChapters || [],
-          display_order: item.display_order || 0,
-          // Ensure we keep content_type so we can filter by Manga / Manhwa / Manhua
-          content_type: item.content_type || item.contentType || "manga",
-        }))
-        .sort((a, b) => {
-          // Sort by display_order first, then by last chapter update time
-          if (a.display_order !== b.display_order) {
-            return a.display_order - b.display_order;
-          }
-
-          const timeA = a.lastChapters[0]?.created_at?.time || 0;
-          const timeB = b.lastChapters[0]?.created_at?.time || 0;
-          return timeB - timeA;
-        });
-
-      setMangaList(transformed);
+      const response = await apiClient.getContents({
+        page: 1,
+        per_page: 50,
+        orderBy: "Popular",
+      });
+      setMangaList(response.data || []);
     } catch (error) {
       console.error("Error fetching recommended manga:", error);
       setMangaList([]);
@@ -184,26 +150,6 @@ const Library = () => {
     { id: "history", label: "History", icon: History },
   ];
 
-  // Map content filter to country_id
-  const countryFilterMap = {
-    manga: "JP",
-    manhwa: "KR",
-    manhua: "CN",
-  };
-
-  const filteredMangaList =
-    contentFilter === "all"
-      ? mangaList
-      : mangaList.filter((manga) => {
-          const targetCountry = countryFilterMap[contentFilter];
-          if (!targetCountry) return true;
-          // Prefer filtering by country_id, fallback to content_type when missing
-          return (
-            manga.country_id === targetCountry ||
-            (manga.content_type || "").toLowerCase() === contentFilter
-          );
-        });
-
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <Helmet>
@@ -259,32 +205,8 @@ const Library = () => {
                   Rekomendasi
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Semua komik yang baru saja diperbarui
+                  50 komik dengan view terbanyak
                 </p>
-                {/* Content type filter: Manga / Manhwa / Manhua */}
-                <div className="mt-3 flex space-x-2 overflow-x-auto pb-1">
-                  {[
-                    { id: "all", label: "Semua" },
-                    { id: "manga", label: "MANGA" },
-                    { id: "manhwa", label: "MANHWA" },
-                    { id: "manhua", label: "MANHUA" },
-                  ].map((filter) => {
-                    const isActive = contentFilter === filter.id;
-                    return (
-                      <button
-                        key={filter.id}
-                        onClick={() => setContentFilter(filter.id)}
-                        className={`px-4 py-1.5 rounded-full text-xs md:text-sm font-semibold tracking-wide border transition-all ${
-                          isActive
-                            ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 border-transparent shadow"
-                            : "bg-gray-200/70 dark:bg-gray-800/70 text-gray-700 dark:text-gray-300 border-gray-300/70 dark:border-gray-700 hover:bg-gray-300 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        {filter.label}
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
 
               {loading ? (
@@ -294,7 +216,7 @@ const Library = () => {
                     Memuat...
                   </p>
                 </div>
-              ) : filteredMangaList.length === 0 ? (
+              ) : mangaList.length === 0 ? (
                 <div className="text-center py-12 bg-gray-100 dark:bg-gray-900 rounded-lg">
                   <p className="text-gray-500 dark:text-gray-400">
                     Tidak ada manga rekomendasi
@@ -302,7 +224,7 @@ const Library = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {filteredMangaList.map((manga) => (
+                  {mangaList.map((manga) => (
                     <div
                       key={manga.id}
                       onClick={() => navigate(`/komik/${manga.slug}`)}
@@ -316,7 +238,7 @@ const Library = () => {
                           wrapperClassName="w-full h-full"
                         />
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        {/* <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" /> */}
 
                         {/* <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
                           {countryFlags[manga.country_id] || "🌍"}

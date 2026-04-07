@@ -1,7 +1,29 @@
 const db = require('../db');
 
-const SITE_URL = 'https://02.komiknesia.asia';
-const API_URL = 'https://api-be.komiknesia.my.id';
+const DEFAULT_SITE_URL = 'https://02.komiknesia.asia';
+const DEFAULT_API_URL = 'https://api-be.komiknesia.my.id';
+
+const normalizeUrl = (url, fallback) => {
+  const raw = (url || '').trim();
+  const base = raw || fallback;
+  return base.replace(/\/+$/, '');
+};
+
+const getEnv = (key) => {
+  const env = globalThis.process?.env || {};
+  return env[key];
+};
+
+const SITEMAP_SITE_URL = 'https://02.komiknesia.asia';
+
+const getSiteUrl = () => {
+  return normalizeUrl(SITEMAP_SITE_URL, DEFAULT_SITE_URL);
+};
+
+const getApiUrl = () => {
+  const envApiUrl = getEnv('API_URL');
+  return normalizeUrl(envApiUrl, DEFAULT_API_URL);
+};
 
 // NOTE: We reuse the in-memory cache from server via getCache/setCache signatures,
 // but since this controller is standalone, it keeps its own lightweight cache here.
@@ -26,8 +48,9 @@ const getCache = (key) => {
 };
 
 const robots = (req, res) => {
+  const apiUrl = getApiUrl();
   const robotsTxt = `# robots.txt for KomikNesia API
-# ${API_URL}
+# ${apiUrl}
 
 User-agent: *
 Allow: /sitemap.xml
@@ -36,8 +59,8 @@ Allow: /sitemap-manga.xml
 Allow: /sitemap-chapters.xml
 
 # Sitemap locations
-Sitemap: ${API_URL}/sitemap.xml
-Sitemap: ${API_URL}/sitemap-index.xml
+Sitemap: ${apiUrl}/sitemap.xml
+Sitemap: ${apiUrl}/sitemap-index.xml
 `;
 
   res.set('Content-Type', 'text/plain');
@@ -46,7 +69,8 @@ Sitemap: ${API_URL}/sitemap-index.xml
 
 const sitemapMain = async (req, res) => {
   try {
-    const cacheKey = 'sitemap:main';
+    const siteUrl = getSiteUrl(req);
+    const cacheKey = `sitemap:main:${siteUrl}`;
     const cached = getCache(cacheKey);
     if (cached) {
       res.set('Content-Type', 'application/xml');
@@ -81,7 +105,7 @@ const sitemapMain = async (req, res) => {
 
     for (const page of staticPages) {
       xml += '  <url>\n';
-      xml += `    <loc>${SITE_URL}${page.url}</loc>\n`;
+      xml += `    <loc>${siteUrl}${page.url}</loc>\n`;
       xml += `    <lastmod>${now}</lastmod>\n`;
       xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
       xml += `    <priority>${page.priority}</priority>\n`;
@@ -94,7 +118,7 @@ const sitemapMain = async (req, res) => {
         : now;
 
       xml += '  <url>\n';
-      xml += `    <loc>${SITE_URL}/komik/${encodeURIComponent(manga.slug)}</loc>\n`;
+      xml += `    <loc>${siteUrl}/komik/${encodeURIComponent(manga.slug)}</loc>\n`;
       xml += `    <lastmod>${lastmod}</lastmod>\n`;
       xml += '    <changefreq>weekly</changefreq>\n';
       xml += '    <priority>0.8</priority>\n';
@@ -107,7 +131,7 @@ const sitemapMain = async (req, res) => {
         : now;
 
       xml += '  <url>\n';
-      xml += `    <loc>${SITE_URL}/view/${encodeURIComponent(chapter.slug)}</loc>\n`;
+      xml += `    <loc>${siteUrl}/view/${encodeURIComponent(chapter.slug)}</loc>\n`;
       xml += `    <lastmod>${lastmod}</lastmod>\n`;
       xml += '    <changefreq>monthly</changefreq>\n';
       xml += '    <priority>0.6</priority>\n';
@@ -132,23 +156,24 @@ const sitemapMain = async (req, res) => {
 
 const sitemapIndex = async (req, res) => {
   try {
+    const siteUrl = getSiteUrl(req);
     const now = new Date().toISOString().split('T')[0];
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
     xml += '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     xml += '  <sitemap>\n';
-    xml += `    <loc>${SITE_URL}/sitemap.xml</loc>\n`;
+    xml += `    <loc>${siteUrl}/sitemap.xml</loc>\n`;
     xml += `    <lastmod>${now}</lastmod>\n`;
     xml += '  </sitemap>\n';
 
     xml += '  <sitemap>\n';
-    xml += `    <loc>${SITE_URL}/sitemap-manga.xml</loc>\n`;
+    xml += `    <loc>${siteUrl}/sitemap-manga.xml</loc>\n`;
     xml += `    <lastmod>${now}</lastmod>\n`;
     xml += '  </sitemap>\n';
 
     xml += '  <sitemap>\n';
-    xml += `    <loc>${SITE_URL}/sitemap-chapters.xml</loc>\n`;
+    xml += `    <loc>${siteUrl}/sitemap-chapters.xml</loc>\n`;
     xml += `    <lastmod>${now}</lastmod>\n`;
     xml += '  </sitemap>\n';
 
@@ -168,7 +193,8 @@ const sitemapIndex = async (req, res) => {
 
 const sitemapManga = async (req, res) => {
   try {
-    const cacheKey = 'sitemap:manga';
+    const siteUrl = getSiteUrl(req);
+    const cacheKey = `sitemap:manga:${siteUrl}`;
     const cached = getCache(cacheKey);
     if (cached) {
       res.set('Content-Type', 'application/xml');
@@ -193,7 +219,7 @@ const sitemapManga = async (req, res) => {
         : now;
 
       xml += '  <url>\n';
-      xml += `    <loc>${SITE_URL}/komik/${encodeURIComponent(manga.slug)}</loc>\n`;
+      xml += `    <loc>${siteUrl}/komik/${encodeURIComponent(manga.slug)}</loc>\n`;
       xml += `    <lastmod>${lastmod}</lastmod>\n`;
       xml += '    <changefreq>weekly</changefreq>\n';
       xml += '    <priority>0.8</priority>\n';
@@ -218,7 +244,8 @@ const sitemapManga = async (req, res) => {
 
 const sitemapChapters = async (req, res) => {
   try {
-    const cacheKey = 'sitemap:chapters';
+    const siteUrl = getSiteUrl(req);
+    const cacheKey = `sitemap:chapters:${siteUrl}`;
     const cached = getCache(cacheKey);
     if (cached) {
       res.set('Content-Type', 'application/xml');
@@ -243,7 +270,7 @@ const sitemapChapters = async (req, res) => {
         : now;
 
       xml += '  <url>\n';
-      xml += `    <loc>${SITE_URL}/view/${encodeURIComponent(chapter.slug)}</loc>\n`;
+      xml += `    <loc>${siteUrl}/view/${encodeURIComponent(chapter.slug)}</loc>\n`;
       xml += `    <lastmod>${lastmod}</lastmod>\n`;
       xml += '    <changefreq>monthly</changefreq>\n';
       xml += '    <priority>0.6</priority>\n';

@@ -27,7 +27,7 @@ const UpdateSection = () => {
       // Use /api/contents endpoint with page=1, orderBy=Update, per_page=14
       const response = await apiClient.getContents({
         page: 1,
-        per_page: 14,
+        per_page: 15,
         orderBy: "Update",
       });
 
@@ -124,7 +124,7 @@ const UpdateSection = () => {
                 />
 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {/* <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" /> */}
 
                 {/* Country Flag */}
                 {/* <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">

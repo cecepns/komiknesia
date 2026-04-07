@@ -4,50 +4,20 @@ import { Flame } from "lucide-react";
 import LazyImage from "./LazyImage";
 import { apiClient, getImageUrl } from "../utils/api";
 
-const countryFlags = {
-  JP: "🇯🇵",
-  KR: "🇰🇷",
-  CN: "🇨🇳",
-  US: "🇺🇸",
-  ID: "🇮🇩",
-};
-
-const filters = [
-  { id: "today", label: "Hari ini", type: "popular_daily" },
-  { id: "week", label: "Minggu ini", type: "popular_weekly" },
-  { id: "month", label: "Bulan ini", type: "popular_monthly" },
-];
-
 const PopularSection = () => {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState("today");
   const [filteredManga, setFilteredManga] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchPopularManga = useCallback(async (filter) => {
+  const fetchPopularManga = useCallback(async () => {
     try {
       setLoading(true);
-      const filterConfig = filters.find((f) => f.id === filter);
-      const type = filterConfig ? filterConfig.type : "popular_daily";
-
-      const items = await apiClient.getFeaturedItems(type, true);
-      // Sort by display_order and transform to match expected format
-      const sorted = items
-        .sort((a, b) => a.display_order - b.display_order)
-        .slice(0, 20)
-        .map((item) => ({
-          id: item.manga_id,
-          title: item.title,
-          slug: item.slug,
-          cover: item.cover,
-          country_id: item.country_id,
-          hot: item.hot,
-          rating: item.rating,
-          total_views: item.total_views,
-          lastChapters: item.lastChapters || [],
-        }));
-
-      setFilteredManga(sorted);
+      const response = await apiClient.getContents({
+        page: 1,
+        per_page: 15,
+        orderBy: "Popular",
+      });
+      setFilteredManga(response.data || []);
     } catch (error) {
       console.error("Error fetching popular manga:", error);
       setFilteredManga([]);
@@ -57,8 +27,8 @@ const PopularSection = () => {
   }, []);
 
   useEffect(() => {
-    fetchPopularManga(activeFilter);
-  }, [activeFilter, fetchPopularManga]);
+    fetchPopularManga();
+  }, [fetchPopularManga]);
 
   const getTimeAgo = (timestamp) => {
     if (!timestamp) return "";
@@ -95,23 +65,6 @@ const PopularSection = () => {
         </button>
       </div>
 
-      {/* Filter Buttons */}
-      <div className="flex space-x-3 mb-6">
-        {filters.map((filter) => (
-          <button
-            key={filter.id}
-            onClick={() => setActiveFilter(filter.id)}
-            className={`px-6 text-xs md:text-lg py-2 rounded-lg font-medium transition-all duration-300 ${
-              activeFilter === filter.id
-                ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 shadow-lg"
-                : "bg-gray-200 dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-primary-600"
-            }`}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
-
       {/* Manga Grid */}
       {loading ? (
         <div className="text-center py-12 bg-gray-100 dark:bg-primary-900 rounded-lg">
@@ -121,7 +74,7 @@ const PopularSection = () => {
       ) : filteredManga.length === 0 ? (
         <div className="text-center py-12 bg-gray-100 dark:bg-primary-900 rounded-lg">
           <p className="text-gray-500 dark:text-gray-400">
-            Tidak ada manga untuk filter ini
+            Tidak ada manga populer
           </p>
         </div>
       ) : (
@@ -142,7 +95,7 @@ const PopularSection = () => {
                 />
 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {/* <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" /> */}
 
                 {/* Country Flag */}
                 {/* <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
@@ -158,6 +111,15 @@ const PopularSection = () => {
                     <span>COLOR</span>
                   </div>
                 )} */}
+
+                {/* Rating Badge */}
+                {manga.rating > 0 && (
+                  <div className="absolute top-2 left-2 h-8 w-8 rounded-full bg-yellow-500/95 text-white shadow-lg backdrop-blur-sm flex items-center justify-center">
+                    <span className="text-[11px] font-bold leading-none">
+                      {Number(manga.rating).toFixed(1)}
+                    </span>
+                  </div>
+                )}
 
                 {/* Hot Badge */}
                 {manga.hot && (
@@ -205,20 +167,6 @@ const PopularSection = () => {
                 ) : (
                   <div className="text-xs text-gray-500 dark:text-gray-500 mb-1 mt-auto">
                     Chapter N/A
-                  </div>
-                )}
-                {manga.rating > 0 && (
-                  <div className="flex items-center space-x-1">
-                    <svg
-                      className="w-3 h-3 text-yellow-500"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {manga.rating}
-                    </span>
                   </div>
                 )}
               </div>
