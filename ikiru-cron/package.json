@@ -6,8 +6,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "once:page1": "node run-once.js page1",
-    "once:page2": "node run-once.js page2"
+    "once:page1:delta": "node run-once.js page1-delta",
+    "once:page1:full": "node run-once.js page1-full",
+    "once:page2:full": "node run-once.js page2-full",
+    "once:page3:full": "node run-once.js page3-full"
   },
   "engines": {
     "node": ">=18"

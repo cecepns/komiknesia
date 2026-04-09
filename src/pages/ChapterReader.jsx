@@ -321,9 +321,9 @@ const ChapterReader = () => {
             </p>
           </div>
 
-          {/* Ad Banner - Top of Images */}
+          {/* Ad Banner - Top of Images (min-height mengurangi CLS + area iklan konsisten) */}
           {mangaDetailTopAds.length > 0 && (
-            <div className="px-3 sm:px-4 mb-6">
+            <div className="px-3 sm:px-4 mb-6 min-h-[80px] sm:min-h-[90px] md:min-h-[100px]">
               <AdBanner
                 ads={mangaDetailTopAds}
                 layout="grid"
@@ -332,16 +332,19 @@ const ChapterReader = () => {
             </div>
           )}
 
-          {/* Chapter Images */}
-          <div className="space-y-0">
+          {/* Chapter images: tanpa gap/padding antar panel (min-h besar slice webtoon bikin celah hitam di mobile) */}
+          <div className="space-y-0 flex flex-col gap-0 p-0 m-0">
             {chapterData?.images && chapterData.images.length > 0 ? (
               chapterData.images.map((image, index) => (
-                <div key={index} className="w-full leading-[0]">
+                <div
+                  key={index}
+                  className="w-full m-0 p-0 leading-[0] overflow-hidden"
+                >
                   <LazyImage
                     src={getImageUrl(image)}
                     alt={`Page ${index + 1}`}
-                    className="w-full h-auto block"
-                    wrapperClassName="w-full block min-h-[320px] sm:min-h-[480px] md:min-h-[640px]"
+                    className="w-full h-auto block align-bottom m-0 p-0 border-0 outline-none"
+                    wrapperClassName="w-full block m-0 p-0 leading-[0] min-h-0"
                   />
                 </div>
               ))
@@ -396,7 +399,7 @@ const ChapterReader = () => {
 
           {/* Ad Banner - Above Comment Section with Grid 2 */}
           {mangaDetailBottomAds.length > 0 && (
-            <div className="px-3 sm:px-4 mb-6">
+            <div className="px-3 sm:px-4 mb-6 min-h-[100px] sm:min-h-[120px] md:min-h-[140px]">
               <AdBanner
                 ads={mangaDetailBottomAds}
                 layout="grid"

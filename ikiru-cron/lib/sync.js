@@ -11,7 +11,7 @@ function getFeedType() {
 }
 
 function buildCronSyncUrl(params) {
-  const base = String(process.env.IKIRU_CRON_BASE_URL || 'https://api-be.komiknesia.my.id').replace(/\/+$/, '');
+  const base = String(process.env.IKIRU_CRON_BASE_URL || 'http://127.0.0.1:3001');
   if (!base) {
     throw new Error('Set IKIRU_CRON_BASE_URL di .env');
   }

@@ -629,16 +629,13 @@ async function upsertChapterImages(chapterId, imageUrls, { saveToS3 = false } = 
     [chapterId]
   );
   const existingByPage = new Map(existingRows.map((r) => [r.page_number, r.image_path]));
-  const existingImagePaths = new Set(existingRows.map((r) => r.image_path));
   let inserted = 0;
 
-  let page = 1;
-  for (const url of imageUrls) {
-    // Unique key on (chapter_id, page_number) means we must treat page_number as the primary idempotency guard.
-    if (existingByPage.has(page)) {
-      page += 1;
-      continue;
-    }
+  // Map scraped order to page_number 1..N (idempotent per page). The previous loop used a single
+  // `page` cursor and `continue` on collision, which dropped URLs entirely when early pages existed.
+  for (let i = 0; i < imageUrls.length; i++) {
+    const page = i + 1;
+    const url = imageUrls[i];
 
     let storedUrl = url;
     const extFromUrl = (() => {
@@ -652,7 +649,6 @@ async function upsertChapterImages(chapterId, imageUrls, { saveToS3 = false } = 
     const ext = extFromUrl || '.webp';
 
     if (saveToS3) {
-      // Deterministic key so re-sync is idempotent (no duplicate key/page conflicts).
       const key = `komiknesia/ikiru/chapters/${chapterId}/pages/${page}${ext}`;
       try {
         storedUrl = await uploadUrlToS3(key, url);
@@ -662,19 +658,30 @@ async function upsertChapterImages(chapterId, imageUrls, { saveToS3 = false } = 
       }
     }
 
-    if (existingImagePaths.has(storedUrl)) {
-      page += 1;
+    const prevPath = existingByPage.get(page);
+    const hasRow = existingByPage.has(page);
+    const hasRealPath = hasRow && prevPath != null && String(prevPath).trim() !== '';
+
+    if (hasRealPath) {
+      if (String(prevPath) === String(storedUrl)) {
+        continue;
+      }
       continue;
     }
 
-    await db.execute(
-      'INSERT INTO chapter_images (chapter_id, image_path, page_number) VALUES (?, ?, ?)',
-      [chapterId, storedUrl, page]
-    );
+    if (hasRow && !hasRealPath) {
+      await db.execute(
+        'UPDATE chapter_images SET image_path = ? WHERE chapter_id = ? AND page_number = ?',
+        [storedUrl, chapterId, page]
+      );
+    } else {
+      await db.execute(
+        'INSERT INTO chapter_images (chapter_id, image_path, page_number) VALUES (?, ?, ?)',
+        [chapterId, storedUrl, page]
+      );
+    }
     existingByPage.set(page, storedUrl);
-    existingImagePaths.add(storedUrl);
     inserted += 1;
-    page += 1;
   }
   return inserted;
 }
