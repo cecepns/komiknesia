@@ -24,12 +24,35 @@ const contactInfoRoutes = require('./routes/contactInfoRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
 const leaderboardRoutes = require('./routes/leaderboardRoutes');
+const premiumOrderRoutes = require('./routes/premiumOrderRoutes');
+const stickerRoutes = require('./routes/stickerRoutes');
 
 const app = express();
 const PORT = 8080;
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://komiknesia.vercel.app',
+  'https://komiknesia.net',
+  'https://www.komiknesia.asia',
+  'https://02.komiknesia.asia',
+  'https://www.02.komiknesia.asia' // pastikan versi www juga ada
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Jika request tidak ada origin (misal Postman), izinkan juga
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads-komiknesia')));
 
@@ -58,6 +81,8 @@ app.use('/api/contact-info', contactInfoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/premium-orders', premiumOrderRoutes);
+app.use('/api/stickers', stickerRoutes);
 app.use('/api/ikiru', ikiruRoutes);
 app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
 app.use('/', sitemapRoutes);
@@ -238,6 +263,29 @@ const runSqlMigration = async () => {
       UNIQUE KEY uniq_user_chapter_read (user_id, chapter_id),
       KEY idx_user_chapter_reads_user (user_id),
       KEY idx_user_chapter_reads_chapter (chapter_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS premium_orders (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      username VARCHAR(100) NOT NULL,
+      package_id VARCHAR(50) NOT NULL,
+      package_name VARCHAR(120) NOT NULL,
+      package_price VARCHAR(40) NULL,
+      proof_image VARCHAR(255) NOT NULL,
+      payment_status ENUM('pending', 'sukses') NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_premium_orders_status (payment_status),
+      KEY idx_premium_orders_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS stickers (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(120) NOT NULL,
+      image_path VARCHAR(255) NOT NULL,
+      is_gif TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_stickers_created (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
 

@@ -17,6 +17,8 @@ import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function AppContent() {
   const location = useLocation();
@@ -125,6 +127,7 @@ function AppContent() {
       </Routes>
       {/* AdPopup rendered once for all routes except admin and login */}
       {shouldShowAdPopup && <AdPopup />}
+      <ToastContainer position="top-right" autoClose={2500} theme="colored" />
     </>
   );
 }

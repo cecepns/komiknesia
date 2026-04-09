@@ -180,6 +180,73 @@ class APIClient {
     });
   }
 
+  // Premium orders
+  createPremiumOrder(formData) {
+    return this.request('/premium-orders', {
+      method: 'POST',
+      headers: {},
+      body: formData,
+    });
+  }
+
+  getAdminPremiumOrders({ search = '', page = 1, limit = 10 } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(search ? { search } : {}),
+    });
+    return this.request(`/premium-orders/admin?${params.toString()}`);
+  }
+
+  updateAdminPremiumOrderStatus(id, payment_status) {
+    return this.request(`/premium-orders/admin/${id}/status`, {
+      method: 'PATCH',
+      body: { payment_status },
+    });
+  }
+
+  deleteAdminPremiumOrder(id) {
+    return this.request(`/premium-orders/admin/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Stickers
+  getStickers() {
+    return this.request('/stickers');
+  }
+
+  getAdminStickers({ search = '', page = 1, limit = 10 } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(search ? { search } : {}),
+    });
+    return this.request(`/stickers/admin?${params.toString()}`);
+  }
+
+  createAdminSticker(formData) {
+    return this.request('/stickers/admin', {
+      method: 'POST',
+      headers: {},
+      body: formData,
+    });
+  }
+
+  updateAdminSticker(id, formData) {
+    return this.request(`/stickers/admin/${id}`, {
+      method: 'PUT',
+      headers: {},
+      body: formData,
+    });
+  }
+
+  deleteAdminSticker(id) {
+    return this.request(`/stickers/admin/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Public leaderboard
   getLeaderboard({ page = 1, limit = 20 } = {}) {
     const params = new URLSearchParams({

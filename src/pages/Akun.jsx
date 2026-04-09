@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, UserPlus, Loader2, LogOut, Camera } from 'lucide-react';
 import { getImageUrl } from '../utils/api';
+import { toast } from 'react-toastify';
 
 const Akun = () => {
   const { user, loading: authLoading, login, register, updateProfile, logout, isAuthenticated } = useAuth();
@@ -15,8 +16,6 @@ const Akun = () => {
   const [profileUsername, setProfileUsername] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profileBio, setProfileBio] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -52,15 +51,18 @@ const Akun = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     setLoading(true);
     try {
       const result = await login(username, password);
-      if (result.success) setSuccess('Berhasil masuk.');
-      else setError(result.error || 'Login gagal');
+      if (result.success) {
+        toast.success('Berhasil masuk.');
+      } else {
+        const message = result.error || 'Login gagal';
+        toast.error(message);
+      }
     } catch (err) {
-      setError(err.message || 'Login gagal');
+      const message = err.message || 'Login gagal';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -68,27 +70,25 @@ const Akun = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-      if (!name.trim()) {
-        setError('Nama wajib diisi');
-        return;
-      }
-      if (!username.trim()) {
-      setError('Username wajib diisi');
+    if (!name.trim()) {
+      toast.error('Nama wajib diisi');
       return;
     }
-      const usernameNormalized = username.trim().toLowerCase().replace(/\s+/g, '');
-      if (usernameNormalized.length < 3) {
-      setError('Username minimal 3 karakter');
+    if (!username.trim()) {
+      toast.error('Username wajib diisi');
       return;
     }
-      if (!/^[a-z0-9._-]+$/.test(usernameNormalized)) {
-        setError('Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).');
-        return;
-      }
+    const usernameNormalized = username.trim().toLowerCase().replace(/\s+/g, '');
+    if (usernameNormalized.length < 3) {
+      toast.error('Username minimal 3 karakter');
+      return;
+    }
+    if (!/^[a-z0-9._-]+$/.test(usernameNormalized)) {
+      toast.error('Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).');
+      return;
+    }
     if (!password) {
-      setError('Password wajib diisi');
+      toast.error('Password wajib diisi');
       return;
     }
     setLoading(true);
@@ -99,10 +99,15 @@ const Akun = () => {
       formData.append('password', password);
       if (email.trim()) formData.append('email', email.trim());
       const result = await register(formData);
-      if (result.success) setSuccess('Registrasi berhasil. Anda sudah masuk.');
-      else setError(result.error || 'Registrasi gagal');
+      if (result.success) {
+        toast.success('Registrasi berhasil. Anda sudah masuk.');
+      } else {
+        const message = result.error || 'Registrasi gagal';
+        toast.error(message);
+      }
     } catch (err) {
-      setError(err.message || 'Registrasi gagal');
+      const message = err.message || 'Registrasi gagal';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -112,16 +117,19 @@ const Akun = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setProfileLoading(true);
-    setError('');
-    setSuccess('');
     try {
       const formData = new FormData();
       formData.append('profile_image', file);
       const result = await updateProfile(formData);
-      if (result.success) setSuccess('Foto profil diperbarui.');
-      else setError(result.error || 'Gagal memperbarui foto');
+      if (result.success) {
+        toast.success('Foto profil diperbarui.');
+      } else {
+        const message = result.error || 'Gagal memperbarui foto';
+        toast.error(message);
+      }
     } catch (err) {
-      setError(err.message || 'Gagal memperbarui foto');
+      const message = err.message || 'Gagal memperbarui foto';
+      toast.error(message);
     } finally {
       setProfileLoading(false);
     }
@@ -129,8 +137,6 @@ const Akun = () => {
 
   const handleUpdateProfileInfo = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
 
     const trimmedName = profileName.trim();
     const trimmedUsername = profileUsername.trim();
@@ -138,20 +144,20 @@ const Akun = () => {
     const trimmedBio = profileBio.trim();
 
     if (!trimmedName) {
-      setError('Nama wajib diisi');
+      toast.error('Nama wajib diisi');
       return;
     }
     if (!trimmedUsername) {
-      setError('Username wajib diisi');
+      toast.error('Username wajib diisi');
       return;
     }
     const normalizedUsername = trimmedUsername.toLowerCase().replace(/\s+/g, '');
     if (normalizedUsername.length < 3) {
-      setError('Username minimal 3 karakter');
+      toast.error('Username minimal 3 karakter');
       return;
     }
     if (!/^[a-z0-9._-]+$/.test(normalizedUsername)) {
-      setError('Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).');
+      toast.error('Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).');
       return;
     }
 
@@ -164,12 +170,14 @@ const Akun = () => {
       formData.append('bio', trimmedBio);
       const result = await updateProfile(formData);
       if (result.success) {
-        setSuccess('Profil berhasil diperbarui.');
+        toast.success('Profil berhasil diperbarui.');
       } else {
-        setError(result.error || 'Gagal memperbarui profil');
+        const message = result.error || 'Gagal memperbarui profil';
+        toast.error(message);
       }
     } catch (err) {
-      setError(err.message || 'Gagal memperbarui profil');
+      const message = err.message || 'Gagal memperbarui profil';
+      toast.error(message);
     } finally {
       setProfileLoading(false);
     }
@@ -177,19 +185,17 @@ const Akun = () => {
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
 
     if (!currentPassword || !newPassword) {
-      setError('Password lama dan password baru wajib diisi');
+      toast.error('Password lama dan password baru wajib diisi');
       return;
     }
     if (newPassword.length < 6) {
-      setError('Password baru minimal 6 karakter');
+      toast.error('Password baru minimal 6 karakter');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Konfirmasi password baru tidak sama');
+      toast.error('Konfirmasi password baru tidak sama');
       return;
     }
 
@@ -200,15 +206,17 @@ const Akun = () => {
       formData.append('new_password', newPassword);
       const result = await updateProfile(formData);
       if (result.success) {
-        setSuccess('Password berhasil diperbarui.');
+        toast.success('Password berhasil diperbarui.');
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        setError(result.error || 'Gagal memperbarui password');
+        const message = result.error || 'Gagal memperbarui password';
+        toast.error(message);
       }
     } catch (err) {
-      setError(err.message || 'Gagal memperbarui password');
+      const message = err.message || 'Gagal memperbarui password';
+      toast.error(message);
     } finally {
       setPasswordLoading(false);
     }
@@ -376,11 +384,9 @@ const Akun = () => {
                 </button>
               </form>
             </div>
-            {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
-            {success && <p className="mt-2 text-sm text-green-600 dark:text-green-400">{success}</p>}
             <button
               type="button"
-              onClick={() => { setError(''); setSuccess(''); logout(); }}
+              onClick={() => { logout(); toast.success('Berhasil keluar.'); }}
               className="mt-8 w-full py-3 px-4 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-lg font-medium flex items-center justify-center gap-2"
             >
               <LogOut className="h-5 w-5" />
@@ -393,7 +399,7 @@ const Akun = () => {
             <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1 mb-6">
               <button
                 type="button"
-                onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+                onClick={() => { setMode('login'); }}
                 className={`flex-1 py-2 rounded-md font-medium flex items-center justify-center gap-2 ${mode === 'login' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
               >
                 <LogIn className="h-4 w-4" />
@@ -401,24 +407,13 @@ const Akun = () => {
               </button>
               <button
                 type="button"
-                onClick={() => { setMode('register'); setError(''); setSuccess(''); }}
+                onClick={() => { setMode('register'); }}
                 className={`flex-1 py-2 rounded-md font-medium flex items-center justify-center gap-2 ${mode === 'register' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
               >
                 <UserPlus className="h-4 w-4" />
                 Daftar
               </button>
             </div>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
-                {error}
-              </div>
-            )}
-            {success && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-600 dark:text-green-400">
-                {success}
-              </div>
-            )}
 
             {mode === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">

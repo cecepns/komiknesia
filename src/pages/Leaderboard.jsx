@@ -55,11 +55,6 @@ const Leaderboard = () => {
   const topThree = useMemo(() => leaderboardData.slice(0, 3), [leaderboardData]);
   const podiumData = useMemo(() => [topThree[1], topThree[0], topThree[2]].filter(Boolean), [topThree]);
   const podiumSkeletonHeights = ["h-36 sm:h-44", "h-44 sm:h-52", "h-32 sm:h-40"];
-  const currentUserInTopList = useMemo(
-    () => !!currentUserRank && leaderboardData.some((row) => row.id === currentUserRank.id),
-    [currentUserRank, leaderboardData]
-  );
-
   const markImageBroken = (id) => {
     if (!id) return;
     setBrokenImageIds((prev) => {
@@ -300,8 +295,8 @@ const Leaderboard = () => {
               )}
             </div>
 
-            {!loading && !error && currentUserRank && !currentUserInTopList && (
-              <div className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/20 overflow-hidden">
+            {!loading && !error && user && currentUserRank && (
+              <div className="sticky bottom-4 z-20 mt-4 rounded-2xl border border-emerald-300 bg-emerald-50/95 shadow-xl backdrop-blur-sm dark:border-emerald-700 dark:bg-emerald-900/70 overflow-hidden">
                 <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                   Posisi Kamu
                 </div>

@@ -8,6 +8,8 @@ import FeaturedManager from './admin/FeaturedManager';
 import ContactManager from './admin/ContactManager';
 import IkiruSync from './admin/IkiruSync';
 import UserManager from './admin/UserManager';
+import OrderManager from './admin/OrderManager';
+import StickerManager from './admin/StickerManager';
 
 const Admin = () => {
   return (
@@ -22,6 +24,8 @@ const Admin = () => {
         <Route path="contact" element={<ContactManager />} />
         <Route path="ikiru-sync" element={<IkiruSync />} />
         <Route path="users" element={<UserManager />} />
+        <Route path="orders" element={<OrderManager />} />
+        <Route path="stickers" element={<StickerManager />} />
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </AdminLayout>
