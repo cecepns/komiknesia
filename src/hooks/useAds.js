@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 // Simple in-memory cache shared across all hook usages in this tab.
 // Ini memastikan /api/ads hanya dipanggil sekali (per TTL) meskipun
@@ -41,7 +42,9 @@ async function getAdsWithCache() {
  * Custom hook untuk mengambil ads berdasarkan type.
  * Semua instance share hasil /api/ads yang sama lewat cache di atas.
  */
-export const useAds = (adsType, limit = null) => {
+export const useAds = (adsType, limit = null, enabled = true) => {
+  const { user, loading: authLoading } = useAuth();
+  const isPremiumUser = !!user?.membership_active;
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -71,13 +74,19 @@ export const useAds = (adsType, limit = null) => {
       }
     };
 
-    if (adsType) {
+    if (authLoading) {
+      setAds([]);
+      setLoading(true);
+      return;
+    }
+
+    if (adsType && enabled && !isPremiumUser) {
       fetchAds();
     } else {
       setAds([]);
       setLoading(false);
     }
-  }, [adsType, limit]);
+  }, [adsType, limit, enabled, isPremiumUser, authLoading]);
 
   return { ads, loading, error };
 };

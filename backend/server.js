@@ -1,3 +1,4 @@
+/* eslint-env node */
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
@@ -21,6 +22,8 @@ const ikiruSyncRoutes = require('./routes/ikiruSyncRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const contactInfoRoutes = require('./routes/contactInfoRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
+const leaderboardRoutes = require('./routes/leaderboardRoutes');
 
 const app = express();
 const PORT = 8080;
@@ -53,6 +56,8 @@ app.use('/api/featured-items', featuredItemsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/contact-info', contactInfoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/ikiru', ikiruRoutes);
 app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
 app.use('/', sitemapRoutes);
@@ -214,4 +219,41 @@ app.use((error, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+const runSqlMigration = async () => {
+  const statements = [
+    'ALTER TABLE users ADD COLUMN points INT NOT NULL DEFAULT 0',
+    'ALTER TABLE users ADD COLUMN is_membership TINYINT(1) NOT NULL DEFAULT 0',
+    'ALTER TABLE users ADD COLUMN membership_expires_at DATETIME NULL',
+    `CREATE TABLE IF NOT EXISTS user_chapter_reads (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      chapter_id INT NOT NULL,
+      exp_awarded INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_user_chapter_read (user_id, chapter_id),
+      KEY idx_user_chapter_reads_user (user_id),
+      KEY idx_user_chapter_reads_chapter (chapter_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  ];
+
+  for (const statement of statements) {
+    try {
+      await db.execute(statement);
+    } catch (error) {
+      // Ignore duplicate column when migration already applied.
+      if (error && (error.code === 'ER_DUP_FIELDNAME' || error.errno === 1060)) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  console.log('[migration] 20260409 migration checked/applied');
+};
+
+runSqlMigration().catch((error) => {
+  console.error('[migration] Failed running SQL migration:', error);
 });

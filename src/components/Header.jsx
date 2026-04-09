@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, Search, X, User } from 'lucide-react';
+import { Moon, Sun, Search, X, User, Menu } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import Logo from '../assets/logo.png';
 import LazyImage from './LazyImage';
@@ -14,11 +14,17 @@ const Header = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const searchRef = useRef(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const searchDesktopRef = useRef(null);
+  const searchMobileRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
+      const clickedInsideDesktop =
+        searchDesktopRef.current && searchDesktopRef.current.contains(event.target);
+      const clickedInsideMobile =
+        searchMobileRef.current && searchMobileRef.current.contains(event.target);
+      if (!clickedInsideDesktop && !clickedInsideMobile) {
         setShowResults(false);
       }
     };
@@ -64,6 +70,7 @@ const Header = () => {
     navigate(`/komik/${manga.slug}`);
     setSearchQuery('');
     setShowResults(false);
+    setMobileMenuOpen(false);
   };
 
   const clearSearch = () => {
@@ -80,6 +87,11 @@ const Header = () => {
     }
   };
 
+  const handleNavigate = (path) => {
+    navigate(path);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <header className="bg-white dark:bg-primary-950 shadow-md fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -90,34 +102,46 @@ const Header = () => {
               src={Logo} 
               alt="Komiknesia" 
               className="w-32 md:w-44 h-auto cursor-pointer" 
-              onClick={() => navigate('/')}
+              onClick={() => handleNavigate('/')}
             />
           </div>
 
           {/* Navigation Links - Hidden on small screens */}
           <nav className="hidden lg:flex items-center space-x-6">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => handleNavigate('/')}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Home
             </button>
             <button
-              onClick={() => navigate('/library')}
+              onClick={() => handleNavigate('/library')}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Library
             </button>
             <button
-              onClick={() => navigate('/content')}
+              onClick={() => handleNavigate('/content')}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Daftar Komik
             </button>
+            <button
+              onClick={() => handleNavigate('/leaderboard')}
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
+            >
+              Leaderboard
+            </button>
+            <button
+              onClick={() => handleNavigate('/premium')}
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
+            >
+              Premium
+            </button>
           </nav>
 
-          {/* Search Bar */}
-          <div className="flex-1 max-w-md relative" ref={searchRef}>
+          {/* Search Bar - Desktop */}
+          <div className="hidden lg:block flex-1 max-w-md relative" ref={searchDesktopRef}>
             <div className="relative">
               <input
                 type="text"
@@ -208,21 +232,124 @@ const Header = () => {
               )}
             </button>
             <button
-              onClick={() => navigate('/akun')}
-              className="hidden sm:inline-flex items-center px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
-            >
-              <User className="h-4 w-4 mr-2" />
-              {isAuthenticated ? 'Akun Saya' : 'Masuk / Daftar'}
-            </button>
-            {/* <button
-              onClick={() => navigate('/akun')}
-              className="sm:hidden p-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white transition-colors"
-              aria-label="Akun"
+              onClick={() => handleNavigate('/akun')}
+              className="hidden sm:inline-flex items-center justify-center p-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white transition-colors"
+              aria-label={isAuthenticated ? 'Akun Saya' : 'Masuk / Daftar'}
             >
               <User className="h-5 w-5" />
-            </button> */}
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="lg:hidden p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+        {mobileMenuOpen && (
+          <div className="lg:hidden pb-4 border-t border-gray-200 dark:border-gray-800 pt-3">
+            <div className="mb-3 relative" ref={searchMobileRef}>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Cari manga..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchSubmit}
+                  onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  >
+                    <X className="h-4 w-4 text-gray-400" />
+                  </button>
+                )}
+              </div>
+
+              {showResults && (
+                <div className="absolute top-full mt-2 w-full bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      Mencari...
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="py-2">
+                      {searchResults.map((manga) => (
+                        <button
+                          key={manga.id}
+                          onClick={() => handleMangaClick(manga)}
+                          className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-primary-800 transition-colors text-left"
+                        >
+                          <LazyImage
+                            src={manga.cover}
+                            alt={manga.title}
+                            className="w-12 h-16 object-cover rounded flex-shrink-0"
+                            wrapperClassName="w-12 h-16 flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-1">
+                              {manga.title}
+                            </h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                              {manga.author || manga.alternative_name || 'Unknown'}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      Tidak ada hasil ditemukan
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <nav className="flex flex-col gap-2">
+              <button
+                onClick={() => handleNavigate('/')}
+                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+              >
+                Home
+              </button>
+              <button
+                onClick={() => handleNavigate('/library')}
+                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+              >
+                Library
+              </button>
+              <button
+                onClick={() => handleNavigate('/content')}
+                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+              >
+                Daftar Komik
+              </button>
+              <button
+                onClick={() => handleNavigate('/leaderboard')}
+                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+              >
+                Leaderboard
+              </button>
+              <button
+                onClick={() => handleNavigate('/premium')}
+                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+              >
+                Premium
+              </button>
+              <button
+                onClick={() => handleNavigate('/akun')}
+                className="w-full text-left px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white"
+              >
+                {isAuthenticated ? 'Akun Saya' : 'Masuk / Daftar'}
+              </button>
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -15,13 +15,17 @@ import ScrollToTop from "./components/ScrollToTop";
 import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 function AppContent() {
   const location = useLocation();
+  const { user } = useAuth();
   
   // Don't show AdPopup on admin and login routes
-  const shouldShowAdPopup = !location.pathname.startsWith('/admin') && location.pathname !== '/login';
+  const shouldShowAdPopup =
+    !location.pathname.startsWith('/admin') &&
+    location.pathname !== '/login' &&
+    !user?.membership_active;
 
   return (
     <>

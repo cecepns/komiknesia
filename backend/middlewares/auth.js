@@ -15,7 +15,21 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const [users] = await db.execute(
-      'SELECT id, username, email, profile_image FROM users WHERE id = ?',
+      `SELECT
+        id,
+        username,
+        email,
+        profile_image,
+        points,
+        is_membership,
+        membership_expires_at,
+        CASE
+          WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active
+      FROM users
+      WHERE id = ?`,
       [decoded.userId]
     );
 
@@ -41,7 +55,21 @@ const optionalAuthenticate = async (req, res, next) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const [users] = await db.execute(
-      'SELECT id, username, email, profile_image FROM users WHERE id = ?',
+      `SELECT
+        id,
+        username,
+        email,
+        profile_image,
+        points,
+        is_membership,
+        membership_expires_at,
+        CASE
+          WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active
+      FROM users
+      WHERE id = ?`,
       [decoded.userId]
     );
     req.user = users.length > 0 ? users[0] : null;

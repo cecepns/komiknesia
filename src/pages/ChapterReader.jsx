@@ -10,14 +10,17 @@ import {
   X,
   ChevronDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Play,
+  Pause
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
-import { API_BASE_URL, getImageUrl } from '../utils/api';
+import { API_BASE_URL, apiClient, getImageUrl } from '../utils/api';
 import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 import CommentSection from '../components/CommentSection';
+import { useAuth } from '../contexts/AuthContext';
 
 const ChapterReader = () => {
   const { chapterSlug } = useParams();
@@ -29,7 +32,12 @@ const ChapterReader = () => {
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
   const [showScrollButtons, setShowScrollButtons] = useState(false);
   const [mangaSlug, setMangaSlug] = useState(null);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(false);
+  const [autoScrollSpeed, setAutoScrollSpeed] = useState(2);
+  const autoScrollTimerRef = useRef(null);
   const topRef = useRef(null);
+  const { user } = useAuth();
+  const isPremiumUser = !!user?.membership_active;
 
   // Fetch chapter content (includes all data we need)
   useEffect(() => {
@@ -39,7 +47,10 @@ const ChapterReader = () => {
         setError(null);
         
         // Use our API endpoint which checks database first, then falls back to WestManga
-        const response = await fetch(`${API_BASE_URL}/chapters/slug/${chapterSlug}`);
+        const token = apiClient.getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/chapters/slug/${chapterSlug}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         
         if (!response.ok) {
           throw new Error('Chapter tidak ditemukan');
@@ -111,8 +122,8 @@ const ChapterReader = () => {
   const mangaData = chapterData?.content || null;
 
   // Fetch ads for manga-detail-top and manga-detail-bottom
-  const { ads: mangaDetailTopAds } = useAds('manga-detail-top');
-  const { ads: mangaDetailBottomAds } = useAds('manga-detail-bottom');
+  const { ads: mangaDetailTopAds } = useAds('manga-detail-top', null, !isPremiumUser);
+  const { ads: mangaDetailBottomAds } = useAds('manga-detail-bottom', null, !isPremiumUser);
 
   const handlePrevChapter = () => {
     if (currentChapterIndex < allChapters.length - 1) {
@@ -165,6 +176,27 @@ const ChapterReader = () => {
       behavior: 'smooth' 
     });
   };
+
+  useEffect(() => {
+    if (!isPremiumUser || !autoScrollEnabled) {
+      if (autoScrollTimerRef.current) {
+        clearInterval(autoScrollTimerRef.current);
+        autoScrollTimerRef.current = null;
+      }
+      return;
+    }
+
+    autoScrollTimerRef.current = setInterval(() => {
+      window.scrollBy({ top: autoScrollSpeed, left: 0, behavior: 'auto' });
+    }, 16);
+
+    return () => {
+      if (autoScrollTimerRef.current) {
+        clearInterval(autoScrollTimerRef.current);
+        autoScrollTimerRef.current = null;
+      }
+    };
+  }, [isPremiumUser, autoScrollEnabled, autoScrollSpeed]);
 
   if (loading) {
     return (
@@ -319,10 +351,35 @@ const ChapterReader = () => {
             <p className="text-sm sm:text-base md:text-lg text-gray-400">
               Chapter {currentChapter?.number || chapterData?.number}
             </p>
+            {isPremiumUser && (
+              <div className="mt-4 max-w-md mx-auto rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAutoScrollEnabled((prev) => !prev)}
+                    className="h-10 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center justify-center gap-2"
+                  >
+                    {autoScrollEnabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    {autoScrollEnabled ? 'Pause Auto Scroll' : 'Play Auto Scroll'}
+                  </button>
+                  <div className="flex-1 text-left">
+                    <label className="block text-xs text-gray-300 mb-1">Kecepatan Auto Scroll</label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={8}
+                      value={autoScrollSpeed}
+                      onChange={(e) => setAutoScrollSpeed(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Ad Banner - Top of Images (min-height mengurangi CLS + area iklan konsisten) */}
-          {mangaDetailTopAds.length > 0 && (
+          {!isPremiumUser && mangaDetailTopAds.length > 0 && (
             <div className="px-3 sm:px-4 mb-6 min-h-[80px] sm:min-h-[90px] md:min-h-[100px]">
               <AdBanner
                 ads={mangaDetailTopAds}
@@ -398,7 +455,7 @@ const ChapterReader = () => {
           </div>
 
           {/* Ad Banner - Above Comment Section with Grid 2 */}
-          {mangaDetailBottomAds.length > 0 && (
+          {!isPremiumUser && mangaDetailBottomAds.length > 0 && (
             <div className="px-3 sm:px-4 mb-6 min-h-[100px] sm:min-h-[120px] md:min-h-[140px]">
               <AdBanner
                 ads={mangaDetailBottomAds}

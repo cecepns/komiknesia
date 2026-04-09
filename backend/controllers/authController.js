@@ -52,7 +52,21 @@ const register = async (req, res) => {
     );
 
     const [inserted] = await db.execute(
-      'SELECT id, username, email, profile_image FROM users WHERE id = LAST_INSERT_ID()'
+      `SELECT
+        id,
+        username,
+        email,
+        profile_image,
+        points,
+        is_membership,
+        membership_expires_at,
+        CASE
+          WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active
+      FROM users
+      WHERE id = LAST_INSERT_ID()`
     );
     const user = inserted[0];
 
@@ -71,6 +85,10 @@ const register = async (req, res) => {
           username: user.username,
           email: user.email || null,
           profile_image: user.profile_image || null,
+          points: Number(user.points || 0),
+          is_membership: !!user.is_membership,
+          membership_expires_at: user.membership_expires_at || null,
+          membership_active: !!user.membership_active,
         },
       },
     });
@@ -91,7 +109,22 @@ const login = async (req, res) => {
     }
 
     const [users] = await db.execute(
-      'SELECT id, username, email, password, profile_image FROM users WHERE username = ? OR email = ?',
+      `SELECT
+        id,
+        username,
+        email,
+        password,
+        profile_image,
+        points,
+        is_membership,
+        membership_expires_at,
+        CASE
+          WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active
+      FROM users
+      WHERE username = ? OR email = ?`,
       [username, username]
     );
 
@@ -124,6 +157,10 @@ const login = async (req, res) => {
           username: user.username,
           email: user.email,
           profile_image: user.profile_image || null,
+          points: Number(user.points || 0),
+          is_membership: !!user.is_membership,
+          membership_expires_at: user.membership_expires_at || null,
+          membership_active: !!user.membership_active,
         },
       },
     });
@@ -142,6 +179,10 @@ const me = async (req, res) => {
         username: req.user.username,
         email: req.user.email,
         profile_image: req.user.profile_image || null,
+        points: Number(req.user.points || 0),
+        is_membership: !!req.user.is_membership,
+        membership_expires_at: req.user.membership_expires_at || null,
+        membership_active: !!req.user.membership_active,
       },
     });
   } catch (error) {
@@ -250,7 +291,21 @@ const updateProfile = async (req, res) => {
     }
 
     const [updatedUsers] = await db.execute(
-      'SELECT id, username, email, profile_image FROM users WHERE id = ?',
+      `SELECT
+        id,
+        username,
+        email,
+        profile_image,
+        points,
+        is_membership,
+        membership_expires_at,
+        CASE
+          WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active
+      FROM users
+      WHERE id = ?`,
       [userId]
     );
     const updated = updatedUsers[0];
@@ -262,6 +317,10 @@ const updateProfile = async (req, res) => {
         username: updated.username,
         email: updated.email,
         profile_image: updated.profile_image || null,
+        points: Number(updated.points || 0),
+        is_membership: !!updated.is_membership,
+        membership_expires_at: updated.membership_expires_at || null,
+        membership_active: !!updated.membership_active,
       },
     });
   } catch (error) {

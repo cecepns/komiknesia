@@ -1,33 +1,9 @@
+import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Crown, ChevronUp, ChevronDown, Minus } from "lucide-react";
+import { Crown } from "lucide-react";
 import crownImage from "../assets/leaderboard/crown.png";
 import diamondImage from "../assets/leaderboard/diamond.png";
-
-const leaderboardData = [
-  { id: 1, name: "Iman", level: 32, points: 2019, trend: "up" },
-  { id: 2, name: "Vatani", level: 3, points: 1952, trend: "down" },
-  { id: 3, name: "Jonathan", level: 84, points: 1431, trend: "down" },
-  { id: 4, name: "Paul", level: 12, points: 1241, trend: "up" },
-  { id: 5, name: "Robert", level: 9, points: 1051, trend: "flat" },
-  { id: 6, name: "Gwen", level: 17, points: 953, trend: "up" },
-  { id: 7, name: "Emma", level: 8, points: 943, trend: "flat" },
-  { id: 8, name: "Sophia", level: 21, points: 914, trend: "down" },
-  { id: 9, name: "Mia", level: 18, points: 896, trend: "down" },
-  { id: 10, name: "John", level: 14, points: 848, trend: "down" },
-];
-
-function rankStyle(rank) {
-  if (rank === 1) return "bg-amber-500 text-amber-950";
-  if (rank === 2) return "bg-slate-300 text-slate-900";
-  if (rank === 3) return "bg-orange-400 text-orange-950";
-  return "bg-gray-800 text-gray-100 dark:bg-gray-700 dark:text-gray-100";
-}
-
-function TrendIcon({ trend }) {
-  if (trend === "up") return <ChevronUp className="h-4 w-4 text-emerald-400" />;
-  if (trend === "down") return <ChevronDown className="h-4 w-4 text-rose-400" />;
-  return <Minus className="h-4 w-4 text-gray-400" />;
-}
+import { apiClient } from "../utils/api";
 
 function avatarSeed(name) {
   const colors = [
@@ -43,8 +19,28 @@ function avatarSeed(name) {
 }
 
 const Leaderboard = () => {
-  const topThree = leaderboardData.slice(0, 3);
-  const podiumData = [topThree[1], topThree[0], topThree[2]];
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const res = await apiClient.getLeaderboard(50);
+        setLeaderboardData(res?.data || []);
+      } catch (e) {
+        setError(e?.message || "Gagal memuat leaderboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadLeaderboard();
+  }, []);
+
+  const topThree = useMemo(() => leaderboardData.slice(0, 3), [leaderboardData]);
+  const podiumData = useMemo(() => [topThree[1], topThree[0], topThree[2]].filter(Boolean), [topThree]);
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-950 dark:text-gray-100 pt-5 md:pt-20 pb-4">
@@ -75,11 +71,11 @@ const Leaderboard = () => {
             <div className="mb-8 rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 p-3 sm:p-4 dark:border-white/15 dark:from-white/10 dark:to-white/5">
               <div className="grid grid-cols-3 gap-2 sm:gap-3 items-end">
                 {podiumData.map((player) => {
-                  const isChampion = player.id === 1;
-                  const isSecond = player.id === 2;
+                  const isChampion = player.rank === 1;
+                  const isSecond = player.rank === 2;
                   const barHeight = isChampion ? "h-44 sm:h-52" : isSecond ? "h-36 sm:h-44" : "h-32 sm:h-40";
                   return (
-                    <div key={player.id} className="flex flex-col items-center text-center">
+                    <div key={player.id || player.rank} className="flex flex-col items-center text-center">
                       <div className={`relative mb-2 ${isChampion ? "mt-0" : "mt-6 sm:mt-8"}`}>
                         {isChampion && (
                           <img
@@ -113,7 +109,7 @@ const Leaderboard = () => {
                         } flex flex-col items-center justify-between py-2 sm:py-3 text-white shadow-lg`}
                       >
                         <span className="text-[10px] sm:text-xs font-semibold opacity-90">Level {player.level}</span>
-                        <span className="text-2xl sm:text-3xl font-bold">{player.id}</span>
+                        <span className="text-2xl sm:text-3xl font-bold">{player.rank}</span>
                       </div>
                     </div>
                   );
@@ -123,22 +119,26 @@ const Leaderboard = () => {
 
             <div className="rounded-2xl bg-gray-50 border border-gray-200 overflow-hidden dark:bg-gray-800/50 dark:border-gray-700">
               <div className="max-h-[460px] overflow-y-auto">
+                {loading && (
+                  <div className="p-6 text-center text-gray-500 dark:text-gray-400">Loading leaderboard...</div>
+                )}
+                {error && (
+                  <div className="p-6 text-center text-red-500">{error}</div>
+                )}
                 {leaderboardData.map((player) => (
                   <div
-                    key={player.id}
+                    key={player.id || player.rank}
                     className={`flex items-center gap-3 px-4 md:px-5 py-3.5 border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 ${
-                      player.id <= 3 ? "bg-amber-50/40 dark:bg-amber-900/10" : "bg-transparent"
+                      player.rank <= 3 ? "bg-amber-50/40 dark:bg-amber-900/10" : "bg-transparent"
                     }`}
                   >
                     <div className="w-8 flex items-center justify-center">
-                      {player.id === 1 ? (
+                      {player.rank === 1 ? (
                         <img src={crownImage} alt="Rank 1" className="h-6 w-6" />
                       ) : (
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{player.id}</span>
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{player.rank}</span>
                       )}
                     </div>
-
-                    <TrendIcon trend={player.trend} />
 
                     <div
                       className={`h-9 w-9 rounded-full ${avatarSeed(
@@ -159,6 +159,9 @@ const Leaderboard = () => {
                     </div>
                   </div>
                 ))}
+                {!loading && !error && leaderboardData.length === 0 && (
+                  <div className="p-6 text-center text-gray-500 dark:text-gray-400">Belum ada data leaderboard.</div>
+                )}
               </div>
             </div>
           </div>

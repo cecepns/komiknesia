@@ -120,6 +120,57 @@ const showBySlug = async (req, res) => {
           number: chapter.number,
         };
 
+        // Award EXP once per user per chapter.
+        if (req.user?.id) {
+          const membershipActive = !!req.user.membership_active;
+          const expGain = membershipActive ? 24 : 20;
+          let gainedExp = 0;
+
+          try {
+            const [insertRead] = await db.execute(
+              `INSERT IGNORE INTO user_chapter_reads (user_id, chapter_id, exp_awarded)
+               VALUES (?, ?, ?)`,
+              [req.user.id, chapter.id, expGain]
+            );
+
+            if (insertRead.affectedRows > 0) {
+              await db.execute(
+                'UPDATE users SET points = points + ? WHERE id = ?',
+                [expGain, req.user.id]
+              );
+              gainedExp = expGain;
+            }
+
+            const [userRows] = await db.execute(
+              `SELECT
+                points,
+                is_membership,
+                membership_expires_at,
+                CASE
+                  WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
+                  THEN 1
+                  ELSE 0
+                END AS membership_active
+               FROM users
+               WHERE id = ?`,
+              [req.user.id]
+            );
+
+            if (userRows.length > 0) {
+              const currentUser = userRows[0];
+              responseData.reader = {
+                points: Number(currentUser.points || 0),
+                gained_exp: gainedExp,
+                is_membership: !!currentUser.is_membership,
+                membership_active: !!currentUser.membership_active,
+                membership_expires_at: currentUser.membership_expires_at,
+              };
+            }
+          } catch (awardError) {
+            console.warn('Failed awarding chapter exp:', awardError.message);
+          }
+        }
+
         return res.json({
           status: true,
           data: responseData,

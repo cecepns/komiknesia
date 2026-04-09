@@ -146,6 +146,42 @@ class APIClient {
     });
   }
 
+  // Admin users
+  getAdminUsers({ search = '', page = 1, limit = 20 } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(search ? { search } : {}),
+    });
+    return this.request(`/admin/users?${params.toString()}`);
+  }
+
+  createAdminUser(payload) {
+    return this.request('/admin/users', {
+      method: 'POST',
+      body: payload,
+    });
+  }
+
+  updateAdminUser(id, payload) {
+    return this.request(`/admin/users/${id}`, {
+      method: 'PUT',
+      body: payload,
+    });
+  }
+
+  deleteAdminUser(id) {
+    return this.request(`/admin/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Public leaderboard
+  getLeaderboard(limit = 50) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    return this.request(`/leaderboard?${params.toString()}`);
+  }
+
   logout() {
     this.setAuthToken(null);
   }

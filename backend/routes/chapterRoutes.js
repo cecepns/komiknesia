@@ -1,12 +1,12 @@
 const router = require('express').Router();
 
-const { authenticateToken } = require('../middlewares/auth');
+const { authenticateToken, optionalAuthenticate } = require('../middlewares/auth');
 const { upload } = require('../middlewares/upload');
 const ChapterController = require('../controllers/ChapterController');
 
 // Detail chapter by slug
 // Mounted at /api/chapters → full path: /api/chapters/slug/:slug
-router.get('/slug/:slug', ChapterController.showBySlug);
+router.get('/slug/:slug', optionalAuthenticate, ChapterController.showBySlug);
 
 // Chapter CRUD for admin (mounted at /api/chapters)
 // Full paths:
