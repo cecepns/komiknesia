@@ -223,6 +223,7 @@ app.listen(PORT, () => {
 
 const runSqlMigration = async () => {
   const statements = [
+    'ALTER TABLE users ADD COLUMN name VARCHAR(100) NULL AFTER id',
     'ALTER TABLE users ADD COLUMN points INT NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN is_membership TINYINT(1) NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN membership_expires_at DATETIME NULL',

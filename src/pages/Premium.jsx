@@ -25,7 +25,7 @@ const premiumPackages = [
   },
 ];
 
-const benefits = ["Tanpa iklan", "Bonus point tambahan", "Auto scroll manga"];
+const benefits = ["Tanpa iklan", "Bonus point tambahan", "Fitur Premium"];
 
 const Premium = () => {
   return (

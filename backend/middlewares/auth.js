@@ -17,6 +17,7 @@ const authenticateToken = async (req, res, next) => {
     const [users] = await db.execute(
       `SELECT
         id,
+        name,
         username,
         email,
         bio,
@@ -40,7 +41,7 @@ const authenticateToken = async (req, res, next) => {
 
     req.user = users[0];
     next();
-  } catch (error) {
+  } catch {
     return res.status(403).json({ status: false, error: 'Invalid or expired token' });
   }
 };
@@ -58,6 +59,7 @@ const optionalAuthenticate = async (req, res, next) => {
     const [users] = await db.execute(
       `SELECT
         id,
+        name,
         username,
         email,
         bio,

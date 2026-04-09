@@ -3,19 +3,32 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { JWT_SECRET } = require('../middlewares/auth');
 
+const USERNAME_REGEX = /^[a-z0-9._-]+$/;
+
+const normalizeUsername = (value = '') => String(value).trim().toLowerCase().replace(/\s+/g, '');
+
 const register = async (req, res) => {
   try {
-    const { username, password, email } = req.body || {};
-    if (!username || !password) {
-      return res.status(400).json({ status: false, error: 'Username dan password wajib diisi' });
+    const { name, username, password, email } = req.body || {};
+    if (!name || !username || !password) {
+      return res.status(400).json({ status: false, error: 'Nama, username, dan password wajib diisi' });
     }
 
-    const usernameTrim = String(username).trim();
-    if (usernameTrim.length < 3) {
+    const nameTrim = String(name).trim();
+    if (!nameTrim) {
+      return res.status(400).json({ status: false, error: 'Nama wajib diisi' });
+    }
+
+    const usernameLower = normalizeUsername(username);
+    if (usernameLower.length < 3) {
       return res.status(400).json({ status: false, error: 'Username minimal 3 karakter' });
     }
-
-    const usernameLower = usernameTrim.toLowerCase();
+    if (!USERNAME_REGEX.test(usernameLower)) {
+      return res.status(400).json({
+        status: false,
+        error: 'Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).',
+      });
+    }
     const emailTrim = email && String(email).trim() ? String(email).trim() : '';
 
     const [existingUsername] = await db.execute(
@@ -47,13 +60,14 @@ const register = async (req, res) => {
     const emailVal = emailTrim || null;
 
     await db.execute(
-      'INSERT INTO users (username, password, email, profile_image) VALUES (?, ?, ?, ?)',
-      [usernameLower, hashedPassword, emailVal, profileImage]
+      'INSERT INTO users (name, username, password, email, profile_image) VALUES (?, ?, ?, ?, ?)',
+      [nameTrim.slice(0, 100), usernameLower, hashedPassword, emailVal, profileImage]
     );
 
     const [inserted] = await db.execute(
       `SELECT
         id,
+        name,
         username,
         email,
         bio,
@@ -83,6 +97,7 @@ const register = async (req, res) => {
         token,
         user: {
           id: user.id,
+          name: user.name || user.username,
           username: user.username,
           email: user.email || null,
           bio: user.bio || null,
@@ -113,6 +128,7 @@ const login = async (req, res) => {
     const [users] = await db.execute(
       `SELECT
         id,
+        name,
         username,
         email,
         bio,
@@ -128,7 +144,7 @@ const login = async (req, res) => {
         END AS membership_active
       FROM users
       WHERE username = ? OR email = ?`,
-      [username, username]
+      [normalizeUsername(username), String(username).trim()]
     );
 
     if (users.length === 0) {
@@ -157,6 +173,7 @@ const login = async (req, res) => {
         token,
         user: {
           id: user.id,
+          name: user.name || user.username,
           username: user.username,
           email: user.email,
           bio: user.bio || null,
@@ -180,6 +197,7 @@ const me = async (req, res) => {
       status: true,
       data: {
         id: req.user.id,
+        name: req.user.name || req.user.username,
         username: req.user.username,
         email: req.user.email,
         bio: req.user.bio || null,
@@ -200,10 +218,10 @@ const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const profileImage = req.file ? `/uploads/${req.file.filename}` : null;
-    const { username, email, bio, current_password, new_password } = req.body || {};
+    const { name, username, email, bio, current_password, new_password } = req.body || {};
 
     const [users] = await db.execute(
-      'SELECT id, username, email, bio, password, profile_image FROM users WHERE id = ?',
+      'SELECT id, name, username, email, bio, password, profile_image FROM users WHERE id = ?',
       [userId]
     );
     if (users.length === 0) {
@@ -214,20 +232,35 @@ const updateProfile = async (req, res) => {
     const updates = [];
     const params = [];
 
-    const usernameTrim = typeof username === 'string' ? username.trim() : '';
+    const nameTrim = typeof name === 'string' ? name.trim() : '';
+    const usernameLower = typeof username === 'string' ? normalizeUsername(username) : '';
     const emailTrim = typeof email === 'string' ? email.trim() : '';
 
+    if (typeof name === 'string') {
+      const nameVal = nameTrim ? nameTrim.slice(0, 100) : null;
+      if ((currentUser.name || null) !== nameVal) {
+        updates.push('name = ?');
+        params.push(nameVal);
+      }
+    }
+
     if (
-      usernameTrim &&
-      usernameTrim.toLowerCase() !== String(currentUser.username || '').trim().toLowerCase()
+      usernameLower &&
+      usernameLower !== String(currentUser.username || '').trim().toLowerCase()
     ) {
-      if (usernameTrim.length < 3) {
+      if (usernameLower.length < 3) {
         return res.status(400).json({ status: false, error: 'Username minimal 3 karakter' });
+      }
+      if (!USERNAME_REGEX.test(usernameLower)) {
+        return res.status(400).json({
+          status: false,
+          error: 'Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).',
+        });
       }
 
       const [existing] = await db.execute(
         'SELECT id FROM users WHERE id != ? AND (LOWER(TRIM(username)) = LOWER(TRIM(?)) OR (email IS NOT NULL AND TRIM(?) != "" AND LOWER(TRIM(email)) = LOWER(TRIM(?))))',
-        [userId, usernameTrim, emailTrim || '', emailTrim || '']
+        [userId, usernameLower, emailTrim || '', emailTrim || '']
       );
       if (existing.length > 0) {
         return res.status(400).json({
@@ -236,7 +269,7 @@ const updateProfile = async (req, res) => {
         });
       }
       updates.push('username = ?');
-      params.push(usernameTrim);
+      params.push(usernameLower);
     }
 
     if (emailTrim || email === '') {
@@ -307,6 +340,7 @@ const updateProfile = async (req, res) => {
     const [updatedUsers] = await db.execute(
       `SELECT
         id,
+        name,
         username,
         email,
         bio,
@@ -329,6 +363,7 @@ const updateProfile = async (req, res) => {
       status: true,
       data: {
         id: updated.id,
+        name: updated.name || updated.username,
         username: updated.username,
         email: updated.email,
         bio: updated.bio || null,
@@ -345,10 +380,65 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const publicProfile = async (req, res) => {
+  try {
+    const rawUsername = String(req.params.username || '').trim();
+    const username = normalizeUsername(rawUsername);
+    if (!username) {
+      return res.status(400).json({ status: false, error: 'Username wajib diisi' });
+    }
+
+    const [users] = await db.execute(
+      `SELECT
+        id,
+        name,
+        username,
+        bio,
+        profile_image,
+        points,
+        is_membership,
+        membership_expires_at,
+        CASE
+          WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active
+      FROM users
+      WHERE LOWER(TRIM(username)) = LOWER(TRIM(?))
+      LIMIT 1`,
+      [username]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ status: false, error: 'Profil user tidak ditemukan' });
+    }
+
+    const user = users[0];
+    return res.json({
+      status: true,
+      data: {
+        id: user.id,
+        name: user.name || user.username,
+        username: user.username,
+        bio: user.bio || null,
+        profile_image: user.profile_image || null,
+        points: Number(user.points || 0),
+        is_membership: !!user.is_membership,
+        membership_expires_at: user.membership_expires_at || null,
+        membership_active: !!user.membership_active,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching public profile:', error);
+    return res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   register,
   login,
   me,
   updateProfile,
+  publicProfile,
 };
 

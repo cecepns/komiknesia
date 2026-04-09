@@ -138,6 +138,10 @@ class APIClient {
     return this.request('/auth/me');
   }
 
+  async getUserProfile(username) {
+    return this.request(`/auth/profile/${encodeURIComponent(username)}`);
+  }
+
   async updateProfile(formData) {
     return this.request('/auth/profile', {
       method: 'PUT',
@@ -177,8 +181,11 @@ class APIClient {
   }
 
   // Public leaderboard
-  getLeaderboard(limit = 50) {
-    const params = new URLSearchParams({ limit: String(limit) });
+  getLeaderboard({ page = 1, limit = 20 } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
     return this.request(`/leaderboard?${params.toString()}`);
   }
 

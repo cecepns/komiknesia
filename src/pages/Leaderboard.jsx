@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { Link, useNavigate } from "react-router-dom";
 import { Crown } from "lucide-react";
 import crownImage from "../assets/leaderboard/crown.png";
 import diamondImage from "../assets/leaderboard/diamond.png";
@@ -22,19 +23,26 @@ function avatarSeed(name) {
 const Leaderboard = () => {
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [currentUserRank, setCurrentUserRank] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [brokenImageIds, setBrokenImageIds] = useState(() => new Set());
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
     const loadLeaderboard = async () => {
       try {
         setLoading(true);
         setError("");
-        const res = await apiClient.getLeaderboard(100);
+        const res = await apiClient.getLeaderboard({ page: currentPage, limit: ITEMS_PER_PAGE });
         setLeaderboardData(res?.data || []);
         setCurrentUserRank(res?.current_user || null);
+        setTotalUsers(Number(res?.total_users || 0));
+        setTotalPages(Number(res?.total_pages || 1));
       } catch (e) {
         setError(e?.message || "Gagal memuat leaderboard");
       } finally {
@@ -42,7 +50,7 @@ const Leaderboard = () => {
       }
     };
     loadLeaderboard();
-  }, []);
+  }, [currentPage]);
 
   const topThree = useMemo(() => leaderboardData.slice(0, 3), [leaderboardData]);
   const podiumData = useMemo(() => [topThree[1], topThree[0], topThree[2]].filter(Boolean), [topThree]);
@@ -105,7 +113,12 @@ const Leaderboard = () => {
                       const isSecond = player.rank === 2;
                       const barHeight = isChampion ? "h-44 sm:h-52" : isSecond ? "h-36 sm:h-44" : "h-32 sm:h-40";
                       return (
-                        <div key={player.id || player.rank} className="flex flex-col items-center text-center">
+                        <button
+                          type="button"
+                          key={player.id || player.rank}
+                          onClick={() => player.username && navigate(`/profile/${encodeURIComponent(player.username)}`)}
+                          className="flex flex-col items-center text-center w-full hover:opacity-90 transition-opacity"
+                        >
                           <div className={`relative mb-2 ${isChampion ? "mt-0" : "mt-6 sm:mt-8"}`}>
                             {isChampion && (
                               <img
@@ -152,13 +165,21 @@ const Leaderboard = () => {
                             <span className="text-[10px] sm:text-xs font-semibold opacity-90">Level {player.level}</span>
                             <span className="text-2xl sm:text-3xl font-bold">{player.rank}</span>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
               </div>
             </div>
 
             <div className="rounded-2xl bg-gray-50 border border-gray-200 overflow-hidden dark:bg-gray-800/50 dark:border-gray-700">
+              <div className="px-4 md:px-5 py-3 border-b border-gray-200/80 dark:border-gray-700/70 flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-300">
+                  Total User: <strong>{totalUsers.toLocaleString()}</strong>
+                </span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  Halaman {currentPage} / {totalPages}
+                </span>
+              </div>
               <div className="max-h-[460px] overflow-y-auto">
                 {loading && (
                   <div className="p-4 space-y-3">
@@ -181,59 +202,102 @@ const Leaderboard = () => {
                 {error && (
                   <div className="p-6 text-center text-red-500">{error}</div>
                 )}
-                {!loading && leaderboardData.map((player) => (
-                  <div
-                    key={player.id || player.rank}
-                    className={`flex items-center gap-3 px-4 md:px-5 py-3.5 border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 ${
-                      player.id === user?.id
-                        ? "bg-emerald-50 ring-1 ring-emerald-300 dark:bg-emerald-900/20 dark:ring-emerald-700"
-                        : player.rank <= 3
-                          ? "bg-amber-50/40 dark:bg-amber-900/10"
-                          : "bg-transparent"
-                    }`}
-                  >
-                    <div className="w-8 flex items-center justify-center">
-                      {player.rank === 1 ? (
-                        <img src={crownImage} alt="Rank 1" className="h-6 w-6" />
-                      ) : (
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{player.rank}</span>
-                      )}
-                    </div>
+                {!loading && leaderboardData.map((player) => {
+                  const rowClass = `flex items-center gap-3 px-4 md:px-5 py-3.5 border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 transition-colors ${
+                    player.id === user?.id
+                      ? "bg-emerald-50 ring-1 ring-emerald-300 dark:bg-emerald-900/20 dark:ring-emerald-700"
+                      : player.rank <= 3
+                        ? "bg-amber-50/40 dark:bg-amber-900/10"
+                        : "bg-transparent"
+                  }`;
 
-                    <div className="h-9 w-9 rounded-full overflow-hidden">
-                      {player.profile_image && !brokenImageIds.has(player.id) ? (
-                        <img
-                          src={getImageUrl(player.profile_image)}
-                          alt={player.name}
-                          className="h-full w-full object-cover"
-                          onError={() => markImageBroken(player.id)}
-                        />
-                      ) : (
-                        <div
-                          className={`h-full w-full rounded-full ${avatarSeed(
-                            player.name
-                          )} flex items-center justify-center font-bold text-sm`}
-                        >
-                          {player.name.charAt(0)}
-                        </div>
-                      )}
-                    </div>
+                  const content = (
+                    <>
+                      <div className="w-8 flex items-center justify-center">
+                        {player.rank === 1 ? (
+                          <img src={crownImage} alt="Rank 1" className="h-6 w-6" />
+                        ) : (
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{player.rank}</span>
+                        )}
+                      </div>
 
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold truncate">{player.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Level {player.level}</p>
-                    </div>
+                      <div className="h-9 w-9 rounded-full overflow-hidden">
+                        {player.profile_image && !brokenImageIds.has(player.id) ? (
+                          <img
+                            src={getImageUrl(player.profile_image)}
+                            alt={player.name}
+                            className="h-full w-full object-cover"
+                            onError={() => markImageBroken(player.id)}
+                          />
+                        ) : (
+                          <div
+                            className={`h-full w-full rounded-full ${avatarSeed(
+                              player.name
+                            )} flex items-center justify-center font-bold text-sm`}
+                          >
+                            {player.name.charAt(0)}
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                      <img src={diamondImage} alt="Diamond" className="h-4 w-4" />
-                      <span>{player.points.toLocaleString()} pts</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold truncate">{player.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Level {player.level}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                        <img src={diamondImage} alt="Diamond" className="h-4 w-4" />
+                        <span>{player.points.toLocaleString()} pts</span>
+                      </div>
+                    </>
+                  );
+
+                  if (player.username) {
+                    return (
+                      <Link
+                        key={player.id || player.rank}
+                        to={`/profile/${encodeURIComponent(player.username)}`}
+                        className={`${rowClass} hover:bg-gray-100 dark:hover:bg-gray-700/40`}
+                      >
+                        {content}
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <div key={player.id || player.rank} className={rowClass}>
+                      {content}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {!loading && !error && leaderboardData.length === 0 && (
                   <div className="p-6 text-center text-gray-500 dark:text-gray-400">Belum ada data leaderboard.</div>
                 )}
               </div>
+              {!loading && !error && totalPages > 1 && (
+                <div className="px-4 md:px-5 py-3 border-t border-gray-200/80 dark:border-gray-700/70 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    Sebelumnya
+                  </button>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, totalUsers)}-
+                    {Math.min(currentPage * ITEMS_PER_PAGE, totalUsers)} dari {totalUsers}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    Berikutnya
+                  </button>
+                </div>
+              )}
             </div>
 
             {!loading && !error && currentUserRank && !currentUserInTopList && (
@@ -241,37 +305,74 @@ const Leaderboard = () => {
                 <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                   Posisi Kamu
                 </div>
-                <div className="flex items-center gap-3 px-4 md:px-5 py-3.5 border-t border-emerald-200 dark:border-emerald-800">
-                  <div className="w-8 flex items-center justify-center">
-                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{currentUserRank.rank}</span>
+                {currentUserRank.username ? (
+                  <Link
+                    to={`/profile/${encodeURIComponent(currentUserRank.username)}`}
+                    className="flex items-center gap-3 px-4 md:px-5 py-3.5 border-t border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/30 transition-colors"
+                  >
+                    <div className="w-8 flex items-center justify-center">
+                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{currentUserRank.rank}</span>
+                    </div>
+                    <div className="h-9 w-9 rounded-full overflow-hidden">
+                      {currentUserRank.profile_image && !brokenImageIds.has(currentUserRank.id) ? (
+                        <img
+                          src={getImageUrl(currentUserRank.profile_image)}
+                          alt={currentUserRank.name}
+                          className="h-full w-full object-cover"
+                          onError={() => markImageBroken(currentUserRank.id)}
+                        />
+                      ) : (
+                        <div
+                          className={`h-full w-full rounded-full ${avatarSeed(
+                            currentUserRank.name
+                          )} flex items-center justify-center font-bold text-sm`}
+                        >
+                          {currentUserRank.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{currentUserRank.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Level {currentUserRank.level}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                      <img src={diamondImage} alt="Diamond" className="h-4 w-4" />
+                      <span>{currentUserRank.points.toLocaleString()} pts</span>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-3 px-4 md:px-5 py-3.5 border-t border-emerald-200 dark:border-emerald-800">
+                    <div className="w-8 flex items-center justify-center">
+                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{currentUserRank.rank}</span>
+                    </div>
+                    <div className="h-9 w-9 rounded-full overflow-hidden">
+                      {currentUserRank.profile_image && !brokenImageIds.has(currentUserRank.id) ? (
+                        <img
+                          src={getImageUrl(currentUserRank.profile_image)}
+                          alt={currentUserRank.name}
+                          className="h-full w-full object-cover"
+                          onError={() => markImageBroken(currentUserRank.id)}
+                        />
+                      ) : (
+                        <div
+                          className={`h-full w-full rounded-full ${avatarSeed(
+                            currentUserRank.name
+                          )} flex items-center justify-center font-bold text-sm`}
+                        >
+                          {currentUserRank.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{currentUserRank.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Level {currentUserRank.level}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                      <img src={diamondImage} alt="Diamond" className="h-4 w-4" />
+                      <span>{currentUserRank.points.toLocaleString()} pts</span>
+                    </div>
                   </div>
-                  <div className="h-9 w-9 rounded-full overflow-hidden">
-                    {currentUserRank.profile_image && !brokenImageIds.has(currentUserRank.id) ? (
-                      <img
-                        src={getImageUrl(currentUserRank.profile_image)}
-                        alt={currentUserRank.name}
-                        className="h-full w-full object-cover"
-                        onError={() => markImageBroken(currentUserRank.id)}
-                      />
-                    ) : (
-                      <div
-                        className={`h-full w-full rounded-full ${avatarSeed(
-                          currentUserRank.name
-                        )} flex items-center justify-center font-bold text-sm`}
-                      >
-                        {currentUserRank.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold truncate">{currentUserRank.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Level {currentUserRank.level}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                    <img src={diamondImage} alt="Diamond" className="h-4 w-4" />
-                    <span>{currentUserRank.points.toLocaleString()} pts</span>
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>

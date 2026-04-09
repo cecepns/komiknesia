@@ -8,8 +8,10 @@ const Akun = () => {
   const { user, loading: authLoading, login, register, updateProfile, logout, isAuthenticated } = useAuth();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
+  const [profileName, setProfileName] = useState('');
   const [profileUsername, setProfileUsername] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profileBio, setProfileBio] = useState('');
@@ -26,10 +28,12 @@ const Akun = () => {
   useEffect(() => {
     if (user) {
       setProfileUsername(user.username || '');
+      setProfileName(user.name || '');
       setProfileEmail(user.email || '');
       setProfileBio(user.bio || '');
     } else {
       setProfileUsername('');
+      setProfileName('');
       setProfileEmail('');
       setProfileBio('');
     }
@@ -66,14 +70,23 @@ const Akun = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!username.trim()) {
+      if (!name.trim()) {
+        setError('Nama wajib diisi');
+        return;
+      }
+      if (!username.trim()) {
       setError('Username wajib diisi');
       return;
     }
-    if (username.trim().length < 3) {
+      const usernameNormalized = username.trim().toLowerCase().replace(/\s+/g, '');
+      if (usernameNormalized.length < 3) {
       setError('Username minimal 3 karakter');
       return;
     }
+      if (!/^[a-z0-9._-]+$/.test(usernameNormalized)) {
+        setError('Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).');
+        return;
+      }
     if (!password) {
       setError('Password wajib diisi');
       return;
@@ -81,7 +94,8 @@ const Akun = () => {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('username', username.trim());
+        formData.append('name', name.trim());
+        formData.append('username', usernameNormalized);
       formData.append('password', password);
       if (email.trim()) formData.append('email', email.trim());
       const result = await register(formData);
@@ -118,23 +132,34 @@ const Akun = () => {
     setError('');
     setSuccess('');
 
+    const trimmedName = profileName.trim();
     const trimmedUsername = profileUsername.trim();
     const trimmedEmail = profileEmail.trim();
     const trimmedBio = profileBio.trim();
 
+    if (!trimmedName) {
+      setError('Nama wajib diisi');
+      return;
+    }
     if (!trimmedUsername) {
       setError('Username wajib diisi');
       return;
     }
-    if (trimmedUsername.length < 3) {
+    const normalizedUsername = trimmedUsername.toLowerCase().replace(/\s+/g, '');
+    if (normalizedUsername.length < 3) {
       setError('Username minimal 3 karakter');
+      return;
+    }
+    if (!/^[a-z0-9._-]+$/.test(normalizedUsername)) {
+      setError('Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).');
       return;
     }
 
     setProfileLoading(true);
     try {
       const formData = new FormData();
-      formData.append('username', trimmedUsername);
+      formData.append('name', trimmedName);
+      formData.append('username', normalizedUsername);
       formData.append('email', trimmedEmail);
       formData.append('bio', trimmedBio);
       const result = await updateProfile(formData);
@@ -249,11 +274,22 @@ const Akun = () => {
             )}
             <form onSubmit={handleUpdateProfileInfo} className="mt-4 space-y-3 text-left">
               <div>
+                <label className="block text-sm font-medium mb-1">Nama</label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                  disabled={profileLoading}
+                  required
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">Username</label>
                 <input
                   type="text"
                   value={profileUsername}
-                  onChange={(e) => setProfileUsername(e.target.value)}
+                  onChange={(e) => setProfileUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
                   disabled={profileLoading}
                   minLength={3}
@@ -422,11 +458,23 @@ const Akun = () => {
             ) : (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
+                  <label className="block text-sm font-medium mb-1">Nama</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                    placeholder="Nama lengkap"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium mb-1">Username (unik, minimal 3 karakter)</label>
                   <input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
                     placeholder="Username"
                     required

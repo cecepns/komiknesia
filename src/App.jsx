@@ -11,6 +11,7 @@ import Contact from "./pages/Contact";
 import Akun from "./pages/Akun";
 import Leaderboard from "./pages/Leaderboard";
 import Premium from "./pages/Premium";
+import ProfileUser from "./pages/ProfileUser";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
@@ -42,6 +43,7 @@ function AppContent() {
           />
         <Route path="/view/:chapterSlug" element={<ChapterReader />} />
         <Route path="/komik/:slug" element={<MangaDetail />} />
+        <Route path="/profile/:username" element={<ProfileUser />} />
         <Route
           path="/library"
           element={
