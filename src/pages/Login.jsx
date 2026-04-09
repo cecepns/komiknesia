@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, Loader2 } from 'lucide-react';
+import { LogIn, Loader2, MessageCircle } from 'lucide-react';
+import { apiClient } from '../utils/api';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [adminWhatsapp, setAdminWhatsapp] = useState('');
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,6 +22,20 @@ const Login = () => {
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
+
+  useEffect(() => {
+    const fetchContactInfo = async () => {
+      try {
+        const data = await apiClient.getContactInfo(true);
+        if (data?.whatsapp) {
+          setAdminWhatsapp(String(data.whatsapp));
+        }
+      } catch (fetchError) {
+        // Silent fail: fallback without forgot-password CTA.
+      }
+    };
+    fetchContactInfo();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,6 +56,12 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  const whatsappHref = adminWhatsapp
+    ? `https://wa.me/${adminWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
+        'Halo admin, saya lupa password akun KomikNesia.'
+      )}`
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
@@ -125,6 +147,20 @@ const Login = () => {
               )}
             </button>
           </form>
+
+          {whatsappHref && (
+            <div className="mt-4 text-right">
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+              >
+                <MessageCircle className="h-4 w-4 mr-1.5" />
+                Lupa sandi? Hubungi admin
+              </a>
+            </div>
+          )}
 
           <div className="mt-6 text-center">
             <a

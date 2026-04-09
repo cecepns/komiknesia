@@ -12,6 +12,7 @@ const Akun = () => {
   const [email, setEmail] = useState('');
   const [profileUsername, setProfileUsername] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
+  const [profileBio, setProfileBio] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,11 +27,24 @@ const Akun = () => {
     if (user) {
       setProfileUsername(user.username || '');
       setProfileEmail(user.email || '');
+      setProfileBio(user.bio || '');
     } else {
       setProfileUsername('');
       setProfileEmail('');
+      setProfileBio('');
     }
   }, [user]);
+
+  const formatMembershipDate = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(date);
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -106,6 +120,7 @@ const Akun = () => {
 
     const trimmedUsername = profileUsername.trim();
     const trimmedEmail = profileEmail.trim();
+    const trimmedBio = profileBio.trim();
 
     if (!trimmedUsername) {
       setError('Username wajib diisi');
@@ -120,9 +135,8 @@ const Akun = () => {
     try {
       const formData = new FormData();
       formData.append('username', trimmedUsername);
-      if (trimmedEmail) {
-        formData.append('email', trimmedEmail);
-      }
+      formData.append('email', trimmedEmail);
+      formData.append('bio', trimmedBio);
       const result = await updateProfile(formData);
       if (result.success) {
         setSuccess('Profil berhasil diperbarui.');
@@ -224,6 +238,15 @@ const Akun = () => {
                 )}
               </label>
             </div>
+            {user?.membership_active && (
+              <div className="mb-5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                <p className="font-semibold">Premium Member</p>
+                <p>
+                  Aktif sampai{' '}
+                  {formatMembershipDate(user?.membership_expires_at) || 'waktu yang tidak ditentukan'}
+                </p>
+              </div>
+            )}
             <form onSubmit={handleUpdateProfileInfo} className="mt-4 space-y-3 text-left">
               <div>
                 <label className="block text-sm font-medium mb-1">Username</label>
@@ -247,6 +270,21 @@ const Akun = () => {
                   disabled={profileLoading}
                   placeholder="email@contoh.com"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Bio</label>
+                <textarea
+                  value={profileBio}
+                  onChange={(e) => setProfileBio(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                  disabled={profileLoading}
+                  rows={4}
+                  maxLength={500}
+                  placeholder="Tulis bio singkat tentang kamu..."
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {profileBio.length}/500 karakter
+                </p>
               </div>
               <button
                 type="submit"

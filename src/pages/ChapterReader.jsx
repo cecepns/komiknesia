@@ -12,7 +12,8 @@ import {
   ArrowUp,
   ArrowDown,
   Play,
-  Pause
+  Pause,
+  Sparkles
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
@@ -34,6 +35,7 @@ const ChapterReader = () => {
   const [mangaSlug, setMangaSlug] = useState(null);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(false);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(2);
+  const [showResumeAutoPlay, setShowResumeAutoPlay] = useState(false);
   const autoScrollTimerRef = useRef(null);
   const topRef = useRef(null);
   const { user } = useAuth();
@@ -160,6 +162,10 @@ const ChapterReader = () => {
 
   // Scroll functions - scroll incrementally for better reading experience
   const scrollUp = () => {
+    if (autoScrollEnabled) {
+      setAutoScrollEnabled(false);
+      setShowResumeAutoPlay(true);
+    }
     const scrollAmount = 600; // Scroll 600px at a time
     const currentPosition = window.pageYOffset || document.documentElement.scrollTop;
     window.scrollTo({ 
@@ -169,6 +175,10 @@ const ChapterReader = () => {
   };
 
   const scrollDown = () => {
+    if (autoScrollEnabled) {
+      setAutoScrollEnabled(false);
+      setShowResumeAutoPlay(true);
+    }
     const scrollAmount = 600; // Scroll 600px at a time
     const currentPosition = window.pageYOffset || document.documentElement.scrollTop;
     window.scrollTo({ 
@@ -197,6 +207,34 @@ const ChapterReader = () => {
       }
     };
   }, [isPremiumUser, autoScrollEnabled, autoScrollSpeed]);
+
+  // Turn off auto-scroll when user manually scrolls/interacts.
+  useEffect(() => {
+    if (!isPremiumUser) return;
+
+    const disableAutoScrollByUser = () => {
+      if (!autoScrollEnabled) return;
+      setAutoScrollEnabled(false);
+      setShowResumeAutoPlay(true);
+    };
+
+    const onKeyDown = (event) => {
+      const scrollKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar'];
+      if (scrollKeys.includes(event.key)) {
+        disableAutoScrollByUser();
+      }
+    };
+
+    window.addEventListener('wheel', disableAutoScrollByUser, { passive: true });
+    window.addEventListener('touchmove', disableAutoScrollByUser, { passive: true });
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.removeEventListener('wheel', disableAutoScrollByUser);
+      window.removeEventListener('touchmove', disableAutoScrollByUser);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isPremiumUser, autoScrollEnabled]);
 
   if (loading) {
     return (
@@ -356,7 +394,15 @@ const ChapterReader = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setAutoScrollEnabled((prev) => !prev)}
+                    onClick={() => {
+                      setAutoScrollEnabled((prev) => {
+                        const next = !prev;
+                        if (next) {
+                          setShowResumeAutoPlay(false);
+                        }
+                        return next;
+                      });
+                    }}
                     className="h-10 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center justify-center gap-2"
                   >
                     {autoScrollEnabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -402,6 +448,7 @@ const ChapterReader = () => {
                     alt={`Page ${index + 1}`}
                     className="w-full h-auto block align-bottom m-0 p-0 border-0 outline-none"
                     wrapperClassName="w-full block m-0 p-0 leading-[0] min-h-0"
+                    loadingClassName="min-h-[42vh] sm:min-h-[56vh] md:min-h-[64vh]"
                   />
                 </div>
               ))
@@ -518,7 +565,7 @@ const ChapterReader = () => {
       </div>
 
       {/* Scroll Buttons (Desktop Only) */}
-      <div className={`hidden md:flex fixed right-6 bottom-20 flex-col gap-2 z-50 transition-all duration-300 ${
+      <div className={`hidden md:flex fixed right-6 bottom-32 flex-col gap-2 z-50 transition-all duration-300 ${
         showScrollButtons ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
       }`}>
         <button
@@ -536,6 +583,24 @@ const ChapterReader = () => {
           <ArrowDown className="h-5 w-5 group-hover:animate-bounce" />
         </button>
       </div>
+
+      {isPremiumUser && showResumeAutoPlay && !autoScrollEnabled && (
+        <button
+          type="button"
+          onClick={() => {
+            setAutoScrollEnabled(true);
+            setShowResumeAutoPlay(false);
+          }}
+          className="fixed right-5 bottom-16 md:bottom-12 z-[60] h-14 w-14 rounded-full bg-gradient-to-br from-red-500 to-rose-500 hover:from-red-400 hover:to-rose-400 text-white shadow-[0_10px_30px_rgba(239,68,68,0.45)] transition-all duration-300 hover:scale-105 flex items-center justify-center"
+          title="Lanjutkan Auto Scroll"
+          aria-label="Lanjutkan Auto Scroll"
+        >
+          <div className="relative">
+            <Play className="h-6 w-6 ml-0.5" />
+            <Sparkles className="h-3.5 w-3.5 absolute -top-1.5 -right-1.5" />
+          </div>
+        </button>
+      )}
     </div>
   );
 };

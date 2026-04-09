@@ -9,6 +9,7 @@ const LazyImage = ({
   alt, 
   className = '', 
   wrapperClassName = '',
+  loadingClassName = '',
   placeholderSrc = null,
   effect = 'opacity',
   threshold = 100,
@@ -31,11 +32,11 @@ const LazyImage = ({
   };
 
   return (
-    <div className={`relative ${wrapperClassName}`}>
-      {/* Loading Spinner */}
+    <div className={`relative ${isLoading ? loadingClassName : ''} ${wrapperClassName}`}>
+      {/* Loading Skeleton (height only while loading to avoid permanent gaps) */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800">
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-500" />
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800 animate-pulse">
+          <div className="h-8 w-8 rounded-full border-4 border-gray-300 dark:border-gray-700 border-t-blue-500" />
         </div>
       )}
 
@@ -73,6 +74,7 @@ LazyImage.propTypes = {
   alt: PropTypes.string.isRequired,
   className: PropTypes.string,
   wrapperClassName: PropTypes.string,
+  loadingClassName: PropTypes.string,
   placeholderSrc: PropTypes.string,
   effect: PropTypes.string,
   threshold: PropTypes.number,

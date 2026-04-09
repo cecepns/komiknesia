@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, Search, X, User, Menu } from 'lucide-react';
-import { useTheme } from '../hooks/useTheme';
-import Logo from '../assets/logo.png';
-import LazyImage from './LazyImage';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Moon, Sun, Search, X, User, Menu } from "lucide-react";
+import { useTheme } from "../hooks/useTheme";
+import Logo from "../assets/logo.png";
+import LazyImage from "./LazyImage";
+import { useAuth } from "../contexts/AuthContext";
 
 const Header = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -21,16 +21,18 @@ const Header = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       const clickedInsideDesktop =
-        searchDesktopRef.current && searchDesktopRef.current.contains(event.target);
+        searchDesktopRef.current &&
+        searchDesktopRef.current.contains(event.target);
       const clickedInsideMobile =
-        searchMobileRef.current && searchMobileRef.current.contains(event.target);
+        searchMobileRef.current &&
+        searchMobileRef.current.contains(event.target);
       if (!clickedInsideDesktop && !clickedInsideMobile) {
         setShowResults(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -44,9 +46,9 @@ const Header = () => {
       setIsSearching(true);
       try {
         const response = await fetch(
-          `https://data.westmanga.me/api/comic?page=1&limit=10&search=${encodeURIComponent(searchQuery)}`
+          `https://data.westmanga.me/api/comic?page=1&limit=10&search=${encodeURIComponent(searchQuery)}`,
         );
-        
+
         if (response.ok) {
           const result = await response.json();
           if (result.status && result.data) {
@@ -55,7 +57,7 @@ const Header = () => {
           }
         }
       } catch (error) {
-        console.error('Error searching manga:', error);
+        console.error("Error searching manga:", error);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -68,21 +70,21 @@ const Header = () => {
 
   const handleMangaClick = (manga) => {
     navigate(`/komik/${manga.slug}`);
-    setSearchQuery('');
+    setSearchQuery("");
     setShowResults(false);
     setMobileMenuOpen(false);
   };
 
   const clearSearch = () => {
-    setSearchQuery('');
+    setSearchQuery("");
     setSearchResults([]);
     setShowResults(false);
   };
 
   const handleSearchSubmit = (e) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
+    if (e.key === "Enter" && searchQuery.trim()) {
       navigate(`/content?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
+      setSearchQuery("");
       setShowResults(false);
     }
   };
@@ -98,153 +100,166 @@ const Header = () => {
         <div className="flex justify-between items-center py-4 gap-4">
           {/* Logo */}
           <div className="flex items-center flex-shrink-0">
-            <img 
-              src={Logo} 
-              alt="Komiknesia" 
-              className="w-32 md:w-44 h-auto cursor-pointer" 
-              onClick={() => handleNavigate('/')}
+            <img
+              src={Logo}
+              alt="Komiknesia"
+              className="w-32 md:w-44 h-auto cursor-pointer"
+              onClick={() => handleNavigate("/")}
             />
           </div>
 
           {/* Navigation Links - Hidden on small screens */}
           <nav className="hidden lg:flex items-center space-x-6">
             <button
-              onClick={() => handleNavigate('/')}
+              onClick={() => handleNavigate("/")}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Home
             </button>
             <button
-              onClick={() => handleNavigate('/library')}
+              onClick={() => handleNavigate("/library")}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Library
             </button>
             <button
-              onClick={() => handleNavigate('/content')}
+              onClick={() => handleNavigate("/content")}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Daftar Komik
             </button>
             <button
-              onClick={() => handleNavigate('/leaderboard')}
+              onClick={() => handleNavigate("/leaderboard")}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Leaderboard
             </button>
             <button
-              onClick={() => handleNavigate('/premium')}
+              onClick={() => handleNavigate("/premium")}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Premium
             </button>
           </nav>
 
-          {/* Search Bar - Desktop */}
-          <div className="hidden lg:block flex-1 max-w-md relative" ref={searchDesktopRef}>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Cari manga..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearchSubmit}
-                onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
-                className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                >
-                  <X className="h-4 w-4 text-gray-400" />
-                </button>
+          <div className="flex items-center space-x-4">
+            {/* Search Bar - Desktop */}
+            <div
+              className="hidden lg:block flex-1 max-w-44 relative"
+              ref={searchDesktopRef}
+            >
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Cari manga..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchSubmit}
+                  onFocus={() =>
+                    searchQuery.length >= 2 && setShowResults(true)
+                  }
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  >
+                    <X className="h-4 w-4 text-gray-400" />
+                  </button>
+                )}
+              </div>
+
+              {/* Search Results Dropdown */}
+              {showResults && (
+                <div className="absolute top-full mt-2 w-full bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      Mencari...
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="py-2">
+                      {searchResults.map((manga) => (
+                        <button
+                          key={manga.id}
+                          onClick={() => handleMangaClick(manga)}
+                          className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-primary-800 transition-colors text-left"
+                        >
+                          {/* Cover Image */}
+                          <LazyImage
+                            src={manga.cover}
+                            alt={manga.title}
+                            className="w-12 h-16 object-cover rounded flex-shrink-0"
+                            wrapperClassName="w-12 h-16 flex-shrink-0"
+                          />
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-1">
+                              {manga.title}
+                            </h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                              {manga.author ||
+                                manga.alternative_name ||
+                                "Unknown"}
+                            </p>
+                            {manga.genres && manga.genres.length > 0 && (
+                              <div className="flex gap-1 mt-1 flex-wrap">
+                                {manga.genres.slice(0, 2).map((genre) => (
+                                  <span
+                                    key={genre.id}
+                                    className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded"
+                                  >
+                                    {genre.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      Tidak ada hasil ditemukan
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
-            {/* Search Results Dropdown */}
-            {showResults && (
-              <div className="absolute top-full mt-2 w-full bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
-                {isSearching ? (
-                  <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                    Mencari...
-                  </div>
-                ) : searchResults.length > 0 ? (
-                  <div className="py-2">
-                    {searchResults.map((manga) => (
-                      <button
-                        key={manga.id}
-                        onClick={() => handleMangaClick(manga)}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-primary-800 transition-colors text-left"
-                      >
-                        {/* Cover Image */}
-                        <LazyImage
-                          src={manga.cover}
-                          alt={manga.title}
-                          className="w-12 h-16 object-cover rounded flex-shrink-0"
-                          wrapperClassName="w-12 h-16 flex-shrink-0"
-                        />
-                        
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-1">
-                            {manga.title}
-                          </h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                            {manga.author || manga.alternative_name || 'Unknown'}
-                          </p>
-                          {manga.genres && manga.genres.length > 0 && (
-                            <div className="flex gap-1 mt-1 flex-wrap">
-                              {manga.genres.slice(0, 2).map((genre) => (
-                                <span
-                                  key={genre.id}
-                                  className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded"
-                                >
-                                  {genre.name}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+            {/* Theme Toggle + Account */}
+            <div className="flex items-center space-x-4 flex-shrink-0">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
+              >
+                {theme === "light" ? (
+                  <Moon className="h-5 w-5" />
                 ) : (
-                  <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                    Tidak ada hasil ditemukan
-                  </div>
+                  <Sun className="h-5 w-5" />
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* Theme Toggle + Account */}
-          <div className="flex items-center space-x-4 flex-shrink-0">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
-            >
-              {theme === 'light' ? (
-                <Moon className="h-5 w-5" />
-              ) : (
-                <Sun className="h-5 w-5" />
-              )}
-            </button>
-            <button
-              onClick={() => handleNavigate('/akun')}
-              className="hidden sm:inline-flex items-center justify-center p-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white transition-colors"
-              aria-label={isAuthenticated ? 'Akun Saya' : 'Masuk / Daftar'}
-            >
-              <User className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="lg:hidden p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+              </button>
+              <button
+                onClick={() => handleNavigate("/akun")}
+                className="hidden sm:inline-flex items-center justify-center p-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white transition-colors"
+                aria-label={isAuthenticated ? "Akun Saya" : "Masuk / Daftar"}
+              >
+                <User className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                className="lg:hidden p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
         {mobileMenuOpen && (
@@ -257,7 +272,9 @@ const Header = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={handleSearchSubmit}
-                  onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                  onFocus={() =>
+                    searchQuery.length >= 2 && setShowResults(true)
+                  }
                   className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -296,7 +313,9 @@ const Header = () => {
                               {manga.title}
                             </h4>
                             <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                              {manga.author || manga.alternative_name || 'Unknown'}
+                              {manga.author ||
+                                manga.alternative_name ||
+                                "Unknown"}
                             </p>
                           </div>
                         </button>
@@ -312,40 +331,40 @@ const Header = () => {
             </div>
             <nav className="flex flex-col gap-2">
               <button
-                onClick={() => handleNavigate('/')}
+                onClick={() => handleNavigate("/")}
                 className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
               >
                 Home
               </button>
               <button
-                onClick={() => handleNavigate('/library')}
+                onClick={() => handleNavigate("/library")}
                 className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
               >
                 Library
               </button>
               <button
-                onClick={() => handleNavigate('/content')}
+                onClick={() => handleNavigate("/content")}
                 className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
               >
                 Daftar Komik
               </button>
               <button
-                onClick={() => handleNavigate('/leaderboard')}
+                onClick={() => handleNavigate("/leaderboard")}
                 className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
               >
                 Leaderboard
               </button>
               <button
-                onClick={() => handleNavigate('/premium')}
+                onClick={() => handleNavigate("/premium")}
                 className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
               >
                 Premium
               </button>
               <button
-                onClick={() => handleNavigate('/akun')}
+                onClick={() => handleNavigate("/akun")}
                 className="w-full text-left px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white"
               >
-                {isAuthenticated ? 'Akun Saya' : 'Masuk / Daftar'}
+                {isAuthenticated ? "Akun Saya" : "Masuk / Daftar"}
               </button>
             </nav>
           </div>
@@ -356,18 +375,3 @@ const Header = () => {
 };
 
 export default Header;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

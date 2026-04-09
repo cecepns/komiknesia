@@ -56,6 +56,7 @@ const register = async (req, res) => {
         id,
         username,
         email,
+        bio,
         profile_image,
         points,
         is_membership,
@@ -84,6 +85,7 @@ const register = async (req, res) => {
           id: user.id,
           username: user.username,
           email: user.email || null,
+          bio: user.bio || null,
           profile_image: user.profile_image || null,
           points: Number(user.points || 0),
           is_membership: !!user.is_membership,
@@ -113,6 +115,7 @@ const login = async (req, res) => {
         id,
         username,
         email,
+        bio,
         password,
         profile_image,
         points,
@@ -156,6 +159,7 @@ const login = async (req, res) => {
           id: user.id,
           username: user.username,
           email: user.email,
+          bio: user.bio || null,
           profile_image: user.profile_image || null,
           points: Number(user.points || 0),
           is_membership: !!user.is_membership,
@@ -178,6 +182,7 @@ const me = async (req, res) => {
         id: req.user.id,
         username: req.user.username,
         email: req.user.email,
+        bio: req.user.bio || null,
         profile_image: req.user.profile_image || null,
         points: Number(req.user.points || 0),
         is_membership: !!req.user.is_membership,
@@ -195,10 +200,10 @@ const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const profileImage = req.file ? `/uploads/${req.file.filename}` : null;
-    const { username, email, current_password, new_password } = req.body || {};
+    const { username, email, bio, current_password, new_password } = req.body || {};
 
     const [users] = await db.execute(
-      'SELECT id, username, email, password, profile_image FROM users WHERE id = ?',
+      'SELECT id, username, email, bio, password, profile_image FROM users WHERE id = ?',
       [userId]
     );
     if (users.length === 0) {
@@ -252,6 +257,15 @@ const updateProfile = async (req, res) => {
       params.push(emailTrim || null);
     }
 
+    if (typeof bio === 'string') {
+      const bioTrimmed = bio.trim();
+      const bioVal = bioTrimmed ? bioTrimmed.slice(0, 500) : null;
+      if ((currentUser.bio || null) !== bioVal) {
+        updates.push('bio = ?');
+        params.push(bioVal);
+      }
+    }
+
     if (current_password || new_password) {
       if (!current_password || !new_password) {
         return res.status(400).json({
@@ -295,6 +309,7 @@ const updateProfile = async (req, res) => {
         id,
         username,
         email,
+        bio,
         profile_image,
         points,
         is_membership,
@@ -316,6 +331,7 @@ const updateProfile = async (req, res) => {
         id: updated.id,
         username: updated.username,
         email: updated.email,
+        bio: updated.bio || null,
         profile_image: updated.profile_image || null,
         points: Number(updated.points || 0),
         is_membership: !!updated.is_membership,
