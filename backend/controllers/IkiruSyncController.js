@@ -20,7 +20,25 @@ function cleanText(text) {
 }
 
 async function fetchHtml(url) {
-  return ikiruFetchHtml(url, { timeout: 20000 });
+  const maxAttempts = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await ikiruFetchHtml(url, { timeout: 25000 });
+    } catch (e) {
+      lastError = e;
+      const status = Number(e?.response?.status || 0);
+      const retriableStatus = status === 522 || status === 520 || status === 524;
+      const retriableNetwork =
+        String(e?.message || '').toLowerCase().includes('fetch failed') ||
+        String(e?.code || '').toUpperCase() === 'ECONNABORTED';
+      if (attempt >= maxAttempts || (!retriableStatus && !retriableNetwork)) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+    }
+  }
+  throw lastError;
 }
 
 async function getCategorySlugToIdMap() {
@@ -605,19 +623,32 @@ async function scrapeChapterImages(mangaSlug, ikiruChapterSlug) {
   const chapterUrl = `${BASE_URL}/manga/${mangaSlug}/${ikiruChapterSlug}/`;
   const $ = await fetchHtml(chapterUrl);
   const images = [];
+  const seen = new Set();
 
   const readerSection = $('section[data-image-data="1"]').first();
   const scope = readerSection && readerSection.length ? readerSection : $('body');
+  const inReaderSection = Boolean(readerSection && readerSection.length);
 
   scope.find('img').each((_, el) => {
     let src = $(el).attr('data-src') || $(el).attr('src');
     if (!src) return;
     if (src.startsWith('//')) src = 'https:' + src;
     else if (src.startsWith('/')) src = BASE_URL + src;
+    src = String(src).trim();
+    if (!src) return;
 
-    const lower = src.toLowerCase();
-    const isPanelImage = lower.includes('cdn.uqni.net/images') || lower.match(/\.(webp|jpg|jpeg|png)$/i);
-    if (!isPanelImage) return;
+    // Reader section already scopes us to chapter pages, so don't over-filter by host.
+    if (!inReaderSection) {
+      const lower = src.toLowerCase();
+      const isPanelImage =
+        lower.includes('cdn.uqni.net/images') ||
+        lower.includes('/wp-content/uploads/images/') ||
+        lower.match(/\.(webp|jpg|jpeg|png|gif)$/i);
+      if (!isPanelImage) return;
+    }
+
+    if (seen.has(src)) return;
+    seen.add(src);
     images.push(src);
   });
 
@@ -725,6 +756,18 @@ function parseBooleanFlag(value, defaultValue = false) {
   if (['1', 'true', 'yes', 'y', 'on'].includes(str)) return true;
   if (['0', 'false', 'no', 'n', 'off'].includes(str)) return false;
   return defaultValue;
+}
+
+function parseNonNegativeInt(value, defaultValue = 0) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 0) return defaultValue;
+  return n;
+}
+
+function parsePositiveInt(value, defaultValue) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n <= 0) return defaultValue;
+  return n;
 }
 
 async function syncFeed(feedItems, { mode, saveToS3 = false }) {
@@ -1118,39 +1161,71 @@ const syncMangaInit = async (req, res) => {
     }
     const existingChapterSlugs = await getExistingChapterSlugSet(mangaRow.id);
 
-    const chaptersToPlan =
+    const allChaptersToPlan =
       mode === 'delta' ? (detail.chapters.length ? [detail.chapters[0]] : []) : detail.chapters;
+    const defaultBatchSize = mode === 'full' ? 100 : Math.max(allChaptersToPlan.length, 1);
+    const offset = parseNonNegativeInt(req.body?.offset, 0);
+    const limit = parsePositiveInt(req.body?.limit, defaultBatchSize);
+    const chaptersToPlan = allChaptersToPlan.slice(offset, offset + limit);
+    const nextOffset = offset + chaptersToPlan.length;
+    const hasMore = nextOffset < allChaptersToPlan.length;
 
     const chapters = [];
     let chaptersCreated = 0;
     let imagesInsertedTotal = 0;
+    let chapterErrors = 0;
 
     for (const ch of chaptersToPlan) {
       const localSlug = buildLocalChapterSlug(slug, ch.slug);
       const existedForManga = existingChapterSlugs.has(localSlug);
-      const { chapterId, created } = await upsertChapterFromIkiru(mangaRow.id, slug, ch);
-      if (created) chaptersCreated += 1;
 
-      let imagesCount = 0;
-      let imagesInserted = 0;
-      if (withImages) {
-        const { images } = await scrapeChapterImages(slug, ch.slug);
-        imagesCount = images.length;
-        imagesInserted = await upsertChapterImages(chapterId, images, { saveToS3 });
-        imagesInsertedTotal += imagesInserted;
+      try {
+        const { chapterId, created } = await upsertChapterFromIkiru(mangaRow.id, slug, ch);
+        if (created) chaptersCreated += 1;
+
+        let imagesCount = 0;
+        let imagesInserted = 0;
+        let chapterError = null;
+
+        if (withImages) {
+          try {
+            const { images } = await scrapeChapterImages(slug, ch.slug);
+            imagesCount = images.length;
+            imagesInserted = await upsertChapterImages(chapterId, images, { saveToS3 });
+            imagesInsertedTotal += imagesInserted;
+          } catch (imageErr) {
+            chapterErrors += 1;
+            chapterError = imageErr.message || 'Failed to sync chapter images';
+          }
+        }
+
+        chapters.push({
+          ikiruSlug: ch.slug,
+          localSlug,
+          title: ch.title,
+          chapterNumber: ch.chapterNumber,
+          existedOnMangaBeforeInit: existedForManga,
+          chapterId,
+          chapterCreated: created,
+          imagesCount,
+          imagesInserted,
+          error: chapterError,
+        });
+      } catch (chapterErr) {
+        chapterErrors += 1;
+        chapters.push({
+          ikiruSlug: ch.slug,
+          localSlug,
+          title: ch.title,
+          chapterNumber: ch.chapterNumber,
+          existedOnMangaBeforeInit: existedForManga,
+          chapterId: null,
+          chapterCreated: false,
+          imagesCount: 0,
+          imagesInserted: 0,
+          error: chapterErr.message || 'Failed to sync chapter',
+        });
       }
-
-      chapters.push({
-        ikiruSlug: ch.slug,
-        localSlug,
-        title: ch.title,
-        chapterNumber: ch.chapterNumber,
-        existedOnMangaBeforeInit: existedForManga,
-        chapterId,
-        chapterCreated: created,
-        imagesCount,
-        imagesInserted,
-      });
     }
 
     const existingAfter = await getExistingChapterSlugSet(mangaRow.id);
@@ -1165,9 +1240,18 @@ const syncMangaInit = async (req, res) => {
       saveToS3,
       chaptersFullySynced: withImages,
       summary: {
+        chaptersTotal: allChaptersToPlan.length,
         chaptersPlanned: chaptersToPlan.length,
         chaptersCreated,
         imagesInserted: imagesInsertedTotal,
+        chapterErrors,
+      },
+      pagination: {
+        offset,
+        limit,
+        nextOffset,
+        hasMore,
+        totalChapters: allChaptersToPlan.length,
       },
       chapters: chapters.map((row) => ({
         ...row,

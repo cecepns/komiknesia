@@ -12,7 +12,7 @@ async function main() {
       page: 1,
       mode: 'delta',
       withImages: true,
-      saveToS3: true,
+      saveToS3: false,
       type: feedType,
     });
     console.log(JSON.stringify(body, null, 2));

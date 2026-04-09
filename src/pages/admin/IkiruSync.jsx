@@ -57,93 +57,120 @@ export default function IkiruSync() {
 
     const saveToS3 = false; // new default: store Ikiru URLs directly (no S3 download/upload)
 
-    // Init: upsert manga + semua chapter di plan, dan gambar jika withImages (satu request backend).
-    const init = await apiClient.syncIkiruMangaInit(mangaSlug, {
-      mode,
-      withImages,
-      saveToS3,
-    });
+    const initBatchSize = mode === 'full' ? 100 : undefined;
+    let batchOffset = 0;
+    let totalChapters = 0;
+    let processedChapters = 0;
+    let currentMangaId = null;
+    let currentMangaCreated = null;
+    let hasMore = true;
 
-    const totalChapters = init?.chapters?.length || 0;
-    setQueueProgress((prev) => ({
-      ...prev,
-      totalChapters,
-      currentChapterIndex: 0,
-      currentChapterSlug: null,
-      stage: 'sync_chapters',
-    }));
+    while (hasMore) {
+      const init = await apiClient.syncIkiruMangaInit(mangaSlug, {
+        mode,
+        withImages,
+        saveToS3,
+        ...(initBatchSize ? { offset: batchOffset, limit: initBatchSize } : {}),
+      });
 
-    const provisioned =
-      Array.isArray(init.chapters) &&
-      init.chapters.length > 0 &&
-      init.chapters.every((c) => c.chapterId != null);
+      currentMangaId = init?.mangaId ?? currentMangaId;
+      currentMangaCreated = init?.mangaCreated ?? currentMangaCreated;
 
-    if (provisioned && (!withImages || init.chaptersFullySynced)) {
-      const chaptersResult = init.chapters.map((ch) => ({
-        status: true,
-        source: 'ikiru',
-        mangaId: init.mangaId,
-        chapterId: ch.chapterId,
-        chapterCreated: ch.chapterCreated,
-        imagesCount: ch.imagesCount ?? 0,
-        imagesInserted: ch.imagesInserted ?? 0,
-      }));
+      const plannedBatch = Array.isArray(init?.chapters) ? init.chapters : [];
+      totalChapters =
+        init?.pagination?.totalChapters ??
+        init?.summary?.chaptersTotal ??
+        Math.max(totalChapters, processedChapters + plannedBatch.length);
+
       setQueueProgress((prev) => ({
         ...prev,
-        processedManga: mangaIndex + 1,
-        currentChapterIndex: totalChapters,
-        stage: 'done',
-        status: 'done',
-      }));
-      return {
-        mangaSlug,
-        mangaId: init.mangaId,
-        mangaCreated: init.mangaCreated,
-        chapters: chaptersResult,
-      };
-    }
-
-    for (let i = 0; i < (init?.chapters || []).length; i++) {
-      const ch = init.chapters[i];
-      setQueueProgress((prev) => ({
-        ...prev,
-        currentChapterIndex: i + 1,
         totalChapters,
-        currentChapterSlug: ch.ikiruSlug,
-        stage: withImages ? 'fetch_and_save_chapter_images' : 'sync_chapter_only',
+        currentChapterIndex: processedChapters,
+        currentChapterSlug: null,
+        stage: 'sync_chapters',
       }));
 
-      try {
-        const res = await apiClient.syncIkiruChapter(mangaSlug, ch.ikiruSlug, {
-          title: ch.title,
-          chapterNumber: ch.chapterNumber,
-          withImages,
-          saveToS3,
-        });
-        chaptersResult.push(res);
-      } catch (e) {
-        chaptersResult.push({
-          status: false,
-          error: e?.message || String(e),
-          chapterId: null,
-          chapterCreated: null,
-          ikiruSlug: ch.ikiruSlug,
-          imagesInserted: 0,
-        });
+      const provisioned =
+        plannedBatch.length > 0 && plannedBatch.every((c) => c.chapterId != null);
+
+      if (provisioned && (!withImages || init.chaptersFullySynced)) {
+        chaptersResult.push(
+          ...plannedBatch.map((ch) => ({
+            status: !ch.error,
+            source: 'ikiru',
+            mangaId: init.mangaId,
+            chapterId: ch.chapterId,
+            chapterCreated: ch.chapterCreated,
+            imagesCount: ch.imagesCount ?? 0,
+            imagesInserted: ch.imagesInserted ?? 0,
+            ikiruSlug: ch.ikiruSlug,
+            error: ch.error || null,
+          }))
+        );
+        processedChapters += plannedBatch.length;
+      } else {
+        for (let i = 0; i < plannedBatch.length; i++) {
+          const ch = plannedBatch[i];
+          setQueueProgress((prev) => ({
+            ...prev,
+            currentChapterIndex: processedChapters + i + 1,
+            totalChapters,
+            currentChapterSlug: ch.ikiruSlug,
+            stage: withImages ? 'fetch_and_save_chapter_images' : 'sync_chapter_only',
+          }));
+
+          try {
+            const res = await apiClient.syncIkiruChapter(mangaSlug, ch.ikiruSlug, {
+              title: ch.title,
+              chapterNumber: ch.chapterNumber,
+              withImages,
+              saveToS3,
+            });
+            chaptersResult.push(res);
+          } catch (e) {
+            chaptersResult.push({
+              status: false,
+              error: e?.message || String(e),
+              chapterId: null,
+              chapterCreated: null,
+              ikiruSlug: ch.ikiruSlug,
+              imagesInserted: 0,
+            });
+          }
+        }
+        processedChapters += plannedBatch.length;
+      }
+
+      hasMore = Boolean(init?.pagination?.hasMore);
+      if (hasMore) {
+        batchOffset =
+          Number.isFinite(init?.pagination?.nextOffset) ? init.pagination.nextOffset : batchOffset + plannedBatch.length;
+      }
+
+      setQueueProgress((prev) => ({
+        ...prev,
+        currentChapterIndex: processedChapters,
+      }));
+
+      // Backward compatibility: older backend returns all chapters in one response.
+      if (!init?.pagination) {
+        hasMore = false;
       }
     }
 
     setQueueProgress((prev) => ({
       ...prev,
       processedManga: mangaIndex + 1,
+      totalChapters,
+      currentChapterIndex: processedChapters,
       stage: 'done',
       status: 'done',
     }));
 
     return {
       mangaSlug,
-      mangaId: init?.mangaId ?? null,
-      mangaCreated: init?.mangaCreated ?? null,
+      mangaId: currentMangaId ?? null,
+      mangaCreated: currentMangaCreated ?? null,
       chapters: chaptersResult,
     };
   };
