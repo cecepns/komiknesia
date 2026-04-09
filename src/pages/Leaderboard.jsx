@@ -47,7 +47,7 @@ const Leaderboard = () => {
   const podiumData = [topThree[1], topThree[0], topThree[2]];
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-950 dark:text-gray-100 pb-24">
+    <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-950 dark:text-gray-100 pt-5 md:pt-20 pb-4">
       <Helmet>
         <title>Leaderboard | KomikNesia</title>
         <meta
@@ -56,7 +56,7 @@ const Leaderboard = () => {
         />
       </Helmet>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 md:pt-14">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl dark:border-white/20 dark:bg-white/10 dark:backdrop-blur-2xl dark:shadow-[0_25px_80px_-25px_rgba(0,0,0,0.75)]">
           <div className="p-6 md:p-8">
             <div className="flex items-center justify-between mb-6">

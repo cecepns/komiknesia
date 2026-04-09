@@ -20,7 +20,7 @@ function cleanText(text) {
 }
 
 async function fetchHtml(url) {
-  const maxAttempts = 3;
+  const maxAttempts = 5;
   let lastError = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -35,10 +35,21 @@ async function fetchHtml(url) {
       if (attempt >= maxAttempts || (!retriableStatus && !retriableNetwork)) {
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+      await new Promise((resolve) => setTimeout(resolve, 800 * attempt));
     }
   }
   throw lastError;
+}
+
+function isIkiruUpstreamError(err) {
+  const status = Number(err?.response?.status || 0);
+  if ([520, 521, 522, 523, 524].includes(status)) return true;
+  const msg = String(err?.message || '').toLowerCase();
+  return (
+    msg.includes('status code 52') ||
+    msg.includes('fetch failed') ||
+    String(err?.code || '').toUpperCase() === 'ECONNABORTED'
+  );
 }
 
 async function getCategorySlugToIdMap() {
@@ -847,6 +858,12 @@ const listFeed = async (req, res) => {
       data: feed,
     });
   } catch (e) {
+    if (isIkiruUpstreamError(e)) {
+      return res.status(502).json({
+        status: false,
+        error: `Ikiru upstream unavailable: ${e.message || 'Bad gateway'}`,
+      });
+    }
     res.status(500).json({ status: false, error: e.message || 'Internal server error' });
   }
 };

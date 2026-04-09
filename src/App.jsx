@@ -10,6 +10,7 @@ import Content from "./pages/Content";
 import Contact from "./pages/Contact";
 import Akun from "./pages/Akun";
 import Leaderboard from "./pages/Leaderboard";
+import Premium from "./pages/Premium";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
@@ -80,6 +81,17 @@ function AppContent() {
             <>
               <Layout>
                 <Leaderboard />
+              </Layout>
+              <BottomNavigation />
+            </>
+          }
+        />
+        <Route
+          path="/premium"
+          element={
+            <>
+              <Layout>
+                <Premium />
               </Layout>
               <BottomNavigation />
             </>
