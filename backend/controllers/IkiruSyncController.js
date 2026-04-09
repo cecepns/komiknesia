@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-env node */
+// ganti test
 const db = require('../db');
 const { ikiruFetchHtml, getIkiruAxios } = require('../utils/ikiruSession');
 const { uploadUrlToS3 } = require('../utils/s3Upload');
@@ -623,16 +624,36 @@ async function scrapeChapterImages(mangaSlug, ikiruChapterSlug) {
   return { url: chapterUrl, images };
 }
 
+/** Stable compare for idempotency (query strings / trailing slashes differ across scrapes). */
+function normalizeImageUrlForCompare(url) {
+  if (url == null) return '';
+  const s = String(url).trim();
+  if (!s) return '';
+  try {
+    const href = s.startsWith('//') ? `https:${s}` : s;
+    const u = new URL(href);
+    let out = `${u.protocol}//${u.host}${u.pathname}`.toLowerCase();
+    out = out.replace(/\/+$/, '');
+    return out;
+  } catch {
+    return s.split('?')[0].toLowerCase().trim();
+  }
+}
+
 async function upsertChapterImages(chapterId, imageUrls, { saveToS3 = false } = {}) {
   const [existingRows] = await db.execute(
     'SELECT image_path, page_number FROM chapter_images WHERE chapter_id = ?',
     [chapterId]
   );
-  const existingByPage = new Map(existingRows.map((r) => [r.page_number, r.image_path]));
+  const existingByPage = new Map();
+  for (const r of existingRows) {
+    const pn = Number(r.page_number);
+    if (!Number.isFinite(pn) || pn < 1) continue;
+    existingByPage.set(pn, r.image_path);
+  }
   let inserted = 0;
 
-  // Map scraped order to page_number 1..N (idempotent per page). The previous loop used a single
-  // `page` cursor and `continue` on collision, which dropped URLs entirely when early pages existed.
+  // Map scraped order to page_number 1..N (idempotent per page).
   for (let i = 0; i < imageUrls.length; i++) {
     const page = i + 1;
     const url = imageUrls[i];
@@ -663,9 +684,15 @@ async function upsertChapterImages(chapterId, imageUrls, { saveToS3 = false } = 
     const hasRealPath = hasRow && prevPath != null && String(prevPath).trim() !== '';
 
     if (hasRealPath) {
-      if (String(prevPath) === String(storedUrl)) {
+      if (normalizeImageUrlForCompare(prevPath) === normalizeImageUrlForCompare(storedUrl)) {
         continue;
       }
+      await db.execute(
+        'UPDATE chapter_images SET image_path = ? WHERE chapter_id = ? AND page_number = ?',
+        [storedUrl, chapterId, page]
+      );
+      existingByPage.set(page, storedUrl);
+      inserted += 1;
       continue;
     }
 
@@ -783,12 +810,24 @@ const listFeed = async (req, res) => {
 
 async function upsertChapterFromIkiru(mangaId, mangaSlug, ch) {
   const localSlug = buildLocalChapterSlug(mangaSlug, ch.slug);
-  const [existing] = await db.execute('SELECT id FROM chapters WHERE slug = ? LIMIT 1', [localSlug]);
-  if (existing.length) return { chapterId: existing[0].id, created: false, slug: localSlug };
-
   const chapterTitle = normalizeChapterTitle(ch.title, ch.chapterNumber);
   const chapterNumber =
     ch.chapterNumber !== null && ch.chapterNumber !== undefined ? String(ch.chapterNumber) : null;
+
+  const [existing] = await db.execute(
+    'SELECT id, manga_id FROM chapters WHERE slug = ? LIMIT 1',
+    [localSlug]
+  );
+  if (existing.length) {
+    const row = existing[0];
+    // Slug is globally unique: row may belong to an older duplicate manga row.
+    // Reattach to the manga we are syncing so chapter lists + images line up.
+    await db.execute(
+      'UPDATE chapters SET manga_id = ?, title = ?, chapter_number = ? WHERE id = ?',
+      [mangaId, chapterTitle, chapterNumber, row.id]
+    );
+    return { chapterId: row.id, created: false, slug: localSlug };
+  }
 
   const [result] = await db.execute(
     'INSERT INTO chapters (manga_id, title, chapter_number, slug, cover) VALUES (?, ?, ?, ?, ?)',
@@ -813,7 +852,7 @@ const syncSelected = async (req, res) => {
     }
 
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
-    const withImages = req.body?.withImages === true || req.body?.withImages === 'true';
+    const withImages = parseBooleanFlag(req.body?.withImages, false);
     // New param: default false => store Ikiru URL directly (no download/upload to S3).
     const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
@@ -858,20 +897,15 @@ const syncSelected = async (req, res) => {
               : []
             : detail.chapters;
 
-        const createdChapters = [];
         for (const ch of chaptersToProcess) {
           const { chapterId, created } = await upsertChapterFromIkiru(mangaId, slug, ch);
           if (created) {
-            createdChapters.push({ chapterId, ikiruSlug: ch.slug });
             summary.chaptersCreated += 1;
             chaptersStats.created += 1;
           }
-        }
-
-        if (withImages) {
-          for (const ch of createdChapters) {
-            const { images } = await scrapeChapterImages(slug, ch.ikiruSlug);
-            const inserted = await upsertChapterImages(ch.chapterId, images, { saveToS3 });
+          if (withImages) {
+            const { images } = await scrapeChapterImages(slug, ch.slug);
+            const inserted = await upsertChapterImages(chapterId, images, { saveToS3 });
             summary.imagesInserted += inserted;
             chaptersStats.imagesInserted += inserted;
           }
@@ -922,7 +956,7 @@ const syncProject = async (req, res) => {
 // POST /api/ikiru/cron-sync?type=latest|project&page=1&mode=delta|full&withImages=true
 // - Sama seperti sync admin: semua GET ke Ikiru lewat utils/ikiruSession (login + cookie).
 // - Auto insert manga + semua chapter (sesuai mode) yang belum ada di DB kita
-// - Untuk chapter baru, sekaligus insert images-nya
+// - Dengan withImages=true: scrape + upsert images untuk setiap chapter yang diproses (baru atau sudah ada)
 // - Manga yang sudah ada tidak dihapus/diganti; hanya dilengkapi chapter/images baru
 const cronSyncFeed = async (req, res) => {
   try {
@@ -983,20 +1017,15 @@ const cronSyncFeed = async (req, res) => {
               : []
             : detail.chapters;
 
-        const createdChapters = [];
         for (const ch of chaptersToProcess) {
           const { chapterId, created } = await upsertChapterFromIkiru(mangaId, slug, ch);
           if (created) {
-            createdChapters.push({ chapterId, ikiruSlug: ch.slug });
             summary.chaptersCreated += 1;
             chaptersStats.created += 1;
           }
-        }
-
-        if (withImages) {
-          for (const ch of createdChapters) {
-            const { images } = await scrapeChapterImages(slug, ch.ikiruSlug);
-            const inserted = await upsertChapterImages(ch.chapterId, images, { saveToS3 });
+          if (withImages) {
+            const { images } = await scrapeChapterImages(slug, ch.slug);
+            const inserted = await upsertChapterImages(chapterId, images, { saveToS3 });
             summary.imagesInserted += inserted;
             chaptersStats.imagesInserted += inserted;
           }
@@ -1070,34 +1099,61 @@ const syncMangaBySlug = async (req, res) => {
   }
 };
 
-// 1) Init + plan chapters queue:
+// 1) Init + upsert chapter rows (dan optional images): satu request cukup untuk manga baru.
 // POST /api/admin/ikiru-sync/manga/:slug/init { mode, withImages?, saveToS3? }
-// Returns chapter list + whether chapter already exists in DB.
+// - Selalu INSERT/UPDATE baris chapter di DB untuk setiap chapter di plan (mode delta = latest saja).
+// - Jika withImages=true, sekalian scrape + upsert chapter_images (set chaptersFullySynced=true).
 const syncMangaInit = async (req, res) => {
   const { slug } = req.params;
   try {
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
-    const withImages = req.body?.withImages === true || req.body?.withImages === 'true';
+    const withImages = parseBooleanFlag(req.body?.withImages, false);
     const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
     const detail = await scrapeMangaDetail(slug);
     const mangaUpsert = await upsertMangaFromIkiru(detail, { saveToS3 });
     const mangaRow = await getMangaBySlugLocal(slug);
+    if (!mangaRow) {
+      return res.status(500).json({ status: false, error: 'Manga tidak ditemukan setelah upsert' });
+    }
     const existingChapterSlugs = await getExistingChapterSlugSet(mangaRow.id);
 
     const chaptersToPlan =
       mode === 'delta' ? (detail.chapters.length ? [detail.chapters[0]] : []) : detail.chapters;
 
-    const chapters = chaptersToPlan.map((ch) => {
+    const chapters = [];
+    let chaptersCreated = 0;
+    let imagesInsertedTotal = 0;
+
+    for (const ch of chaptersToPlan) {
       const localSlug = buildLocalChapterSlug(slug, ch.slug);
-      return {
+      const existedForManga = existingChapterSlugs.has(localSlug);
+      const { chapterId, created } = await upsertChapterFromIkiru(mangaRow.id, slug, ch);
+      if (created) chaptersCreated += 1;
+
+      let imagesCount = 0;
+      let imagesInserted = 0;
+      if (withImages) {
+        const { images } = await scrapeChapterImages(slug, ch.slug);
+        imagesCount = images.length;
+        imagesInserted = await upsertChapterImages(chapterId, images, { saveToS3 });
+        imagesInsertedTotal += imagesInserted;
+      }
+
+      chapters.push({
         ikiruSlug: ch.slug,
         localSlug,
         title: ch.title,
         chapterNumber: ch.chapterNumber,
-        exists: existingChapterSlugs.has(localSlug),
-      };
-    });
+        existedOnMangaBeforeInit: existedForManga,
+        chapterId,
+        chapterCreated: created,
+        imagesCount,
+        imagesInserted,
+      });
+    }
+
+    const existingAfter = await getExistingChapterSlugSet(mangaRow.id);
 
     res.json({
       status: true,
@@ -1107,7 +1163,16 @@ const syncMangaInit = async (req, res) => {
       mode,
       withImages,
       saveToS3,
-      chapters,
+      chaptersFullySynced: withImages,
+      summary: {
+        chaptersPlanned: chaptersToPlan.length,
+        chaptersCreated,
+        imagesInserted: imagesInsertedTotal,
+      },
+      chapters: chapters.map((row) => ({
+        ...row,
+        exists: existingAfter.has(row.localSlug),
+      })),
     });
   } catch (e) {
     res.status(500).json({ status: false, error: e.message || 'Internal server error' });
@@ -1120,7 +1185,7 @@ const syncMangaInit = async (req, res) => {
 const syncMangaChapter = async (req, res) => {
   const { slug, chapterSlug } = req.params;
   try {
-    const withImages = req.body?.withImages === true || req.body?.withImages === 'true';
+    const withImages = parseBooleanFlag(req.body?.withImages, false);
     const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
     let localManga = await getMangaBySlugLocal(slug);

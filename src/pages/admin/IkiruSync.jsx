@@ -16,7 +16,7 @@ export default function IkiruSync() {
   const [chapterSlug, setChapterSlug] = useState('');
   const [feedType, setFeedType] = useState('latest'); // latest | project
   const [page, setPage] = useState(1);
-  const [withImages, setWithImages] = useState(false);
+  const [withImages, setWithImages] = useState(true);
   const [feed, setFeed] = useState([]);
   const [selected, setSelected] = useState(() => new Set());
   const [feedLoading, setFeedLoading] = useState(false);
@@ -57,7 +57,7 @@ export default function IkiruSync() {
 
     const saveToS3 = false; // new default: store Ikiru URLs directly (no S3 download/upload)
 
-    // Init + plan queue (scrapes manga meta + returns the chapter list to process)
+    // Init: upsert manga + semua chapter di plan, dan gambar jika withImages (satu request backend).
     const init = await apiClient.syncIkiruMangaInit(mangaSlug, {
       mode,
       withImages,
@@ -72,6 +72,36 @@ export default function IkiruSync() {
       currentChapterSlug: null,
       stage: 'sync_chapters',
     }));
+
+    const provisioned =
+      Array.isArray(init.chapters) &&
+      init.chapters.length > 0 &&
+      init.chapters.every((c) => c.chapterId != null);
+
+    if (provisioned && (!withImages || init.chaptersFullySynced)) {
+      const chaptersResult = init.chapters.map((ch) => ({
+        status: true,
+        source: 'ikiru',
+        mangaId: init.mangaId,
+        chapterId: ch.chapterId,
+        chapterCreated: ch.chapterCreated,
+        imagesCount: ch.imagesCount ?? 0,
+        imagesInserted: ch.imagesInserted ?? 0,
+      }));
+      setQueueProgress((prev) => ({
+        ...prev,
+        processedManga: mangaIndex + 1,
+        currentChapterIndex: totalChapters,
+        stage: 'done',
+        status: 'done',
+      }));
+      return {
+        mangaSlug,
+        mangaId: init.mangaId,
+        mangaCreated: init.mangaCreated,
+        chapters: chaptersResult,
+      };
+    }
 
     for (let i = 0; i < (init?.chapters || []).length; i++) {
       const ch = init.chapters[i];
@@ -270,7 +300,8 @@ export default function IkiruSync() {
               </div>
             </div>
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Images hanya disimpan untuk <b>chapter yang baru dibuat</b> (lebih aman dari segi beban).
+              Panggilan <b>Init</b> di backend sekarang juga membuat baris chapter + gambar (jika opsi ini
+              aktif); antrean frontend tidak perlu memanggil per-chapter lagi kecuali server lama.
             </p>
           </div>
         </div>
