@@ -22,6 +22,7 @@ import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 import { useAuth } from '../contexts/AuthContext';
 import CommentSection from '../components/CommentSection';
+import LiveChatWidget from '../components/LiveChatWidget';
 
 
 // Import vote assets
@@ -988,6 +989,7 @@ const MangaDetail = () => {
 
       {/* Bottom Navigation - Mobile */}
       <BottomNavigation />
+      <LiveChatWidget />
     </div>
   );
 };

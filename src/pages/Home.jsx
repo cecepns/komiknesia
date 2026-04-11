@@ -9,6 +9,7 @@ import "aos/dist/aos.css";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
+import LiveChatWidget from "../components/LiveChatWidget";
 
 const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -409,6 +410,8 @@ const Home = () => {
           </div>
         )}
       </div>
+
+      <LiveChatWidget />
     </div>
   );
 };

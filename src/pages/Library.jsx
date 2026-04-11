@@ -9,6 +9,7 @@ import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
 import { removeFromHistory, clearHistory } from "../utils/historyManager";
 import { useAuth } from "../contexts/AuthContext";
+import LiveChatWidget from "../components/LiveChatWidget";
 
 const VALID_TABS = ["rekomendasi", "bookmark", "history"];
 const TAB_ID_MAP = { rekomendasi: "new-update", bookmark: "bookmark", history: "history" };
@@ -266,22 +267,18 @@ const Library = () => {
                         )}
 
 
-                        <div className="absolute bottom-0 left-0 right-0 p-3">
-                          {!!manga.hot && (
-                            <div className="mb-1 max-w-fit bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
-                              <span className="text-white text-xs font-bold">
-                                HOT
-                              </span>
-                            </div>
-                          )}
-                          <h3 className="text-white font-bold text-sm line-clamp-2 mb-1">
-                            {manga.title}
-                          </h3>
-                        </div>
                       </div>
 
-                      <div className="p-3">
-                        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                      <div className="p-3 flex flex-col h-[92px]">
+                        {!!manga.hot && (
+                          <div className="mb-1 max-w-fit bg-red-500/90 rounded-full px-2 py-1">
+                            <span className="text-white text-xs font-bold">HOT</span>
+                          </div>
+                        )}
+                        <h3 className="font-bold text-sm line-clamp-2 mb-2 text-gray-900 dark:text-gray-100">
+                          {manga.title}
+                        </h3>
+                        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mt-auto">
                           <span className="font-medium">
                             Chapter {manga.lastChapters[0]?.number || "N/A"}
                           </span>
@@ -389,11 +386,14 @@ const Library = () => {
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
-                              <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                                <h3 className="text-white font-bold text-sm line-clamp-2">
-                                  {item.title}
-                                </h3>
-                              </div>
+                            </div>
+                            <div
+                              className="p-3 min-h-[64px]"
+                              onClick={() => navigate(`/komik/${item.slug}`)}
+                            >
+                              <h3 className="font-bold text-sm line-clamp-2 text-gray-900 dark:text-gray-100">
+                                {item.title}
+                              </h3>
                             </div>
                           </div>
                         ))}
@@ -539,6 +539,7 @@ const Library = () => {
           )}
         </div>
       </main>
+      <LiveChatWidget />
     </div>
   );
 };

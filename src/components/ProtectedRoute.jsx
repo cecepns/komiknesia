@@ -2,9 +2,15 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false }) => {
+  const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
+
+  const isAdminUser =
+    user?.role === 'admin' ||
+    user?.is_admin === true ||
+    user?.is_admin === 1 ||
+    user?.isAdmin === true;
 
   if (loading) {
     return (
@@ -20,6 +26,10 @@ const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated) {
     // Redirect to login page with return url
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (requireAdmin && !isAdminUser) {
+    return <Navigate to="/akun" replace />;
   }
 
   return children;

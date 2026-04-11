@@ -8,6 +8,7 @@ import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
 import { getImageUrl } from "../utils/api";
 import { API_BASE_URL } from "../utils/api";
+import LiveChatWidget from "../components/LiveChatWidget";
 
 const countryFlags = {
   JP: "🇯🇵",
@@ -935,6 +936,7 @@ const Content = () => {
           </div>
         </div>
       </div>
+      <LiveChatWidget />
     </div>
   );
 };

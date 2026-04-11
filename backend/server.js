@@ -1,9 +1,14 @@
-/* eslint-env node */
+/* global require, __dirname */
 const express = require('express');
+const http = require('http');
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+const db = require('./db');
+const { JWT_SECRET } = require('./middlewares/auth');
 
 const authRoutes = require('./routes/authRoutes');
 const categoriesRoutes = require('./routes/categoriesRoutes');
@@ -26,9 +31,11 @@ const adminUserRoutes = require('./routes/adminUserRoutes');
 const leaderboardRoutes = require('./routes/leaderboardRoutes');
 const premiumOrderRoutes = require('./routes/premiumOrderRoutes');
 const stickerRoutes = require('./routes/stickerRoutes');
+const liveChatRoutes = require('./routes/liveChatRoutes');
 
 const app = express();
-const PORT = 8080;
+const server = http.createServer(app);
+const PORT = 3001;
 
 // Middleware
 const allowedOrigins = [
@@ -62,7 +69,78 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-const db = require('./db');
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+  },
+});
+
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  socket.on('live-chat:send', async (payload, ack) => {
+    try {
+      const message = String(payload?.message || '').trim();
+      const token = typeof payload?.token === 'string' ? payload.token : '';
+
+      if (!token) {
+        if (typeof ack === 'function') ack({ status: false, error: 'Access token required' });
+        return;
+      }
+
+      if (!message) {
+        if (typeof ack === 'function') ack({ status: false, error: 'Pesan tidak boleh kosong' });
+        return;
+      }
+
+      if (message.length > 300) {
+        if (typeof ack === 'function') {
+          ack({ status: false, error: 'Pesan terlalu panjang (maksimal 300 karakter)' });
+        }
+        return;
+      }
+
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const [users] = await db.execute(
+        `SELECT id, username, name, profile_image
+         FROM users
+         WHERE id = ?`,
+        [decoded.userId]
+      );
+
+      if (users.length === 0) {
+        if (typeof ack === 'function') ack({ status: false, error: 'User not found' });
+        return;
+      }
+
+      const sender = users[0];
+      const [result] = await db.execute(
+        'INSERT INTO live_chat_messages (user_id, message) VALUES (?, ?)',
+        [sender.id, message]
+      );
+      const [rows] = await db.execute(
+        `SELECT
+          c.id,
+          c.user_id,
+          c.message,
+          c.created_at,
+          u.username,
+          u.name,
+          u.profile_image
+        FROM live_chat_messages c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.id = ?`,
+        [result.insertId]
+      );
+
+      io.emit('live-chat:new-message', rows[0]);
+      if (typeof ack === 'function') ack({ status: true });
+    } catch {
+      if (typeof ack === 'function') ack({ status: false, error: 'Gagal mengirim pesan' });
+    }
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -83,6 +161,7 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/premium-orders', premiumOrderRoutes);
 app.use('/api/stickers', stickerRoutes);
+app.use('/api/live-chat', liveChatRoutes);
 app.use('/api/ikiru', ikiruRoutes);
 app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
 app.use('/', sitemapRoutes);
@@ -242,8 +321,8 @@ app.use((error, req, res, next) => {
   next();
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
 
 const runSqlMigration = async () => {
@@ -286,6 +365,15 @@ const runSqlMigration = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_stickers_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS live_chat_messages (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      message VARCHAR(300) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_live_chat_created (created_at),
+      KEY idx_live_chat_user (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
 

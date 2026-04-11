@@ -256,6 +256,21 @@ class APIClient {
     return this.request(`/leaderboard?${params.toString()}`);
   }
 
+  // Live chat
+  getLiveChats({ limit = 100 } = {}) {
+    const params = new URLSearchParams({
+      limit: String(limit),
+    });
+    return this.request(`/live-chat?${params.toString()}`);
+  }
+
+  postLiveChat(message) {
+    return this.request('/live-chat', {
+      method: 'POST',
+      body: { message },
+    });
+  }
+
   logout() {
     this.setAuthToken(null);
   }

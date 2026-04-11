@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getImageUrl, apiClient } from '../utils/api';
 import LazyImage from './LazyImage';
 import { useAds } from '../hooks/useAds';
@@ -12,12 +13,14 @@ const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
  * - Slot waktu sesuai setting menit (10, 15, 20, ..., 60) dari admin.
  */
 const AdPopup = () => {
+  const navigate = useNavigate();
   const { ads, loading } = useAds('popup');
   const [isOpen, setIsOpen] = useState(false);
   const [canClose, setCanClose] = useState(false);
   const [countdown, setCountdown] = useState(10);
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState(10);
   const [settingsReady, setSettingsReady] = useState(false);
+  const [pendingPremiumRedirect, setPendingPremiumRedirect] = useState(false);
 
   const UNLOCK_SECONDS = 10;
 
@@ -150,10 +153,22 @@ const AdPopup = () => {
     }
   }, [isOpen]);
 
-  const handleClose = () => {
+  useEffect(() => {
+    if (!pendingPremiumRedirect || !canClose) return;
+
+    setPendingPremiumRedirect(false);
+    setIsOpen(false);
+    navigate('/premium');
+  }, [pendingPremiumRedirect, canClose, navigate]);
+
+  const handlePremiumClick = () => {
     if (canClose) {
       setIsOpen(false);
+      navigate('/premium');
+      return;
     }
+
+    setPendingPremiumRedirect(true);
   };
 
   const handleAdClick = (ad) => {
@@ -181,14 +196,13 @@ const AdPopup = () => {
             <span />
           )}
           <button
-            onClick={handleClose}
-            disabled={!canClose}
+            onClick={handlePremiumClick}
             className={`px-3 py-1.5 rounded text-white text-sm font-medium transition-opacity ${
-              canClose ? 'opacity-100 cursor-pointer bg-red-600 hover:bg-red-700' : 'opacity-50 cursor-not-allowed bg-gray-600'
+              canClose ? 'opacity-100 cursor-pointer bg-amber-600 hover:bg-amber-700' : 'opacity-100 cursor-pointer bg-amber-600/80 hover:bg-amber-700'
             }`}
-            aria-label="Close popup"
+            aria-label="Beli premium"
           >
-            Close
+            Beli Premium
           </button>
         </div>
 
