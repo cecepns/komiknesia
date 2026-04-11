@@ -75,6 +75,7 @@ const register = async (req, res) => {
         points,
         is_membership,
         membership_expires_at,
+        role,
         CASE
           WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
           THEN 1
@@ -106,6 +107,7 @@ const register = async (req, res) => {
           is_membership: !!user.is_membership,
           membership_expires_at: user.membership_expires_at || null,
           membership_active: !!user.membership_active,
+          role: user.role || 'user',
         },
       },
     });
@@ -137,6 +139,7 @@ const login = async (req, res) => {
         points,
         is_membership,
         membership_expires_at,
+        role,
         CASE
           WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
           THEN 1
@@ -182,6 +185,7 @@ const login = async (req, res) => {
           is_membership: !!user.is_membership,
           membership_expires_at: user.membership_expires_at || null,
           membership_active: !!user.membership_active,
+          role: user.role || 'user',
         },
       },
     });
@@ -206,6 +210,7 @@ const me = async (req, res) => {
         is_membership: !!req.user.is_membership,
         membership_expires_at: req.user.membership_expires_at || null,
         membership_active: !!req.user.membership_active,
+        role: req.user.role || 'user',
       },
     });
   } catch (error) {
@@ -348,6 +353,7 @@ const updateProfile = async (req, res) => {
         points,
         is_membership,
         membership_expires_at,
+        role,
         CASE
           WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
           THEN 1
@@ -372,6 +378,7 @@ const updateProfile = async (req, res) => {
         is_membership: !!updated.is_membership,
         membership_expires_at: updated.membership_expires_at || null,
         membership_active: !!updated.membership_active,
+        role: updated.role || 'user',
       },
     });
   } catch (error) {

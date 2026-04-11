@@ -25,6 +25,7 @@ const authenticateToken = async (req, res, next) => {
         points,
         is_membership,
         membership_expires_at,
+        role,
         CASE
           WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
           THEN 1
@@ -67,6 +68,7 @@ const optionalAuthenticate = async (req, res, next) => {
         points,
         is_membership,
         membership_expires_at,
+        role,
         CASE
           WHEN is_membership = 1 AND (membership_expires_at IS NULL OR membership_expires_at >= NOW())
           THEN 1

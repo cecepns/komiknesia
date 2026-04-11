@@ -9,6 +9,7 @@ const initialForm = {
   points: 0,
   is_membership: false,
   membership_expires_at: '',
+  role: 'user',
 };
 
 export default function UserManager() {
@@ -79,6 +80,7 @@ export default function UserManager() {
       membership_expires_at: user.membership_expires_at
         ? new Date(user.membership_expires_at).toISOString().slice(0, 16)
         : '',
+      role: user.role === 'admin' ? 'admin' : 'user',
     });
     setShowForm(true);
     setError('');
@@ -103,6 +105,7 @@ export default function UserManager() {
         points: Number(form.points || 0),
         is_membership: !!form.is_membership,
         membership_expires_at: form.membership_expires_at || null,
+        role: form.role === 'admin' ? 'admin' : 'user',
       };
       if (form.password.trim()) {
         payload.password = form.password;
@@ -178,6 +181,7 @@ export default function UserManager() {
             <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
                 <th className="text-left px-4 py-3">User</th>
+                <th className="text-left px-4 py-3">Role</th>
                 <th className="text-left px-4 py-3">Membership</th>
                 <th className="text-left px-4 py-3">Point</th>
                 <th className="text-left px-4 py-3">Aksi</th>
@@ -186,14 +190,14 @@ export default function UserManager() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                     <Loader2 className="h-5 w-5 animate-spin inline-block mr-2" />
                     Loading...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">Tidak ada user</td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">Tidak ada user</td>
                 </tr>
               ) : (
                 users.map((user) => (
@@ -201,6 +205,17 @@ export default function UserManager() {
                     <td className="px-4 py-3">
                       <div className="font-semibold text-gray-900 dark:text-gray-100">{user.username}</div>
                       <div className="text-xs text-gray-500">{user.email || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {user.role === 'admin' ? (
+                        <span className="inline-flex px-2 py-1 text-xs rounded-full bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200">
+                          Admin
+                        </span>
+                      ) : (
+                        <span className="inline-flex px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                          User
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {user.is_membership ? (
@@ -310,6 +325,18 @@ export default function UserManager() {
                     className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-sm block mb-1">Role</label>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
+                  className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
 
               <div className="space-y-3">

@@ -18,6 +18,8 @@ const parseNullableDate = (value) => {
   return date;
 };
 
+const ALLOWED_ROLES = new Set(['user', 'admin']);
+
 const listUsers = async (req, res) => {
   try {
     const search = String(req.query.search || '').trim();
@@ -49,7 +51,8 @@ const listUsers = async (req, res) => {
           u.is_membership,
           u.membership_expires_at,
           u.profile_image,
-          u.created_at
+          u.created_at,
+          u.role
        FROM users u
        ${whereSql}
        ORDER BY u.id DESC
@@ -64,6 +67,7 @@ const listUsers = async (req, res) => {
           ...row,
           is_membership: !!row.is_membership,
           points: Number(row.points || 0),
+          role: row.role || 'user',
         })),
         pagination: {
           page,
@@ -80,7 +84,8 @@ const listUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { username, password, email, points, is_membership, membership_expires_at } = req.body || {};
+    const { username, password, email, points, is_membership, membership_expires_at, role } =
+      req.body || {};
     const usernameTrim = String(username || '').trim();
     const emailTrim = String(email || '').trim();
     const passwordVal = String(password || '');
@@ -113,10 +118,18 @@ const createUser = async (req, res) => {
       }
     }
 
+    let roleVal = 'user';
+    if (role !== undefined && role !== null && String(role).trim() !== '') {
+      const r = String(role).trim().toLowerCase();
+      if (!ALLOWED_ROLES.has(r)) {
+        return res.status(400).json({ status: false, error: 'Role harus "user" atau "admin"' });
+      }
+      roleVal = r;
+    }
     const hashedPassword = await bcrypt.hash(passwordVal, 10);
     await db.execute(
-      `INSERT INTO users (username, password, email, points, is_membership, membership_expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (username, password, email, points, is_membership, membership_expires_at, role)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         usernameTrim,
         hashedPassword,
@@ -124,6 +137,7 @@ const createUser = async (req, res) => {
         pointsVal,
         membershipVal ? 1 : 0,
         membershipVal ? membershipExpireDate : null,
+        roleVal,
       ]
     );
 
@@ -137,13 +151,14 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
-    const { username, email, password, points, is_membership, membership_expires_at } = req.body || {};
+    const { username, email, password, points, is_membership, membership_expires_at, role } =
+      req.body || {};
     if (!Number.isFinite(userId)) {
       return res.status(400).json({ status: false, error: 'Invalid user id' });
     }
 
     const [users] = await db.execute(
-      'SELECT id, username, email FROM users WHERE id = ?',
+      'SELECT id, username, email, role FROM users WHERE id = ?',
       [userId]
     );
     if (users.length === 0) {
@@ -206,6 +221,25 @@ const updateUser = async (req, res) => {
       params.push(membershipVal ? 1 : 0);
       updates.push('membership_expires_at = ?');
       params.push(membershipVal ? membershipExpireDate : null);
+    }
+
+    if (role !== undefined) {
+      const nextRole = String(role).trim().toLowerCase();
+      if (!ALLOWED_ROLES.has(nextRole)) {
+        return res.status(400).json({ status: false, error: 'Role harus "user" atau "admin"' });
+      }
+      if (
+        userId === req.user.id &&
+        String(users[0].role || 'user').toLowerCase() === 'admin' &&
+        nextRole === 'user'
+      ) {
+        return res.status(400).json({
+          status: false,
+          error: 'Tidak bisa menghapus role admin dari akun yang sedang dipakai',
+        });
+      }
+      updates.push('role = ?');
+      params.push(nextRole);
     }
 
     if (updates.length === 0) {
