@@ -488,6 +488,17 @@ class APIClient {
     return this.request(`/admin/ikiru-sync/feed?${params.toString()}`);
   }
 
+  getIkiruCloudflareCookiesMeta() {
+    return this.request('/admin/ikiru-sync/cloudflare-cookies');
+  }
+
+  putIkiruCloudflareCookies(cookies) {
+    return this.request('/admin/ikiru-sync/cloudflare-cookies', {
+      method: 'PUT',
+      body: { cookies },
+    });
+  }
+
   syncIkiruSelected(slugs, body = {}) {
     return this.request('/admin/ikiru-sync/selected', {
       method: 'POST',

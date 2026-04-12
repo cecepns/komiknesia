@@ -24,8 +24,56 @@ export default function IkiruSync() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [queueProgress, setQueueProgress] = useState(null);
+  const [cfDraft, setCfDraft] = useState('');
+  const [cfMeta, setCfMeta] = useState({ hasCookie: false, length: 0 });
+  const [cfSaving, setCfSaving] = useState(false);
+  const [cfMsg, setCfMsg] = useState(null);
 
   const selectedSlugs = useMemo(() => Array.from(selected), [selected]);
+
+  const loadCfMeta = async () => {
+    try {
+      const m = await apiClient.getIkiruCloudflareCookiesMeta();
+      setCfMeta({
+        hasCookie: Boolean(m?.hasCookie),
+        length: Number(m?.length) || 0,
+      });
+    } catch {
+      setCfMeta({ hasCookie: false, length: 0 });
+    }
+  };
+
+  const saveCloudflareCookies = async () => {
+    setCfSaving(true);
+    setCfMsg(null);
+    setError(null);
+    try {
+      const res = await apiClient.putIkiruCloudflareCookies(cfDraft.trim());
+      setCfMsg(res?.message || 'Tersimpan.');
+      await loadCfMeta();
+      setCfDraft('');
+    } catch (e) {
+      setError(e?.message || String(e));
+    } finally {
+      setCfSaving(false);
+    }
+  };
+
+  const clearCloudflareCookies = async () => {
+    setCfSaving(true);
+    setCfMsg(null);
+    setError(null);
+    try {
+      const res = await apiClient.putIkiruCloudflareCookies('');
+      setCfMsg(res?.message || 'Dihapus.');
+      setCfDraft('');
+      await loadCfMeta();
+    } catch (e) {
+      setError(e?.message || String(e));
+    } finally {
+      setCfSaving(false);
+    }
+  };
 
   const run = async (fn) => {
     setBusy(true);
@@ -255,6 +303,7 @@ export default function IkiruSync() {
   useEffect(() => {
     // auto-load first time
     loadFeed();
+    loadCfMeta();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -289,6 +338,51 @@ export default function IkiruSync() {
               Rekomendasi default: <b>delta</b> untuk update cepat; gunakan <b>full</b> untuk re-scan
               semua chapter.
             </p>
+            <div className="mt-3 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 text-xs leading-relaxed space-y-2">
+              <div>
+                <strong className="font-semibold">Cloudflare</strong> — setelah verifikasi bot di browser,
+                salin nilai header <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">Cookie</code>{' '}
+                untuk <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">https://02.ikiru.wtf</code>{' '}
+                (DevTools → Application → Cookies, atau Network). Tempel di bawah lalu simpan — disimpan di server
+                sebagai <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">backend/data/ikiru-cloudflare-cookies.txt</code>{' '}
+                (tanpa env). Cookie biasanya terikat IP server.
+              </div>
+              <div className="text-amber-800/90 dark:text-amber-200/90">
+                Status:{' '}
+                {cfMeta.hasCookie
+                  ? `tersimpan (~${cfMeta.length} karakter)`
+                  : 'belum ada cookie'}
+              </div>
+              <textarea
+                value={cfDraft}
+                onChange={(e) => setCfDraft(e.target.value)}
+                placeholder="cf_clearance=...; __cf_bm=..."
+                rows={3}
+                disabled={cfSaving || busy}
+                className="w-full px-2 py-1.5 rounded border border-amber-300/80 dark:border-amber-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-[11px]"
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={saveCloudflareCookies}
+                  disabled={cfSaving || busy || !cfDraft.trim()}
+                  className="h-8 px-3 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-xs font-medium disabled:opacity-50"
+                >
+                  {cfSaving ? 'Menyimpan…' : 'Simpan cookie'}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearCloudflareCookies}
+                  disabled={cfSaving || busy || !cfMeta.hasCookie}
+                  className="h-8 px-3 rounded-lg border border-amber-600/60 text-amber-900 dark:text-amber-100 text-xs hover:bg-amber-100/50 dark:hover:bg-amber-900/30 disabled:opacity-50"
+                >
+                  Hapus cookie
+                </button>
+              </div>
+              {cfMsg && (
+                <div className="text-amber-900 dark:text-amber-100 font-medium">{cfMsg}</div>
+              )}
+            </div>
           </div>
 
           <div className="lg:col-span-5">

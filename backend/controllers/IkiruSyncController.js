@@ -2,7 +2,12 @@
 /* eslint-env node */
 // ganti test
 const db = require('../db');
-const { ikiruFetchHtml, getIkiruAxios } = require('../utils/ikiruSession');
+const { ikiruFetchHtml, getIkiruAxios, invalidateIkiruSession } = require('../utils/ikiruSession');
+const {
+  getIkiruCloudflareCookiesFileMeta,
+  writeIkiruCloudflareCookiesFile,
+  clearIkiruCloudflareCookiesFile,
+} = require('../utils/ikiruCloudflareCookiesFile');
 const { uploadUrlToS3 } = require('../utils/s3Upload');
 const path = require('path');
 
@@ -1343,6 +1348,31 @@ const syncMangaChapter = async (req, res) => {
   }
 };
 
+const getCloudflareCookiesMeta = async (req, res) => {
+  try {
+    const meta = getIkiruCloudflareCookiesFileMeta();
+    res.json({ status: true, hasCookie: meta.hasCookie, length: meta.length });
+  } catch (e) {
+    res.status(500).json({ status: false, error: e.message || 'Internal server error' });
+  }
+};
+
+const putCloudflareCookies = async (req, res) => {
+  try {
+    const raw = String(req.body?.cookies ?? '').trim();
+    if (!raw) {
+      clearIkiruCloudflareCookiesFile();
+      invalidateIkiruSession();
+      return res.json({ status: true, hasCookie: false, message: 'Cookie Cloudflare dihapus.' });
+    }
+    writeIkiruCloudflareCookiesFile(raw);
+    invalidateIkiruSession();
+    res.json({ status: true, hasCookie: true, message: 'Cookie Cloudflare disimpan.' });
+  } catch (e) {
+    res.status(500).json({ status: false, error: e.message || 'Internal server error' });
+  }
+};
+
 const syncChapterImages = async (req, res) => {
   const { slug, chapterSlug } = req.params;
   try {
@@ -1377,5 +1407,7 @@ module.exports = {
   syncMangaInit,
   syncMangaChapter,
   syncChapterImages,
+  getCloudflareCookiesMeta,
+  putCloudflareCookies,
 };
 

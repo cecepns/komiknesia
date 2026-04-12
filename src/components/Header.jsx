@@ -81,11 +81,18 @@ const Header = () => {
     setShowResults(false);
   };
 
+  const submitFullSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    navigate(`/content?q=${encodeURIComponent(q)}`);
+    setSearchQuery("");
+    setShowResults(false);
+    setMobileMenuOpen(false);
+  };
+
   const handleSearchSubmit = (e) => {
     if (e.key === "Enter" && searchQuery.trim()) {
-      navigate(`/content?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery("");
-      setShowResults(false);
+      submitFullSearch();
     }
   };
 
@@ -265,27 +272,38 @@ const Header = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden pb-4 border-t border-gray-200 dark:border-gray-800 pt-3">
             <div className="mb-3 relative" ref={searchMobileRef}>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Cari manga..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleSearchSubmit}
-                  onFocus={() =>
-                    searchQuery.length >= 2 && setShowResults(true)
-                  }
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                {searchQuery && (
-                  <button
-                    onClick={clearSearch}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                  >
-                    <X className="h-4 w-4 text-gray-400" />
-                  </button>
-                )}
+              <div className="flex gap-2 items-stretch">
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="text"
+                    placeholder="Cari manga..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearchSubmit}
+                    onFocus={() =>
+                      searchQuery.length >= 2 && setShowResults(true)
+                    }
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    >
+                      <X className="h-4 w-4 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={submitFullSearch}
+                  disabled={!searchQuery.trim()}
+                  className="flex-shrink-0 px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:pointer-events-none text-white text-sm font-medium transition-colors"
+                >
+                  Cari
+                </button>
               </div>
 
               {showResults && (

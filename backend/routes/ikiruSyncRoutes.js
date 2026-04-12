@@ -2,9 +2,20 @@ const express = require('express');
 const { authenticateToken } = require('../middlewares/auth');
 const IkiruSyncController = require('../controllers/IkiruSyncController');
 
-// Scrape ke Ikiru memakai ../utils/ikiruSession (login + cookie untuk semua GET), termasuk POST /cron-sync.
+// Scrape ke Ikiru: ikiruSession (login + jar). Cloudflare: simpan cookie lewat PUT .../cloudflare-cookies atau file data/ikiru-cloudflare-cookies.txt.
 
 const router = express.Router();
+
+router.get(
+  '/cloudflare-cookies',
+  authenticateToken,
+  IkiruSyncController.getCloudflareCookiesMeta
+);
+router.put(
+  '/cloudflare-cookies',
+  authenticateToken,
+  IkiruSyncController.putCloudflareCookies
+);
 
 router.get('/feed', authenticateToken, IkiruSyncController.listFeed);
 router.post('/latest', authenticateToken, IkiruSyncController.syncLatest);

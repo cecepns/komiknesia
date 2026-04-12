@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Ikiru Cloudflare cookies (admin-sync, jangan commit)
+backend/data/ikiru-cloudflare-cookies.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
