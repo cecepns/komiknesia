@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { JWT_SECRET } = require('../middlewares/auth');
+const { parseUserRole } = require('../utils/userRole');
 
 const USERNAME_REGEX = /^[a-z0-9._-]+$/;
 
@@ -86,8 +87,9 @@ const register = async (req, res) => {
     );
     const user = inserted[0];
 
+    const role = parseUserRole(user.role) || 'user';
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.id, username: user.username, role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -107,7 +109,7 @@ const register = async (req, res) => {
           is_membership: !!user.is_membership,
           membership_expires_at: user.membership_expires_at || null,
           membership_active: !!user.membership_active,
-          role: user.role || 'user',
+          role,
         },
       },
     });
@@ -164,8 +166,9 @@ const login = async (req, res) => {
       return res.status(401).json({ status: false, error: 'Invalid username or password' });
     }
 
+    const role = parseUserRole(user.role) || 'user';
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.id, username: user.username, role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -185,7 +188,7 @@ const login = async (req, res) => {
           is_membership: !!user.is_membership,
           membership_expires_at: user.membership_expires_at || null,
           membership_active: !!user.membership_active,
-          role: user.role || 'user',
+          role,
         },
       },
     });
@@ -210,7 +213,7 @@ const me = async (req, res) => {
         is_membership: !!req.user.is_membership,
         membership_expires_at: req.user.membership_expires_at || null,
         membership_active: !!req.user.membership_active,
-        role: req.user.role || 'user',
+        role: parseUserRole(req.user.role) || 'user',
       },
     });
   } catch (error) {

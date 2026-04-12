@@ -18,7 +18,7 @@ const premiumPackages = [
     id: "quarterly",
     name: "Paket 3 Bulan",
     duration: "90 Hari",
-    price: "Rp20.000",
+    price: "Rp25.000",
     highlight: true,
   },
   {

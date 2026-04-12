@@ -6,6 +6,7 @@ import crownImage from "../assets/leaderboard/crown.png";
 import diamondImage from "../assets/leaderboard/diamond.png";
 import { apiClient, getImageUrl } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
+import LiveChatWidget from "../components/LiveChatWidget";
 
 function avatarSeed(name) {
   const colors = [
@@ -373,6 +374,8 @@ const Leaderboard = () => {
           </div>
         </div>
       </div>
+
+      <LiveChatWidget />
     </div>
   );
 };

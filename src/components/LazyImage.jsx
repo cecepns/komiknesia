@@ -13,6 +13,8 @@ const LazyImage = ({
   placeholderSrc = null,
   effect = 'opacity',
   threshold = 100,
+  /** Omit Referer on image requests (many CDNs block hotlinking by Referer). */
+  referrerPolicy = 'no-referrer',
   ...props 
 }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +48,7 @@ const LazyImage = ({
           src={brokenImage} 
           alt="Broken image" 
           className={className}
+          referrerPolicy={referrerPolicy}
         />
       )}
 
@@ -62,6 +65,7 @@ const LazyImage = ({
           beforeLoad={handleBeforeLoad}
           afterLoad={handleAfterLoad}
           onError={handleError}
+          referrerPolicy={referrerPolicy}
           {...props}
         />
       )}
@@ -78,6 +82,7 @@ LazyImage.propTypes = {
   placeholderSrc: PropTypes.string,
   effect: PropTypes.string,
   threshold: PropTypes.number,
+  referrerPolicy: PropTypes.string,
 };
 
 export default LazyImage;

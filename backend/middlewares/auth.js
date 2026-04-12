@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { resolveUserRole } = require('../utils/userRole');
 
 const JWT_SECRET = 'komiknesia-secret-key-change-in-production';
 
@@ -40,7 +41,11 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ status: false, error: 'User not found' });
     }
 
-    req.user = users[0];
+    const row = users[0];
+    req.user = {
+      ...row,
+      role: resolveUserRole(row.role, decoded.role),
+    };
     next();
   } catch {
     return res.status(403).json({ status: false, error: 'Invalid or expired token' });
@@ -78,7 +83,15 @@ const optionalAuthenticate = async (req, res, next) => {
       WHERE id = ?`,
       [decoded.userId]
     );
-    req.user = users.length > 0 ? users[0] : null;
+    if (users.length === 0) {
+      req.user = null;
+    } else {
+      const row = users[0];
+      req.user = {
+        ...row,
+        role: resolveUserRole(row.role, decoded.role),
+      };
+    }
     next();
   } catch {
     req.user = null;

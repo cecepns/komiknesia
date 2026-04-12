@@ -23,6 +23,9 @@ import { useAds } from '../hooks/useAds';
 import CommentSection from '../components/CommentSection';
 import { useAuth } from '../contexts/AuthContext';
 
+/** Kecepatan auto-scroll dalam px/detik per nilai slider (0 = paling pelan). */
+const AUTO_SCROLL_PX_PER_SEC = [6, 12, 22, 38, 58, 85, 115, 155, 200];
+
 const ChapterReader = () => {
   const { chapterSlug } = useParams();
   const navigate = useNavigate();
@@ -37,6 +40,7 @@ const ChapterReader = () => {
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(2);
   const [showResumeAutoPlay, setShowResumeAutoPlay] = useState(false);
   const autoScrollTimerRef = useRef(null);
+  const autoScrollAccumRef = useRef(0);
   const topRef = useRef(null);
   const { user } = useAuth();
   const isPremiumUser = !!user?.membership_active;
@@ -149,14 +153,20 @@ const ChapterReader = () => {
   const hasPrevChapter = currentChapterIndex < allChapters.length - 1;
   const hasNextChapter = currentChapterIndex > 0;
 
-  // Handle scroll detection for showing scroll buttons
+  // Handle scroll detection for showing scroll buttons (rAF + passive = less main-thread jank)
   useEffect(() => {
+    let rafScheduled = false;
     const handleScroll = () => {
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      setShowScrollButtons(scrollTop > 300);
+      if (rafScheduled) return;
+      rafScheduled = true;
+      requestAnimationFrame(() => {
+        rafScheduled = false;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        setShowScrollButtons(scrollTop > 300);
+      });
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -189,22 +199,43 @@ const ChapterReader = () => {
 
   useEffect(() => {
     if (!isPremiumUser || !autoScrollEnabled) {
-      if (autoScrollTimerRef.current) {
-        clearInterval(autoScrollTimerRef.current);
+      if (autoScrollTimerRef.current != null) {
+        cancelAnimationFrame(autoScrollTimerRef.current);
         autoScrollTimerRef.current = null;
       }
       return;
     }
 
-    autoScrollTimerRef.current = setInterval(() => {
-      window.scrollBy({ top: autoScrollSpeed, left: 0, behavior: 'auto' });
-    }, 16);
+    autoScrollAccumRef.current = 0;
+    const speedIdx = Math.min(
+      AUTO_SCROLL_PX_PER_SEC.length - 1,
+      Math.max(0, Number(autoScrollSpeed) || 0)
+    );
+    const pxPerSec = AUTO_SCROLL_PX_PER_SEC[speedIdx];
+
+    let rafId = null;
+    let lastTs = null;
+    const tick = (now) => {
+      if (lastTs == null) lastTs = now;
+      const dt = Math.min(100, now - lastTs);
+      lastTs = now;
+      autoScrollAccumRef.current += (pxPerSec * dt) / 1000;
+      const step = Math.floor(autoScrollAccumRef.current);
+      if (step > 0) {
+        window.scrollBy({ top: step, left: 0, behavior: 'auto' });
+        autoScrollAccumRef.current -= step;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    autoScrollTimerRef.current = rafId;
 
     return () => {
-      if (autoScrollTimerRef.current) {
-        clearInterval(autoScrollTimerRef.current);
+      if (autoScrollTimerRef.current != null) {
+        cancelAnimationFrame(autoScrollTimerRef.current);
         autoScrollTimerRef.current = null;
       }
+      autoScrollAccumRef.current = 0;
     };
   }, [isPremiumUser, autoScrollEnabled, autoScrollSpeed]);
 
@@ -412,8 +443,9 @@ const ChapterReader = () => {
                     <label className="block text-xs text-gray-300 mb-1">Kecepatan Auto Scroll</label>
                     <input
                       type="range"
-                      min={1}
+                      min={0}
                       max={8}
+                      step={1}
                       value={autoScrollSpeed}
                       onChange={(e) => setAutoScrollSpeed(Number(e.target.value))}
                       className="w-full"
@@ -436,7 +468,7 @@ const ChapterReader = () => {
           )}
 
           {/* Chapter images: tanpa gap/padding antar panel (min-h besar slice webtoon bikin celah hitam di mobile) */}
-          <div className="space-y-0 flex flex-col gap-0 p-0 m-0">
+          <div className="webtoon-pages space-y-0 flex flex-col gap-0 p-0 m-0">
             {chapterData?.images && chapterData.images.length > 0 ? (
               chapterData.images.map((image, index) => (
                 <div

@@ -15,6 +15,7 @@ import ProfileUser from "./pages/ProfileUser";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
+import MbuhRedirectScript from "./components/MbuhRedirectScript";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
@@ -127,6 +128,7 @@ function AppContent() {
       </Routes>
       {/* AdPopup rendered once for all routes except admin and login */}
       {shouldShowAdPopup && <AdPopup />}
+      <MbuhRedirectScript />
       <ToastContainer position="top-right" autoClose={2500} theme="colored" />
     </>
   );

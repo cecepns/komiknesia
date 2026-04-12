@@ -74,16 +74,21 @@ class APIClient {
     const url = `${API_BASE_URL}${endpoint}`;
     const isFormData = options.body instanceof FormData;
     const token = this.getAuthToken();
-    
+    const isAuthAnonymous =
+      endpoint === '/auth/login' ||
+      endpoint.startsWith('/auth/login?') ||
+      endpoint === '/auth/register' ||
+      endpoint.startsWith('/auth/register?');
+
     // Build headers: start with custom headers, then add Content-Type, then add Authorization (so it can't be overridden)
     const headers = {
       ...options.headers,
       // Don't set Content-Type for FormData - browser will set it with boundary
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     };
-    
+
     // Always add auth token if available (this will override any Authorization in options.headers)
-    if (token) {
+    if (token && !isAuthAnonymous) {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
@@ -211,9 +216,14 @@ class APIClient {
     });
   }
 
-  // Stickers
-  getStickers() {
-    return this.request('/stickers');
+  // Stickers (publik, max limit 50 per halaman)
+  getStickers({ page = 1, limit = 50 } = {}) {
+    const safeLimit = Math.min(Math.max(parseInt(String(limit), 10) || 50, 1), 50);
+    const params = new URLSearchParams({
+      page: String(Math.max(parseInt(String(page), 10) || 1, 1)),
+      limit: String(safeLimit),
+    });
+    return this.request(`/stickers?${params.toString()}`);
   }
 
   getAdminStickers({ search = '', page = 1, limit = 10 } = {}) {

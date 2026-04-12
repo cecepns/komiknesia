@@ -11,10 +11,36 @@ const sanitizeLimit = (value, fallback = 10) => {
 
 const listPublic = async (req, res) => {
   try {
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limitRaw = parseInt(req.query.limit || '50', 10);
+    const limit = Math.min(Math.max(Number.isNaN(limitRaw) ? 50 : limitRaw, 1), 50);
+    const offset = (page - 1) * limit;
+
+    const [[countRow]] = await db.execute('SELECT COUNT(*) AS total FROM stickers');
     const [rows] = await db.execute(
-      'SELECT id, name, image_path, is_gif, created_at, updated_at FROM stickers ORDER BY id DESC'
+      `SELECT id, name, image_path, is_gif, created_at, updated_at
+       FROM stickers
+       ORDER BY id DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
     );
-    return res.json({ status: true, data: rows });
+
+    const total = Number(countRow?.total || 0);
+    return res.json({
+      status: true,
+      data: {
+        items: rows.map((row) => ({
+          ...row,
+          is_gif: !!row.is_gif,
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          total_pages: Math.max(1, Math.ceil(total / limit)),
+        },
+      },
+    });
   } catch (error) {
     console.error('Error fetching stickers:', error);
     return res.status(500).json({ status: false, error: 'Internal server error' });
