@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChartBar as BarChart3, BookOpen, List, FileText } from 'lucide-react';
+import { ChartBar as BarChart3, BookOpen, List, FileText, Crown } from 'lucide-react';
 import { apiClient } from '../../utils/api';
 
 const Dashboard = () => {
@@ -7,7 +7,8 @@ const Dashboard = () => {
     totalManga: 0,
     totalCategories: 0,
     totalViews: 0,
-    totalAds: 0
+    totalAds: 0,
+    totalVipMembers: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -31,11 +32,12 @@ const Dashboard = () => {
     { label: 'Total Kategori', value: stats.totalCategories.toLocaleString(), icon: List, color: 'text-green-600' },
     { label: 'Total Views', value: stats.totalViews.toLocaleString(), icon: BarChart3, color: 'text-purple-600' },
     { label: 'Total Iklan', value: stats.totalAds.toLocaleString(), icon: FileText, color: 'text-orange-600' },
+    { label: 'Member VIP', value: stats.totalVipMembers.toLocaleString(), icon: Crown, color: 'text-yellow-600' },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {statsDisplay.map((stat, index) => {
           const Icon = stat.icon;
           return (

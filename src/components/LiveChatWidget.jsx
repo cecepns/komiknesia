@@ -4,6 +4,7 @@ import { MessageCircle, Send, Smile, X } from "lucide-react";
 import { io } from "socket.io-client";
 import { API_BASE_URL_WITHOUT_API, apiClient, getImageUrl } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
+import vipProfileBanner from "../assets/gif/banner-vip.gif";
 
 function getInitials(name, username) {
   const source = String(name || username || "U").trim();
@@ -61,7 +62,28 @@ function stickersFromApiResponse(res) {
   return [];
 }
 
-function ChatMessageBody({ text }) {
+function isTruthyLike(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    return v === "1" || v === "true" || v === "yes" || v === "active";
+  }
+  return false;
+}
+
+function isVipUser(message) {
+  const role = String(message?.role || "").trim().toLowerCase();
+  if (role === "vip" || role === "premium") return true;
+  if (isTruthyLike(message?.membership_active)) return true;
+  if (!isTruthyLike(message?.is_membership)) return false;
+  if (!message?.membership_expires_at) return true;
+  const expiresAt = new Date(message.membership_expires_at);
+  if (Number.isNaN(expiresAt.getTime())) return true;
+  return expiresAt.getTime() >= Date.now();
+}
+
+function renderChatMessageBody(text) {
   const imagePath = parseStickerMessage(text);
   if (imagePath) {
     const src = getImageUrl(imagePath);
@@ -277,34 +299,78 @@ const LiveChatWidget = () => {
             chatMessages.map((msg) => {
               const label = msg.name || msg.username || "User";
               const hasImage = msg.profile_image && !brokenAvatarIds.has(msg.id);
+              const vipUser = isVipUser(msg);
               return (
                 <div key={msg.id} className="pb-3 border-b border-white/5 last:border-b-0">
-                  <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-full overflow-hidden shrink-0">
-                      {hasImage ? (
-                        <img
-                          src={getImageUrl(msg.profile_image)}
-                          alt={label}
-                          className="h-full w-full object-cover"
-                          onError={() => markAvatarBroken(msg.id)}
-                        />
-                      ) : (
-                        <div
-                          className={`h-full w-full ${avatarSeed(label)} flex items-center justify-center text-xs font-bold`}
-                        >
-                          {getInitials(msg.name, msg.username)}
+                  <div className="min-w-0 flex-1">
+                    {vipUser ? (
+                      <div className="mb-2">
+                        <div className="mb-1.5 flex justify-end">
+                          <span className="text-[10px] sm:text-xs text-gray-300 tabular-nums">
+                            {formatChatDateTime(msg.created_at)}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="font-semibold text-sm truncate">{label}</p>
-                        <span className="text-[10px] sm:text-xs text-gray-400 shrink-0 tabular-nums text-right max-w-[7.5rem] sm:max-w-none leading-tight">
-                          {formatChatDateTime(msg.created_at)}
-                        </span>
+                        <div className="relative h-16 overflow-hidden rounded-xl">
+                          <img
+                            src={vipProfileBanner}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-full w-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center gap-2.5 px-3">
+                            <div className="h-10 w-10 rounded-full overflow-hidden shrink-0 bg-white">
+                              {hasImage ? (
+                                <img
+                                  src={getImageUrl(msg.profile_image)}
+                                  alt={label}
+                                  className="h-full w-full object-cover"
+                                  onError={() => markAvatarBroken(msg.id)}
+                                />
+                              ) : (
+                                <div
+                                  className={`h-full w-full ${avatarSeed(label)} flex items-center justify-center text-sm font-bold text-white`}
+                                >
+                                  {getInitials(msg.name, msg.username)}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-white drop-shadow-sm">
+                                {label}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <ChatMessageBody text={msg.message} />
-                    </div>
+                    ) : (
+                      <div className="flex items-start gap-3 pl-3">
+                        <div className="h-10 w-10 rounded-full overflow-hidden shrink-0">
+                          {hasImage ? (
+                            <img
+                              src={getImageUrl(msg.profile_image)}
+                              alt={label}
+                              className="h-full w-full object-cover"
+                              onError={() => markAvatarBroken(msg.id)}
+                            />
+                          ) : (
+                            <div
+                              className={`h-full w-full ${avatarSeed(label)} flex items-center justify-center text-xs font-bold`}
+                            >
+                              {getInitials(msg.name, msg.username)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-semibold text-sm truncate">{label}</p>
+                            <span className="text-[10px] sm:text-xs text-gray-400 shrink-0 tabular-nums text-right max-w-[7.5rem] sm:max-w-none leading-tight">
+                              {formatChatDateTime(msg.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {renderChatMessageBody(msg.message)}
                   </div>
                 </div>
               );
@@ -397,18 +463,25 @@ const LiveChatWidget = () => {
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={() => setChatOpen((prev) => !prev)}
-        aria-label={chatOpen ? "Tutup live chat" : "Buka live chat"}
-        className={`relative h-14 w-14 rounded-full bg-gradient-to-br from-red-600 to-rose-700 text-white shadow-[0_12px_35px_rgba(225,29,72,0.45)] transition-all duration-300 hover:scale-110 active:scale-95 ${
-          chatOpen ? "rotate-180" : ""
-        }`}
-      >
-        <span className="relative z-10 flex items-center justify-center">
-          {chatOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-        </span>
-      </button>
+      <div className="flex flex-col items-end">
+        {!chatOpen && (
+          <div className="mb-2 rounded-full border border-white/15 bg-gray-950/95 px-3 py-1 text-xs font-semibold text-gray-200 shadow-lg backdrop-blur-sm">
+            Chat Room
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setChatOpen((prev) => !prev)}
+          aria-label={chatOpen ? "Tutup live chat" : "Buka live chat"}
+          className={`relative h-14 w-14 rounded-full bg-gradient-to-br from-red-600 to-rose-700 text-white shadow-[0_12px_35px_rgba(225,29,72,0.45)] transition-all duration-300 hover:scale-110 active:scale-95 ${
+            chatOpen ? "rotate-180" : ""
+          }`}
+        >
+          <span className="relative z-10 flex items-center justify-center">
+            {chatOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+          </span>
+        </button>
+      </div>
     </div>
   );
 };

@@ -13,7 +13,9 @@ import {
   ArrowDown,
   Play,
   Pause,
-  Sparkles
+  Sparkles,
+  Coffee,
+  ExternalLink
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
@@ -44,6 +46,7 @@ const ChapterReader = () => {
   const topRef = useRef(null);
   const { user } = useAuth();
   const isPremiumUser = !!user?.membership_active;
+  const donateUrl = 'https://saweria.co/KomikNesia';
 
   // Fetch chapter content (includes all data we need)
   useEffect(() => {
@@ -213,7 +216,6 @@ const ChapterReader = () => {
     );
     const pxPerSec = AUTO_SCROLL_PX_PER_SEC[speedIdx];
 
-    let rafId = null;
     let lastTs = null;
     const tick = (now) => {
       if (lastTs == null) lastTs = now;
@@ -225,10 +227,11 @@ const ChapterReader = () => {
         window.scrollBy({ top: step, left: 0, behavior: 'auto' });
         autoScrollAccumRef.current -= step;
       }
-      rafId = requestAnimationFrame(tick);
+      // Selalu simpan id frame terbaru agar cleanup membatalkan seluruh rantai RAF,
+      // bukan hanya frame pertama (tanpa ini auto-scroll tetap jalan setelah pause).
+      autoScrollTimerRef.current = requestAnimationFrame(tick);
     };
-    rafId = requestAnimationFrame(tick);
-    autoScrollTimerRef.current = rafId;
+    autoScrollTimerRef.current = requestAnimationFrame(tick);
 
     return () => {
       if (autoScrollTimerRef.current != null) {
@@ -543,6 +546,30 @@ const ChapterReader = () => {
               />
             </div>
           )}
+
+          <div className="px-3 sm:px-4 mb-6">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-lg">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-white">KASIH KOPI DISINI</p>
+                  <p className="text-xs text-slate-400">Kopinya Kawan</p>
+                </div>
+                <div className="rounded-xl bg-white/10 p-2 text-emerald-300">
+                  <Coffee className="h-4 w-4" />
+                </div>
+              </div>
+              <a
+                href={donateUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
+              >
+                <Coffee className="h-4 w-4" />
+                Donasi
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
 
           {/* Comment Section */}
           <div className="px-3 sm:px-4 pb-6 sm:pb-8">

@@ -1,10 +1,17 @@
 const db = require('../db');
 
+const getRequestIp = (req) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim() !== '') {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.ip || req.connection?.remoteAddress || 'unknown';
+};
+
 const getBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const user_ip =
-      req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+    const user_ip = getRequestIp(req);
 
     const [mangaRows] = await db.execute('SELECT id FROM manga WHERE slug = ?', [slug]);
 
@@ -75,8 +82,7 @@ const submit = async (req, res) => {
       return res.status(400).json({ status: false, error: 'Invalid vote_type' });
     }
 
-    const user_ip =
-      req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+    const user_ip = getRequestIp(req);
     const userId = req.user ? req.user.id : null;
 
     const [mangaRows] = await db.execute('SELECT id FROM manga WHERE slug = ?', [slug]);
@@ -120,8 +126,8 @@ const submit = async (req, res) => {
 
     if (userId) {
       await db.execute(
-        'INSERT INTO votes (manga_id, vote_type, user_id) VALUES (?, ?, ?)',
-        [mangaId, vote_type, userId]
+        'INSERT INTO votes (manga_id, vote_type, user_id, user_ip) VALUES (?, ?, ?, ?)',
+        [mangaId, vote_type, userId, user_ip]
       );
     } else {
       await db.execute(

@@ -17,7 +17,15 @@ const index = async (req, res) => {
         c.created_at,
         u.username,
         u.name,
-        u.profile_image
+        u.profile_image,
+        u.is_membership,
+        u.membership_expires_at,
+        CASE
+          WHEN u.is_membership = 1 AND (u.membership_expires_at IS NULL OR u.membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active,
+        u.role
       FROM live_chat_messages c
       JOIN users u ON u.id = c.user_id
       ORDER BY c.id DESC
@@ -62,7 +70,15 @@ const store = async (req, res) => {
         c.created_at,
         u.username,
         u.name,
-        u.profile_image
+        u.profile_image,
+        u.is_membership,
+        u.membership_expires_at,
+        CASE
+          WHEN u.is_membership = 1 AND (u.membership_expires_at IS NULL OR u.membership_expires_at >= NOW())
+          THEN 1
+          ELSE 0
+        END AS membership_active,
+        u.role
       FROM live_chat_messages c
       JOIN users u ON u.id = c.user_id
       WHERE c.id = ?`,

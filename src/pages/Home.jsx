@@ -1,15 +1,34 @@
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import { Star, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Star,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Share2,
+  Coffee,
+  ExternalLink,
+} from "lucide-react";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
 import { Link } from "react-router-dom";
+import {
+  WhatsappShareButton,
+  FacebookShareButton,
+  TelegramShareButton,
+  TwitterShareButton,
+  WhatsappIcon,
+  FacebookIcon,
+  TelegramIcon,
+  TwitterIcon,
+} from "react-share";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
 import LiveChatWidget from "../components/LiveChatWidget";
+import discordIcon from "../assets/discord.svg";
 
 const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -18,6 +37,11 @@ const Home = () => {
   const [popupBannerVisible, setPopupBannerVisible] = useState(false);
   const [homePopupIntervalMinutes, setHomePopupIntervalMinutes] = useState(10);
   const [popupSettingsReady, setPopupSettingsReady] = useState(false);
+  const [sharePopupOpen, setSharePopupOpen] = useState(false);
+  const shareUrl = typeof window !== "undefined" ? window.location.origin : "https://komiknesia.com";
+  const shareTitle = "Baca komik, manga, manhwa, dan manhua Bahasa Indonesia di KomikNesia!";
+  const discordInviteUrl = "https://discord.gg/nUv4G3f5";
+  const donateUrl = "https://saweria.co/KomikNesia";
 
   useEffect(() => {
     fetchBannerManga();
@@ -365,6 +389,150 @@ const Home = () => {
             </div>
           </div>
         </div>
+
+        <div
+          className="mb-8 grid gap-3 md:grid-cols-3 md:gap-4"
+          data-aos="fade-up"
+          data-aos-delay="120"
+        >
+          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-left">
+                <p className="text-sm font-semibold text-white">Share Komiknesia</p>
+                <p className="text-xs text-slate-400">to your friends</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-2 text-cyan-300">
+                <Share2 className="h-4 w-4" />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSharePopupOpen(true)}
+              className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Share2 className="h-4 w-4" />
+                Share now
+              </span>
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-left">
+                <p className="text-sm font-semibold text-white">Discord</p>
+                <p className="text-xs text-slate-400">Join Discord</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-2">
+                <img src={discordIcon} alt="Discord" className="h-4 w-4" />
+              </div>
+            </div>
+            <a
+              href={discordInviteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-400"
+            >
+              <img src={discordIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+              Discord
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-left">
+                <p className="text-sm font-semibold text-white">Kasih Kopi</p>
+                <p className="text-xs text-slate-400">Supportnya kawan</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-2 text-emerald-300">
+                <Coffee className="h-4 w-4" />
+              </div>
+            </div>
+            <a
+              href={donateUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
+            >
+              <Coffee className="h-4 w-4" />
+              Donasi
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </div>
+
+        {sharePopupOpen && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Pilih platform untuk share"
+          >
+            <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-4 text-left shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-white">Share Komiknesia</h3>
+                <button
+                  type="button"
+                  onClick={() => setSharePopupOpen(false)}
+                  className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="Tutup popup share"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <p className="mb-4 text-sm text-slate-400">Pilih mau share ke platform mana:</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <WhatsappShareButton
+                  url={shareUrl}
+                  title={shareTitle}
+                  separator=" - "
+                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                  resetButtonStyle={false}
+                  onClick={() => setSharePopupOpen(false)}
+                >
+                  <WhatsappIcon size={32} round />
+                  <span>WhatsApp</span>
+                </WhatsappShareButton>
+
+                <FacebookShareButton
+                  url={shareUrl}
+                  hashtag="#KomikNesia"
+                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                  resetButtonStyle={false}
+                  onClick={() => setSharePopupOpen(false)}
+                >
+                  <FacebookIcon size={32} round />
+                  <span>Facebook</span>
+                </FacebookShareButton>
+
+                <TelegramShareButton
+                  url={shareUrl}
+                  title={shareTitle}
+                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                  resetButtonStyle={false}
+                  onClick={() => setSharePopupOpen(false)}
+                >
+                  <TelegramIcon size={32} round />
+                  <span>Telegram</span>
+                </TelegramShareButton>
+
+                <TwitterShareButton
+                  url={shareUrl}
+                  title={shareTitle}
+                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                  resetButtonStyle={false}
+                  onClick={() => setSharePopupOpen(false)}
+                >
+                  <TwitterIcon size={32} round />
+                  <span>X / Twitter</span>
+                </TwitterShareButton>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* New Update Ads - 4 ads above Update Section */}
         {newUpdateAds.length > 0 && (

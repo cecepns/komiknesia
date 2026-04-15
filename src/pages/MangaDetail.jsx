@@ -13,7 +13,9 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Share2,
+  X
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
@@ -23,6 +25,16 @@ import { useAds } from '../hooks/useAds';
 import { useAuth } from '../contexts/AuthContext';
 import CommentSection from '../components/CommentSection';
 import LiveChatWidget from '../components/LiveChatWidget';
+import {
+  WhatsappShareButton,
+  FacebookShareButton,
+  TelegramShareButton,
+  TwitterShareButton,
+  WhatsappIcon,
+  FacebookIcon,
+  TelegramIcon,
+  TwitterIcon,
+} from 'react-share';
 
 
 // Import vote assets
@@ -46,6 +58,7 @@ const MangaDetail = () => {
   const [error, setError] = useState(null);
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' (from chapter 1) or 'desc' (from last chapter)
   const [currentPage, setCurrentPage] = useState(1);
+  const [sharePopupOpen, setSharePopupOpen] = useState(false);
   const itemsPerPage = 10;
   
   // Vote states
@@ -390,6 +403,7 @@ const MangaDetail = () => {
   // SEO data
   const siteUrl = 'https://02.komiknesia.asia';
   const pageUrl = `${siteUrl}/komik/${slug}`;
+  const shareTitle = `Baca ${manga?.title || 'komik'} Bahasa Indonesia di KomikNesia!`;
   const coverImage = manga ? getImageUrl(manga.cover) : `${siteUrl}/logo.png`;
   const seriesType = manga?.content_type || 'Komik';
   const description = `Baca ${seriesType} ${manga?.title || 'komik'} bahasa Indonesia di KomikNesia. Sinopsis lengkap, daftar chapter, dan update terbaru tersedia di sini.`;
@@ -548,6 +562,14 @@ const MangaDetail = () => {
                     >
                       <Play className="h-5 w-5 mr-2" />
                       Baca
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSharePopupOpen(true)}
+                      className="p-3 rounded-lg bg-primary-800 text-gray-300 hover:bg-primary-700 hover:text-white transition-all"
+                      title="Share manga ini"
+                    >
+                      <Share2 className="h-5 w-5" />
                     </button>
                     {isAuthenticated && (
                       <button
@@ -986,6 +1008,78 @@ const MangaDetail = () => {
           )}
         </div>
       </main>
+
+      {sharePopupOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pilih platform untuk share manga"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-primary-900 p-4 text-left shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-white">Share Manga</h3>
+              <button
+                type="button"
+                onClick={() => setSharePopupOpen(false)}
+                className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Tutup popup share"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-gray-400">Pilih platform untuk membagikan manga ini:</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <WhatsappShareButton
+                url={pageUrl}
+                title={shareTitle}
+                separator=" - "
+                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                resetButtonStyle={false}
+                onClick={() => setSharePopupOpen(false)}
+              >
+                <WhatsappIcon size={32} round />
+                <span>WhatsApp</span>
+              </WhatsappShareButton>
+
+              <FacebookShareButton
+                url={pageUrl}
+                hashtag="#KomikNesia"
+                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                resetButtonStyle={false}
+                onClick={() => setSharePopupOpen(false)}
+              >
+                <FacebookIcon size={32} round />
+                <span>Facebook</span>
+              </FacebookShareButton>
+
+              <TelegramShareButton
+                url={pageUrl}
+                title={shareTitle}
+                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                resetButtonStyle={false}
+                onClick={() => setSharePopupOpen(false)}
+              >
+                <TelegramIcon size={32} round />
+                <span>Telegram</span>
+              </TelegramShareButton>
+
+              <TwitterShareButton
+                url={pageUrl}
+                title={shareTitle}
+                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                resetButtonStyle={false}
+                onClick={() => setSharePopupOpen(false)}
+              >
+                <TwitterIcon size={32} round />
+                <span>X / Twitter</span>
+              </TwitterShareButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation - Mobile */}
       <BottomNavigation />

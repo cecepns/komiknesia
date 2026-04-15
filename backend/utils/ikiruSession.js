@@ -2,9 +2,10 @@
 /* eslint-env node */
 /**
  * Ikiru web login for scrape/sync (cookie jar).
- * Env overrides hardcoded fallback: IKIRU_AUTH_EMAIL (or IKIRU_AUTH_USER), IKIRU_AUTH_PASSWORD.
- * If both env and fallback are empty, requests use plain axios.
- * Cloudflare: cookie dari file data/ikiru-cloudflare-cookies.txt (PUT admin) atau env opsional.
+ * Default login: Whyuu / komiknesia; env IKIRU_AUTH_EMAIL (atau IKIRU_AUTH_USER) dan IKIRU_AUTH_PASSWORD menggantikan.
+ * Jika hanya salah satu env di-set, error (hindari setengah override).
+ * Cloudflare: cookie file data/ikiru-cloudflare-cookies.txt (PUT admin) atau env; diterapkan ke jar sebelum login.
+ * Tanpa kredensial efektif: jika cookie CF ada, error; tanpa CF: plain axios.
  * Dipakai oleh IkiruSyncController (cron-sync & admin) dan IkiruScrapController.
  */
 const axios = require('axios');
@@ -67,9 +68,10 @@ async function applyCloudflareCookiesToJar(jar) {
   }
 }
 
-/** Default login when env is not set (prefer env for production / public repos). */
+/** Fallback bila env IKIRU_AUTH_* tidak di-set (env tetap menang jika lengkap). */
 const HARDCODED_IKIRU_USERNAME = 'Whyuu';
 const HARDCODED_IKIRU_PASSWORD = 'komiknesia';
+
 const DEFAULT_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
@@ -79,18 +81,46 @@ let _jarClient = null;
 let _sessionExpiresAt = 0;
 let _loginPromise = null;
 
+function readIkiruAuthOverridesFromEnv() {
+  const email = String(process.env.IKIRU_AUTH_EMAIL || process.env.IKIRU_AUTH_USER || '').trim();
+  const password = String(process.env.IKIRU_AUTH_PASSWORD || '').trim();
+  return { email, password };
+}
+
+function readIkiruAuthFromEnv() {
+  const o = readIkiruAuthOverridesFromEnv();
+  return {
+    email: o.email || HARDCODED_IKIRU_USERNAME,
+    password: o.password || HARDCODED_IKIRU_PASSWORD,
+  };
+}
+
 function getAuthEmail() {
-  const fromEnv = String(process.env.IKIRU_AUTH_EMAIL || process.env.IKIRU_AUTH_USER || '').trim();
-  return fromEnv || HARDCODED_IKIRU_USERNAME;
+  const { email } = readIkiruAuthFromEnv();
+  return email;
 }
 
 function getAuthPassword() {
-  const fromEnv = String(process.env.IKIRU_AUTH_PASSWORD || '').trim();
-  return fromEnv || HARDCODED_IKIRU_PASSWORD;
+  const { password } = readIkiruAuthFromEnv();
+  return password;
 }
 
 function hasIkiruCredentials() {
-  return Boolean(getAuthEmail() && getAuthPassword());
+  const { email, password } = readIkiruAuthFromEnv();
+  return Boolean(email && password);
+}
+
+function ikiruAuthIncompleteError() {
+  return new Error(
+    'Ikiru: setel IKIRU_AUTH_EMAIL (atau IKIRU_AUTH_USER) dan IKIRU_AUTH_PASSWORD — salah satu masih kosong.'
+  );
+}
+
+function ikiruLoginRequiredWithCfError() {
+  return new Error(
+    'Ikiru scrape/sync membutuhkan login: set IKIRU_AUTH_EMAIL dan IKIRU_AUTH_PASSWORD di environment. ' +
+      'Cookie Cloudflare (admin / file / env) dipakai bersama jar saat login; header Cookie CF saja tidak menggantikan sesi akun.'
+  );
 }
 
 function parseLoginPostUrlFromAuthPage($) {
@@ -213,18 +243,19 @@ async function performIkiruLogin() {
  * @returns {Promise<import('axios').AxiosInstance>}
  */
 async function getIkiruAxios() {
-  if (!hasIkiruCredentials()) {
+  const envOnly = readIkiruAuthOverridesFromEnv();
+  const hasPartialEnv =
+    Boolean(envOnly.email || envOnly.password) && !(envOnly.email && envOnly.password);
+  if (hasPartialEnv) {
+    throw ikiruAuthIncompleteError();
+  }
+
+  const { email, password } = readIkiruAuthFromEnv();
+  const hasBoth = Boolean(email && password);
+  if (!hasBoth) {
     const cf = getIkiruCloudflareCookieRaw();
     if (cf) {
-      return axios.create({
-        timeout: 25000,
-        maxRedirects: 7,
-        headers: {
-          'User-Agent': DEFAULT_UA,
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          Cookie: cf,
-        },
-      });
+      throw ikiruLoginRequiredWithCfError();
     }
     return axios;
   }
@@ -260,7 +291,7 @@ function invalidateIkiruSession() {
 }
 
 /**
- * GET HTML from Ikiru; uses cookie session when IKIRU_AUTH_* env is set.
+ * GET HTML dari Ikiru; sesi login (jar) memakai env atau default hardcoded.
  * @param {string} url Absolute URL (e.g. https://02.ikiru.wtf/manga/foo/)
  * @param {{ timeout?: number }} [opts]
  */

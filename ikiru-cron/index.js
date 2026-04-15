@@ -23,10 +23,9 @@ async function runJob({ page, mode, saveToS3 }) {
   }
 }
 
-const schedulePage1Delta = process.env.CRON_PAGE1_DELTA_SCHEDULE || '*/10 * * * *';
+const schedulePage1Delta = process.env.CRON_PAGE1_DELTA_SCHEDULE || '*/20 * * * *';
 const schedulePage1Full = process.env.CRON_PAGE1_FULL_SCHEDULE || '0 * * * *';
 const schedulePage2Full = process.env.CRON_PAGE2_FULL_SCHEDULE || '0 */2 * * *';
-const schedulePage3Full = process.env.CRON_PAGE3_FULL_SCHEDULE || '0 */3 * * *';
 const tz = process.env.CRON_TZ || undefined;
 
 const cronOpts = tz ? { timezone: tz } : {};
@@ -55,24 +54,14 @@ cron.schedule(
   cronOpts
 );
 
-cron.schedule(
-  schedulePage3Full,
-  () => {
-    runJob({ page: 3, mode: 'full', saveToS3: false }).catch((e) => console.error(e));
-  },
-  cronOpts
-);
-
 console.log(
   'komiknesia-ikiru-cron scheduling:',
-  'page1 delta local=',
+  'page1 delta saveToS3=false',
   schedulePage1Delta,
-  '| page1 full + s3=',
+  '| page1 full saveToS3=true',
   schedulePage1Full,
-  '| page2 full local=',
+  '| page2 full saveToS3=false',
   schedulePage2Full,
-  '| page3 full local=',
-  schedulePage3Full,
   tz ? `tz=${tz}` : '',
   '| feed=',
   feedType
@@ -83,6 +72,5 @@ if (String(process.env.RUN_ON_START).toLowerCase() === 'true') {
     runJob({ page: 1, mode: 'delta', saveToS3: false }),
     runJob({ page: 1, mode: 'full', saveToS3: true }),
     runJob({ page: 2, mode: 'full', saveToS3: false }),
-    runJob({ page: 3, mode: 'full', saveToS3: false }),
   ]).catch(() => {});
 }
