@@ -566,7 +566,7 @@ const MangaDetail = () => {
                     <button
                       type="button"
                       onClick={() => setSharePopupOpen(true)}
-                      className="p-3 rounded-lg bg-primary-800 text-gray-300 hover:bg-primary-700 hover:text-white transition-all"
+                      className="hidden md:inline-flex p-3 rounded-lg bg-primary-800 text-gray-300 hover:bg-primary-700 hover:text-white transition-all"
                       title="Share manga ini"
                     >
                       <Share2 className="h-5 w-5" />
@@ -655,6 +655,18 @@ const MangaDetail = () => {
                 </span>
               </div>
             )}
+          </div>
+
+          <div className="mb-8 md:hidden">
+            <button
+              type="button"
+              onClick={() => setSharePopupOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-800 px-4 py-3 text-gray-200 transition-all hover:bg-primary-700 hover:text-white"
+              title="Share manga ini"
+            >
+              <Share2 className="h-5 w-5" />
+              <span className="font-medium">Share Manga</span>
+            </button>
           </div>
 
           {/* List Chapter Ads - 2 ads above tabs */}

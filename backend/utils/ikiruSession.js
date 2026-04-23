@@ -12,9 +12,14 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
-const { readIkiruCloudflareCookiesSync } = require('./ikiruCloudflareCookiesFile');
+const {
+  readIkiruCloudflareCookiesSync,
+  writeIkiruCloudflareCookiesFile,
+  clearIkiruCloudflareCookiesFile,
+  COOKIE_FILE,
+} = require('./ikiruCloudflareCookiesFile');
 
-const IKIRU_ORIGIN = 'https://02.ikiru.wtf';
+const IKIRU_ORIGIN = 'https://03.ikiru.wtf';
 
 /**
  * Cookie Cloudflare: file backend/data/ikiru-cloudflare-cookies.txt (diset dari admin Ikiru Sync),
@@ -33,6 +38,9 @@ function cloudflareChallengeDetected(html) {
   const head = html.slice(0, 12000);
   return (
     head.includes('Just a moment') ||
+    head.includes('Attention Required') ||
+    head.includes('Sorry, you have been blocked') ||
+    head.includes('cf-error-details') ||
     head.includes('cf_chl_') ||
     head.includes('challenge-platform') ||
     head.includes('Enable JavaScript and cookies') ||
@@ -44,10 +52,123 @@ function cloudflareChallengeDetected(html) {
 function cloudflareBlockedError() {
   return new Error(
     'Ikiru membalas halaman Cloudflare (verifikasi bot / "Just a moment"). ' +
-      'Simpan header Cookie untuk https://02.ikiru.wtf lewat Admin → Ikiru Sync (form Cloudflare), atau file backend/data/ikiru-cloudflare-cookies.txt. ' +
+      'Simpan header Cookie untuk https://03.ikiru.wtf lewat Admin → Ikiru Sync (form Cloudflare), atau file backend/data/ikiru-cloudflare-cookies.txt. ' +
       'Salin dari DevTools → Application → Cookies atau Network (request yang sudah lolos CF); sertakan cf_clearance jika ada. ' +
       'Cookie umumnya terikat IP server. Alternatif: env IKIRU_CLOUDFLARE_COOKIES.'
   );
+}
+
+function cloudflareBlockedByMessage(err) {
+  const msg = String(err?.message || '').toLowerCase();
+  return msg.includes('cloudflare') || msg.includes('just a moment') || msg.includes('blocked');
+}
+
+function cloudflareBlockedByStatus(err) {
+  const status = Number(err?.response?.status || 0);
+  return status === 403 || status === 429 || status === 444 || status === 503;
+}
+
+function autoRefreshEnabled() {
+  return String(process.env.IKIRU_CF_AUTO_REFRESH_ON_BLOCK || 'false').toLowerCase() === 'true';
+}
+
+function skipLoginEnabled() {
+  return String(process.env.IKIRU_SKIP_AUTH || 'false').toLowerCase() === 'true';
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildCookieHeaderFromBrowserCookies(cookies) {
+  return (cookies || [])
+    .filter((cookie) => {
+      if (!cookie?.name || !cookie?.value) return false;
+      return String(cookie.domain || '').includes('ikiru.wtf');
+    })
+    .map((cookie) => `${cookie.name}=${cookie.value}`)
+    .join('; ');
+}
+
+async function refreshIkiruCloudflareCookieWithPuppeteer(opts = {}) {
+  const targetUrl = String(opts.targetUrl || process.env.IKIRU_CF_TARGET_URL || `${IKIRU_ORIGIN}/latest-update/`);
+  const maxWaitMs = Number(opts.maxWaitMs || process.env.IKIRU_CF_MAX_WAIT_MS || 180000);
+  const headless = String(opts.headless ?? process.env.IKIRU_CF_HEADLESS ?? 'true').toLowerCase() !== 'false';
+  const clearOnFail =
+    String(opts.clearOnFail ?? process.env.IKIRU_CF_CLEAR_ON_FAIL ?? 'false').toLowerCase() === 'true';
+  const debugScreenshot = String(opts.debugScreenshot || process.env.IKIRU_CF_DEBUG_SCREENSHOT || '').trim();
+
+  const puppeteer = require('puppeteer');
+  const browser = await puppeteer.launch({
+    headless,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1365, height: 900 });
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    );
+
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < maxWaitMs) {
+      const html = await page.content();
+      const cookies = await page.cookies(targetUrl);
+      const cookieHeader = buildCookieHeaderFromBrowserCookies(cookies);
+      if (cookieHeader.includes('cf_clearance=') && !cloudflareChallengeDetected(html)) {
+        writeIkiruCloudflareCookiesFile(cookieHeader);
+        invalidateIkiruSession();
+        return { cookieLength: cookieHeader.length, cookieFile: COOKIE_FILE, targetUrl };
+      }
+      await wait(2000);
+    }
+
+    if (debugScreenshot) {
+      await page.screenshot({ path: debugScreenshot, fullPage: true });
+    }
+    if (clearOnFail) {
+      clearIkiruCloudflareCookiesFile();
+      invalidateIkiruSession();
+    }
+    throw new Error('Cloudflare challenge masih aktif; cf_clearance belum didapat.');
+  } finally {
+    await browser.close();
+  }
+}
+
+async function maybeAutoRefreshCloudflareCookie(reason) {
+  if (!autoRefreshEnabled()) return false;
+
+  if (_autoRefreshPromise) {
+    try {
+      await _autoRefreshPromise;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  _autoRefreshPromise = (async () => {
+    console.warn(`[ikiru] auto-refresh Cloudflare cookie triggered (${reason}).`);
+    const refreshed = await refreshIkiruCloudflareCookieWithPuppeteer();
+    console.warn(
+      `[ikiru] auto-refresh Cloudflare cookie success (len=${refreshed.cookieLength}) file=${refreshed.cookieFile}`
+    );
+  })();
+
+  try {
+    await _autoRefreshPromise;
+    return true;
+  } catch (e) {
+    console.warn(`[ikiru] auto-refresh Cloudflare cookie failed: ${e.message}`);
+    return false;
+  } finally {
+    _autoRefreshPromise = null;
+  }
 }
 
 /**
@@ -80,6 +201,7 @@ const SESSION_TTL_MS = 45 * 60 * 1000;
 let _jarClient = null;
 let _sessionExpiresAt = 0;
 let _loginPromise = null;
+let _autoRefreshPromise = null;
 
 function readIkiruAuthOverridesFromEnv() {
   const email = String(process.env.IKIRU_AUTH_EMAIL || process.env.IKIRU_AUTH_USER || '').trim();
@@ -243,6 +365,10 @@ async function performIkiruLogin() {
  * @returns {Promise<import('axios').AxiosInstance>}
  */
 async function getIkiruAxios() {
+  if (skipLoginEnabled()) {
+    return axios;
+  }
+
   const envOnly = readIkiruAuthOverridesFromEnv();
   const hasPartialEnv =
     Boolean(envOnly.email || envOnly.password) && !(envOnly.email && envOnly.password);
@@ -292,33 +418,66 @@ function invalidateIkiruSession() {
 
 /**
  * GET HTML dari Ikiru; sesi login (jar) memakai env atau default hardcoded.
- * @param {string} url Absolute URL (e.g. https://02.ikiru.wtf/manga/foo/)
+ * @param {string} url Absolute URL (e.g. https://03.ikiru.wtf/manga/foo/)
  * @param {{ timeout?: number }} [opts]
  */
 async function ikiruFetchHtml(url, { timeout = 20000 } = {}) {
-  const http = await getIkiruAxios();
-  let response;
-  try {
-    response = await http.get(url, {
-      headers: { 'User-Agent': DEFAULT_UA },
-      timeout,
-    });
-  } catch (err) {
-    const body = err?.response?.data;
-    const html = typeof body === 'string' ? body : '';
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let http;
+    try {
+      http = await getIkiruAxios();
+    } catch (err) {
+      if (
+        attempt < maxAttempts &&
+        (
+          cloudflareBlockedByMessage(err) ||
+          cloudflareBlockedByStatus(err) ||
+          cloudflareChallengeDetected(err?.response?.data || '')
+        )
+      ) {
+        const refreshed = await maybeAutoRefreshCloudflareCookie('auth_or_session');
+        if (refreshed) continue;
+      }
+      throw err;
+    }
+
+    let response;
+    try {
+      response = await http.get(url, {
+        headers: {
+          'User-Agent': DEFAULT_UA,
+          ...(getIkiruCloudflareCookieRaw() ? { Cookie: getIkiruCloudflareCookieRaw() } : {}),
+        },
+        timeout,
+      });
+    } catch (err) {
+      const body = err?.response?.data;
+      const html = typeof body === 'string' ? body : '';
+      if (cloudflareChallengeDetected(html) || cloudflareBlockedByStatus(err)) {
+        invalidateIkiruSession();
+        if (attempt < maxAttempts) {
+          const refreshed = await maybeAutoRefreshCloudflareCookie('request_failed');
+          if (refreshed) continue;
+        }
+        throw cloudflareBlockedError();
+      }
+      throw err;
+    }
+
+    const html = typeof response.data === 'string' ? response.data : String(response.data ?? '');
     if (cloudflareChallengeDetected(html)) {
       invalidateIkiruSession();
+      if (attempt < maxAttempts) {
+        const refreshed = await maybeAutoRefreshCloudflareCookie('response_body');
+        if (refreshed) continue;
+      }
       throw cloudflareBlockedError();
     }
-    throw err;
+    return cheerio.load(html);
   }
-  const html =
-    typeof response.data === 'string' ? response.data : String(response.data ?? '');
-  if (cloudflareChallengeDetected(html)) {
-    invalidateIkiruSession();
-    throw cloudflareBlockedError();
-  }
-  return cheerio.load(html);
+
+  throw cloudflareBlockedError();
 }
 
 module.exports = {
@@ -327,4 +486,5 @@ module.exports = {
   getIkiruAxios,
   ikiruFetchHtml,
   invalidateIkiruSession,
+  refreshIkiruCloudflareCookieWithPuppeteer,
 };

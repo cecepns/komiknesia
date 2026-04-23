@@ -342,7 +342,7 @@ export default function IkiruSync() {
               <div>
                 <strong className="font-semibold">Cloudflare</strong> — setelah verifikasi bot di browser,
                 salin nilai header <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">Cookie</code>{' '}
-                untuk <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">https://02.ikiru.wtf</code>{' '}
+                untuk <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">https://03.ikiru.wtf</code>{' '}
                 (DevTools → Application → Cookies, atau Network). Tempel di bawah lalu simpan — disimpan di server
                 sebagai <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">backend/data/ikiru-cloudflare-cookies.txt</code>{' '}
                 (tanpa env). Cookie biasanya terikat IP server.

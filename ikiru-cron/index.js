@@ -41,7 +41,7 @@ cron.schedule(
 cron.schedule(
   schedulePage1Full,
   () => {
-    runJob({ page: 1, mode: 'full', saveToS3: true }).catch((e) => console.error(e));
+    runJob({ page: 1, mode: 'full', saveToS3: false }).catch((e) => console.error(e));
   },
   cronOpts
 );
@@ -58,7 +58,7 @@ console.log(
   'komiknesia-ikiru-cron scheduling:',
   'page1 delta saveToS3=false',
   schedulePage1Delta,
-  '| page1 full saveToS3=true',
+  '| page1 full saveToS3=false',
   schedulePage1Full,
   '| page2 full saveToS3=false',
   schedulePage2Full,
@@ -70,7 +70,7 @@ console.log(
 if (String(process.env.RUN_ON_START).toLowerCase() === 'true') {
   Promise.all([
     runJob({ page: 1, mode: 'delta', saveToS3: false }),
-    runJob({ page: 1, mode: 'full', saveToS3: true }),
+    runJob({ page: 1, mode: 'full', saveToS3: false }),
     runJob({ page: 2, mode: 'full', saveToS3: false }),
   ]).catch(() => {});
 }

@@ -11,7 +11,7 @@ const {
 const { uploadUrlToS3 } = require('../utils/s3Upload');
 const path = require('path');
 
-const BASE_URL = 'https://02.ikiru.wtf';
+const BASE_URL = 'https://03.ikiru.wtf';
 const SOURCE = 'ikiru';
 
 let _categoriesCache = null;
@@ -33,7 +33,14 @@ async function fetchHtml(url) {
     } catch (e) {
       lastError = e;
       const status = Number(e?.response?.status || 0);
-      const retriableStatus = status === 522 || status === 520 || status === 524;
+      const retriableStatus =
+        status === 403 ||
+        status === 429 ||
+        status === 444 ||
+        status === 503 ||
+        status === 520 ||
+        status === 522 ||
+        status === 524;
       const retriableNetwork =
         String(e?.message || '').toLowerCase().includes('fetch failed') ||
         String(e?.code || '').toUpperCase() === 'ECONNABORTED';
@@ -48,10 +55,17 @@ async function fetchHtml(url) {
 
 function isIkiruUpstreamError(err) {
   const status = Number(err?.response?.status || 0);
-  if ([520, 521, 522, 523, 524].includes(status)) return true;
+  if ([403, 429, 444, 503, 520, 521, 522, 523, 524].includes(status)) return true;
   const msg = String(err?.message || '').toLowerCase();
   return (
+    msg.includes('status code 403') ||
+    msg.includes('status code 429') ||
+    msg.includes('status code 444') ||
+    msg.includes('status code 503') ||
     msg.includes('status code 52') ||
+    msg.includes('cloudflare') ||
+    msg.includes('blocked') ||
+    msg.includes('just a moment') ||
     msg.includes('fetch failed') ||
     String(err?.code || '').toUpperCase() === 'ECONNABORTED'
   );

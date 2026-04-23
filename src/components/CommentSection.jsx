@@ -1,8 +1,62 @@
-import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, Send, Loader2, Reply } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MessageCircle, Send, Loader2, Reply, Smile, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient, getImageUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import vipProfileBanner from '../assets/gif/banner-vip.gif';
+
+const STICKER_MESSAGE_PREFIX = 'KN_STICKER:';
+
+function parseStickerMessage(text) {
+  if (typeof text !== 'string' || !text.startsWith(STICKER_MESSAGE_PREFIX)) return null;
+  const path = text.slice(STICKER_MESSAGE_PREFIX.length).trim();
+  return path || null;
+}
+
+function stickersFromApiResponse(res) {
+  const data = res?.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+function isTruthyLike(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes' || v === 'active';
+  }
+  return false;
+}
+
+function isVipUser(entity) {
+  const role = String(entity?.role || '').trim().toLowerCase();
+  if (role === 'vip' || role === 'premium') return true;
+  if (isTruthyLike(entity?.membership_active)) return true;
+  if (!isTruthyLike(entity?.is_membership)) return false;
+  if (!entity?.membership_expires_at) return true;
+  const expiresAt = new Date(entity.membership_expires_at);
+  if (Number.isNaN(expiresAt.getTime())) return true;
+  return expiresAt.getTime() >= Date.now();
+}
+
+function renderCommentBody(text) {
+  const imagePath = parseStickerMessage(text);
+  if (imagePath) {
+    return (
+      <div className="mt-1">
+        <img
+          src={getImageUrl(imagePath)}
+          alt="Stiker"
+          className="max-h-40 max-w-[min(100%,220px)] rounded-lg object-contain bg-black/30"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+  return <p className="text-gray-300 text-sm mt-1 whitespace-pre-wrap break-words">{text}</p>;
+}
 
 function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUser }) {
   const [showReplyForm, setShowReplyForm] = useState(false);
@@ -11,6 +65,8 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = currentUser && comment.user_id === currentUser.id;
+  const isVipComment = isVipUser(comment);
+  const displayName = comment.name || comment.username || 'User';
 
   const handleSubmitReply = async (e) => {
     e.preventDefault();
@@ -53,33 +109,81 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
 
   return (
     <div className="flex gap-3 py-3 border-b border-primary-800 last:border-0">
-      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-700 flex items-center justify-center overflow-hidden">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-lg font-bold text-primary-300">
-            {(comment.username || 'U').charAt(0).toUpperCase()}
-          </span>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-gray-200">{comment.username}</span>
-          <span className="text-xs text-gray-500">
-            {comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : ''}
-          </span>
-          {isOwner && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="ml-auto text-[11px] text-red-400 hover:text-red-300 disabled:opacity-50"
-            >
-              {deleting ? 'Menghapus...' : 'Hapus'}
-            </button>
+      {!isVipComment && (
+        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-700 flex items-center justify-center overflow-hidden">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-lg font-bold text-primary-300">
+              {(comment.username || 'U').charAt(0).toUpperCase()}
+            </span>
           )}
         </div>
-        <p className="text-gray-300 text-sm mt-1 whitespace-pre-wrap break-words">{comment.body}</p>
+      )}
+      <div className="flex-1 min-w-0">
+        {isVipComment ? (
+          <div className="mb-2">
+            <div className="relative h-14 md:h-32 overflow-hidden rounded-xl">
+              <img
+                src={vipProfileBanner}
+                alt=""
+                aria-hidden="true"
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-between gap-2 px-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="h-9 w-9 md:h-12 md:w-12 rounded-full overflow-hidden bg-white shrink-0">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-primary-700 flex items-center justify-center">
+                        <span className="text-sm font-bold text-primary-200">
+                          {(comment.username || 'U').charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-white text-sm md:text-base truncate">{displayName}</p>
+                    <span className="text-[11px] md:text-xs text-gray-200">
+                      {comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : ''}
+                    </span>
+                  </div>
+                </div>
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
+                    aria-label="Hapus komentar"
+                  >
+                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-gray-200">{comment.username}</span>
+            <span className="text-xs text-gray-500">
+              {comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : ''}
+            </span>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
+                aria-label="Hapus komentar"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </button>
+            )}
+          </div>
+        )}
+        {renderCommentBody(comment.body)}
         {isAuthenticated && (
           <>
             <button
@@ -115,36 +219,87 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
           <div className="mt-3 pl-4 border-l-2 border-primary-700 space-y-2">
             {comment.replies.map((reply) => (
               <div key={reply.id} className="flex gap-2 py-2">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center overflow-hidden">
-                  {reply.profile_image ? (
-                    <img src={getImageUrl(reply.profile_image)} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-sm font-bold text-primary-300">
-                      {(reply.username || 'U').charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-300 text-sm">{reply.username}</span>
-                    <span className="text-xs text-gray-500">
-                      {reply.created_at ? new Date(reply.created_at).toLocaleString('id-ID') : ''}
-                    </span>
-                    {currentUser && reply.user_id === currentUser.id && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteCommentById(reply.id);
-                        }}
-                        disabled={deleting}
-                        className="ml-auto text-[11px] text-red-400 hover:text-red-300 disabled:opacity-50"
-                      >
-                        {deleting ? 'Menghapus...' : 'Hapus'}
-                      </button>
+                {!isVipUser(reply) && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center overflow-hidden">
+                    {reply.profile_image ? (
+                      <img src={getImageUrl(reply.profile_image)} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-bold text-primary-300">
+                        {(reply.username || 'U').charAt(0).toUpperCase()}
+                      </span>
                     )}
                   </div>
-                  <p className="text-gray-400 text-sm mt-0.5 whitespace-pre-wrap break-words">{reply.body}</p>
+                )}
+                <div className="flex-1 min-w-0">
+                  {isVipUser(reply) ? (
+                    <div className="mb-2">
+                      <div className="relative h-12 md:h-16 overflow-hidden rounded-lg">
+                        <img
+                          src={vipProfileBanner}
+                          alt=""
+                          aria-hidden="true"
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-between gap-2 px-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="h-7 w-7 md:h-9 md:w-9 rounded-full overflow-hidden bg-white shrink-0">
+                              {reply.profile_image ? (
+                                <img src={getImageUrl(reply.profile_image)} alt={reply.username} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-primary-700 flex items-center justify-center">
+                                  <span className="text-xs font-bold text-primary-200">
+                                    {(reply.username || 'U').charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-white text-xs truncate">{reply.name || reply.username || 'User'}</p>
+                              <span className="text-[10px] text-gray-200">
+                                {reply.created_at ? new Date(reply.created_at).toLocaleString('id-ID') : ''}
+                              </span>
+                            </div>
+                          </div>
+                          {currentUser && reply.user_id === currentUser.id && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteCommentById(reply.id);
+                              }}
+                              disabled={deleting}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
+                              aria-label="Hapus balasan"
+                            >
+                              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-gray-300 text-sm">{reply.username}</span>
+                      <span className="text-xs text-gray-500">
+                        {reply.created_at ? new Date(reply.created_at).toLocaleString('id-ID') : ''}
+                      </span>
+                      {currentUser && reply.user_id === currentUser.id && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteCommentById(reply.id);
+                          }}
+                          disabled={deleting}
+                          className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
+                          aria-label="Hapus balasan"
+                        >
+                          {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-gray-400 text-sm mt-0.5 whitespace-pre-wrap break-words">{renderCommentBody(reply.body)}</div>
                   {isAuthenticated && (
                     <button
                       type="button"
@@ -178,6 +333,12 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
   const [hasMore, setHasMore] = useState(false);
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [stickers, setStickers] = useState([]);
+  const [stickersLoading, setStickersLoading] = useState(false);
+  const [stickersError, setStickersError] = useState('');
+  const stickerToggleRef = useRef(null);
+  const stickerTrayRef = useRef(null);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
@@ -205,7 +366,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
     } finally {
       setLoading(false);
     }
-  }, [mangaId, chapterId, page]);
+  }, [mangaId, chapterId, externalSlug, scope, page]);
 
   useEffect(() => {
     fetchComments();
@@ -214,7 +375,36 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
   // Reset to first page when target changes
   useEffect(() => {
     setPage(1);
-  }, [mangaId, chapterId]);
+  }, [mangaId, chapterId, externalSlug, scope]);
+
+  useEffect(() => {
+    if (!stickerPickerOpen || !isAuthenticated) return undefined;
+    const load = async () => {
+      setStickersLoading(true);
+      setStickersError('');
+      try {
+        const res = await apiClient.getStickers({ page: 1, limit: 50 });
+        setStickers(stickersFromApiResponse(res));
+      } catch (err) {
+        setStickersError(err?.message || 'Gagal memuat stiker');
+        setStickers([]);
+      } finally {
+        setStickersLoading(false);
+      }
+    };
+    load();
+  }, [stickerPickerOpen, isAuthenticated]);
+
+  useEffect(() => {
+    if (!stickerPickerOpen) return undefined;
+    const onPointerDown = (e) => {
+      if (stickerToggleRef.current?.contains(e.target)) return;
+      if (stickerTrayRef.current?.contains(e.target)) return;
+      setStickerPickerOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [stickerPickerOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -234,29 +424,99 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
     }
   };
 
+  const handlePickSticker = async (imagePath) => {
+    const path = String(imagePath || '').trim();
+    if (!path || submitting || !isAuthenticated) return;
+    setSubmitting(true);
+    setStickerPickerOpen(false);
+    try {
+      await apiClient.postComment({
+        manga_id: mangaId || undefined,
+        chapter_id: chapterId || undefined,
+        external_slug: externalSlug || undefined,
+        body: `${STICKER_MESSAGE_PREFIX}${path}`,
+      });
+      fetchComments();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <div className="bg-primary-900 rounded-lg p-6">
+    <div className="bg-primary-900 rounded-lg p-6 md:p-8 md:min-h-[560px]">
       <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
         <MessageCircle className="h-5 w-5" />
         Komentar
       </h3>
       {isAuthenticated ? (
-        <form onSubmit={handleSubmit} className="mb-6 flex flex-wrap gap-2">
-          <input
-            type="text"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Tulis komentar..."
-            className="flex-1 px-4 py-3 rounded-lg bg-primary-800 border border-primary-700 text-gray-100 placeholder-gray-500"
-          />
-          <button
-            type="submit"
-            disabled={!body.trim() || submitting}
-            className="px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg text-white font-medium flex items-center gap-2"
-          >
-            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            Kirim
-          </button>
+        <form onSubmit={handleSubmit} className="mb-6 space-y-2">
+          {stickerPickerOpen && (
+            <div
+              ref={stickerTrayRef}
+              className="rounded-xl border border-primary-700 bg-primary-950/60 p-2"
+              role="region"
+              aria-label="Pilih stiker komentar"
+            >
+              <p className="px-1 pb-2 text-xs font-semibold text-gray-400">Stiker</p>
+              <div className="max-h-40 overflow-y-auto">
+                {stickersLoading ? (
+                  <div className="py-4 text-center text-xs text-gray-500">Memuat stiker...</div>
+                ) : stickersError ? (
+                  <div className="py-4 px-2 text-center text-xs text-red-400">{stickersError}</div>
+                ) : stickers.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-gray-500">Belum ada stiker.</div>
+                ) : (
+                  <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
+                    {stickers.map((sticker) => (
+                      <button
+                        key={sticker.id}
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => handlePickSticker(sticker.image_path)}
+                        title={sticker.name || 'Stiker'}
+                        className="aspect-square rounded-lg bg-primary-800/70 border border-primary-700 p-1.5 hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                      >
+                        <img
+                          src={getImageUrl(sticker.image_path)}
+                          alt={sticker.name || ''}
+                          className="h-full w-full object-contain"
+                          loading="lazy"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="text"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Tulis komentar..."
+              className="flex-1 px-4 py-3 rounded-lg bg-primary-800 border border-primary-700 text-gray-100 placeholder-gray-500"
+            />
+            <button
+              ref={stickerToggleRef}
+              type="button"
+              onClick={() => setStickerPickerOpen((open) => !open)}
+              disabled={submitting}
+              className="px-3 py-3 bg-primary-800 hover:bg-primary-700 disabled:opacity-50 rounded-lg text-gray-200 border border-primary-700 transition-colors"
+              title={stickerPickerOpen ? 'Tutup panel stiker' : 'Buka stiker'}
+              aria-expanded={stickerPickerOpen}
+            >
+              <Smile className="h-5 w-5" />
+            </button>
+            <button
+              type="submit"
+              disabled={!body.trim() || submitting}
+              className="px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg text-white font-medium flex items-center gap-2"
+            >
+              {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              Kirim
+            </button>
+          </div>
         </form>
       ) : (
         <p className="text-gray-400 text-sm mb-4">

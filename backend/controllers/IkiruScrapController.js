@@ -2,7 +2,7 @@
 /* eslint-env node */
 const { ikiruFetchHtml } = require('../utils/ikiruSession');
 
-const BASE_URL = 'https://02.ikiru.wtf';
+const BASE_URL = 'https://03.ikiru.wtf';
 
 function cleanText(text) {
   return text.replace(/\s+/g, ' ').trim();

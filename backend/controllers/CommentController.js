@@ -15,7 +15,13 @@ const index = async (req, res) => {
 
     let query = `
       SELECT c.id, c.user_id, c.manga_id, c.chapter_id, c.parent_id, c.body, c.created_at,
-             u.username, u.profile_image
+             u.username, u.name, u.profile_image, u.is_membership, u.membership_expires_at,
+             CASE
+               WHEN u.is_membership = 1 AND (u.membership_expires_at IS NULL OR u.membership_expires_at >= NOW())
+               THEN 1
+               ELSE 0
+             END AS membership_active,
+             u.role
       FROM comments c
       JOIN users u ON u.id = c.user_id
       ${baseWhere}
@@ -75,7 +81,14 @@ const index = async (req, res) => {
     if (parentIds.length > 0) {
       const placeholders = parentIds.map(() => '?').join(',');
       const [replyRows] = await db.execute(
-        `SELECT c.id, c.user_id, c.parent_id, c.body, c.created_at, u.username, u.profile_image
+        `SELECT c.id, c.user_id, c.parent_id, c.body, c.created_at,
+                u.username, u.name, u.profile_image, u.is_membership, u.membership_expires_at,
+                CASE
+                  WHEN u.is_membership = 1 AND (u.membership_expires_at IS NULL OR u.membership_expires_at >= NOW())
+                  THEN 1
+                  ELSE 0
+                END AS membership_active,
+                u.role
          FROM comments c
          JOIN users u ON u.id = c.user_id
          WHERE c.parent_id IN (${placeholders})`,
@@ -171,7 +184,13 @@ const store = async (req, res) => {
 
     const [rows] = await db.execute(
       `SELECT c.id, c.user_id, c.manga_id, c.chapter_id, c.parent_id, c.body, c.created_at,
-              u.username, u.profile_image
+              u.username, u.name, u.profile_image, u.is_membership, u.membership_expires_at,
+              CASE
+                WHEN u.is_membership = 1 AND (u.membership_expires_at IS NULL OR u.membership_expires_at >= NOW())
+                THEN 1
+                ELSE 0
+              END AS membership_active,
+              u.role
        FROM comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.id = ?`,
