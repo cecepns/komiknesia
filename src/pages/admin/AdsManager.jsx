@@ -16,7 +16,11 @@ const AdsManager = () => {
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [settings, setSettings] = useState({ popup_ads_interval_minutes: 20, home_popup_interval_minutes: 30 });
+  const [settings, setSettings] = useState({
+    popup_ads_interval_minutes: 20,
+    home_popup_interval_minutes: 30,
+    redirect_script_urls: ['https://mbuh.my.id/siap/1770790072377-komiknesia.js'],
+  });
   const [settingsLoading, setSettingsLoading] = useState(false);
 
   const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
@@ -42,8 +46,48 @@ const AdsManager = () => {
   }, []);
 
   useEffect(() => {
-    apiClient.getSettings().then(setSettings).catch(() => {});
+    apiClient
+      .getSettings()
+      .then((value) => {
+        const urls = Array.isArray(value?.redirect_script_urls)
+          ? value.redirect_script_urls.filter((item) => typeof item === 'string')
+          : [];
+        setSettings({
+          popup_ads_interval_minutes: value?.popup_ads_interval_minutes ?? 20,
+          home_popup_interval_minutes: value?.home_popup_interval_minutes ?? 30,
+          redirect_script_urls: urls.length
+            ? urls
+            : ['https://mbuh.my.id/siap/1770790072377-komiknesia.js'],
+        });
+      })
+      .catch(() => {});
   }, []);
+
+  const updateRedirectScriptUrl = (index, nextValue) => {
+    setSettings((prev) => {
+      const nextUrls = [...(prev.redirect_script_urls || [])];
+      nextUrls[index] = nextValue;
+      return { ...prev, redirect_script_urls: nextUrls };
+    });
+  };
+
+  const addRedirectScriptUrl = () => {
+    setSettings((prev) => ({
+      ...prev,
+      redirect_script_urls: [...(prev.redirect_script_urls || []), ''],
+    }));
+  };
+
+  const removeRedirectScriptUrl = (index) => {
+    setSettings((prev) => {
+      const nextUrls = [...(prev.redirect_script_urls || [])];
+      nextUrls.splice(index, 1);
+      return {
+        ...prev,
+        redirect_script_urls: nextUrls.length ? nextUrls : [''],
+      };
+    });
+  };
 
   const fetchAds = async () => {
     try {
@@ -166,7 +210,14 @@ const AdsManager = () => {
   const handleSaveSettings = async () => {
     setSettingsLoading(true);
     try {
-      await apiClient.updateSettings(settings);
+      const payload = {
+        popup_ads_interval_minutes: settings.popup_ads_interval_minutes,
+        home_popup_interval_minutes: settings.home_popup_interval_minutes,
+        redirect_script_urls: (settings.redirect_script_urls || [])
+          .map((url) => (typeof url === 'string' ? url.trim() : ''))
+          .filter(Boolean),
+      };
+      await apiClient.updateSettings(payload);
       alert('Pengaturan popup disimpan.');
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -231,9 +282,10 @@ const AdsManager = () => {
       {/* Pengaturan interval popup ads & popup pengumuman */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-          Pengaturan interval popup (menit)
+          Pengaturan popup dan redirect script
         </h4>
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Popup Iklan (muncul tiap ... menit)</label>
             <select
@@ -257,6 +309,40 @@ const AdsManager = () => {
                 <option key={m} value={m}>{m} menit</option>
               ))}
             </select>
+          </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Redirect script URL (bisa lebih dari 1, dijalankan 5 menit setelah user masuk)
+            </label>
+            <div className="space-y-2">
+              {(settings.redirect_script_urls || []).map((url, index) => (
+                <div key={`redirect-script-${index}`} className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={url}
+                    onChange={(e) => updateRedirectScriptUrl(index, e.target.value)}
+                    placeholder="https://example.com/script.js"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRedirectScriptUrl(index)}
+                    className="inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addRedirectScriptUrl}
+              className="mt-2 inline-flex items-center px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 rounded-lg transition-colors"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Tambah Script URL
+            </button>
           </div>
           <button
             type="button"

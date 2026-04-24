@@ -19,7 +19,7 @@ const {
   COOKIE_FILE,
 } = require('./ikiruCloudflareCookiesFile');
 
-const IKIRU_ORIGIN = 'https://03.ikiru.wtf';
+const IKIRU_ORIGIN = String(process.env.IKIRU_ORIGIN || 'https://04.ikiru.wtf').replace(/\/+$/, '');
 
 /**
  * Cookie Cloudflare: file backend/data/ikiru-cloudflare-cookies.txt (diset dari admin Ikiru Sync),
@@ -52,7 +52,7 @@ function cloudflareChallengeDetected(html) {
 function cloudflareBlockedError() {
   return new Error(
     'Ikiru membalas halaman Cloudflare (verifikasi bot / "Just a moment"). ' +
-      'Simpan header Cookie untuk https://03.ikiru.wtf lewat Admin → Ikiru Sync (form Cloudflare), atau file backend/data/ikiru-cloudflare-cookies.txt. ' +
+      `Simpan header Cookie untuk ${IKIRU_ORIGIN} lewat Admin → Ikiru Sync (form Cloudflare), atau file backend/data/ikiru-cloudflare-cookies.txt. ` +
       'Salin dari DevTools → Application → Cookies atau Network (request yang sudah lolos CF); sertakan cf_clearance jika ada. ' +
       'Cookie umumnya terikat IP server. Alternatif: env IKIRU_CLOUDFLARE_COOKIES.'
   );
@@ -418,7 +418,7 @@ function invalidateIkiruSession() {
 
 /**
  * GET HTML dari Ikiru; sesi login (jar) memakai env atau default hardcoded.
- * @param {string} url Absolute URL (e.g. https://03.ikiru.wtf/manga/foo/)
+ * @param {string} url Absolute URL (e.g. https://04.ikiru.wtf/manga/foo/)
  * @param {{ timeout?: number }} [opts]
  */
 async function ikiruFetchHtml(url, { timeout = 20000 } = {}) {

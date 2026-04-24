@@ -11,8 +11,9 @@ const {
 const { uploadUrlToS3 } = require('../utils/s3Upload');
 const path = require('path');
 
-const BASE_URL = 'https://03.ikiru.wtf';
+const BASE_URL = 'https://04.ikiru.wtf';
 const SOURCE = 'ikiru';
+const MANGA_PATH_REGEX = /\/manga\/([^/?#]+)/i;
 
 let _categoriesCache = null;
 let _categoriesCacheAt = 0;
@@ -129,6 +130,49 @@ function normalizePage(pageRaw) {
   return Number.isFinite(page) && page > 0 ? page : 1;
 }
 
+function resolveMangaTarget(rawValue, fallbackBaseUrl = BASE_URL) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) {
+    return { slug: '', baseUrl: fallbackBaseUrl, url: null };
+  }
+
+  try {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      const parsed = new URL(raw);
+      const match = parsed.pathname.match(MANGA_PATH_REGEX);
+      const slug = String(match?.[1] || '').trim();
+      return {
+        slug,
+        baseUrl: `${parsed.protocol}//${parsed.host}`,
+        url: slug ? `${parsed.protocol}//${parsed.host}/manga/${slug}/` : parsed.toString(),
+      };
+    }
+  } catch {
+    // Fall through and treat as plain slug/path.
+  }
+
+  const pathMatch = raw.match(MANGA_PATH_REGEX);
+  if (pathMatch?.[1]) {
+    const slug = String(pathMatch[1]).trim();
+    return {
+      slug,
+      baseUrl: fallbackBaseUrl,
+      url: `${fallbackBaseUrl}/manga/${slug}/`,
+    };
+  }
+
+  const slug = raw
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/^manga\//i, '')
+    .trim();
+
+  return {
+    slug,
+    baseUrl: fallbackBaseUrl,
+    url: slug ? `${fallbackBaseUrl}/manga/${slug}/` : null,
+  };
+}
+
 /**
  * Ikiru detail page: aggregateRating (schema.org) or star block next to "Ratings" label.
  */
@@ -201,11 +245,9 @@ async function scrapeLatestFeed({ page } = {}) {
     if (!href.includes('/manga/')) return;
     if (href.includes('/chapter-')) return;
 
-    const fullHref = href.startsWith('http') ? href : BASE_URL + href;
-    const slug = href
-      .replace(BASE_URL, '')
-      .replace(/^\/manga\//, '')
-      .replace(/\/$/, '');
+    const target = resolveMangaTarget(href, BASE_URL);
+    const fullHref = target.url || (href.startsWith('http') ? href : BASE_URL + href);
+    const slug = target.slug;
     if (!slug) return;
 
     let title = cleanText(link.text());
@@ -250,11 +292,9 @@ async function scrapeProjectFeed({ page } = {}) {
     if (!href.includes('/manga/')) return;
     if (href.includes('/chapter-')) return;
 
-    const fullHref = href.startsWith('http') ? href : BASE_URL + href;
-    const slug = href
-      .replace(BASE_URL, '')
-      .replace(/^\/manga\//, '')
-      .replace(/\/$/, '');
+    const target = resolveMangaTarget(href, BASE_URL);
+    const fullHref = target.url || (href.startsWith('http') ? href : BASE_URL + href);
+    const slug = target.slug;
     if (!slug) return;
 
     let title = cleanText(link.text());
@@ -288,8 +328,8 @@ async function scrapeProjectFeed({ page } = {}) {
   return Array.from(mangaMap.values());
 }
 
-async function scrapeMangaDetail(slug) {
-  const mangaUrl = `${BASE_URL}/manga/${slug}/`;
+async function scrapeMangaDetail(slug, { baseUrl = BASE_URL } = {}) {
+  const mangaUrl = `${baseUrl}/manga/${slug}/`;
   const $ = await fetchHtml(mangaUrl);
 
   // Prefer schema title if available.
@@ -336,7 +376,7 @@ async function scrapeMangaDetail(slug) {
     let src = coverImgEl.attr('data-src') || coverImgEl.attr('src');
     if (src) {
       if (src.startsWith('//')) src = 'https:' + src;
-      else if (src.startsWith('/')) src = BASE_URL + src;
+      else if (src.startsWith('/')) src = baseUrl + src;
       coverImage = src;
     }
   }
@@ -413,8 +453,8 @@ async function scrapeMangaDetail(slug) {
       let chapterListUrl;
       if (hxGet.startsWith('http')) chapterListUrl = hxGet;
       else if (hxGet.startsWith('//')) chapterListUrl = 'https:' + hxGet;
-      else if (hxGet.startsWith('/')) chapterListUrl = BASE_URL + hxGet;
-      else chapterListUrl = `${BASE_URL}/${hxGet}`;
+      else if (hxGet.startsWith('/')) chapterListUrl = baseUrl + hxGet;
+      else chapterListUrl = `${baseUrl}/${hxGet}`;
       try {
         chapterDoc = await fetchHtml(chapterListUrl);
       } catch {
@@ -433,7 +473,7 @@ async function scrapeMangaDetail(slug) {
       if (!href || !href.includes('/chapter-')) return;
 
       const text = cleanText(linkEl.text());
-      const fullUrl = href.startsWith('http') ? href : BASE_URL + href;
+      const fullUrl = href.startsWith('http') ? href : baseUrl + href;
       const chapterSlug = href.split('/').filter(Boolean).pop();
 
       let chapterNumber = null;
@@ -649,8 +689,8 @@ async function insertChaptersIfMissing(manga, ikiruChapters, { mode }) {
   return { inserted, skipped, insertedSlugs };
 }
 
-async function scrapeChapterImages(mangaSlug, ikiruChapterSlug) {
-  const chapterUrl = `${BASE_URL}/manga/${mangaSlug}/${ikiruChapterSlug}/`;
+async function scrapeChapterImages(mangaSlug, ikiruChapterSlug, { baseUrl = BASE_URL } = {}) {
+  const chapterUrl = `${baseUrl}/manga/${mangaSlug}/${ikiruChapterSlug}/`;
   const $ = await fetchHtml(chapterUrl);
   const images = [];
   const seen = new Set();
@@ -663,7 +703,7 @@ async function scrapeChapterImages(mangaSlug, ikiruChapterSlug) {
     let src = $(el).attr('data-src') || $(el).attr('src');
     if (!src) return;
     if (src.startsWith('//')) src = 'https:' + src;
-    else if (src.startsWith('/')) src = BASE_URL + src;
+    else if (src.startsWith('/')) src = baseUrl + src;
     src = String(src).trim();
     if (!src) return;
 
@@ -813,10 +853,15 @@ async function syncFeed(feedItems, { mode, saveToS3 = false }) {
 
   for (const item of feedItems) {
     try {
-      const localManga = await getMangaBySlugLocal(item.slug);
+      const target = resolveMangaTarget(item.url || item.slug, BASE_URL);
+      if (!target.slug) {
+        throw new Error('Invalid manga slug from feed');
+      }
+
+      const localManga = await getMangaBySlugLocal(target.slug);
 
       if (!localManga) {
-        const detail = await scrapeMangaDetail(item.slug);
+        const detail = await scrapeMangaDetail(target.slug, { baseUrl: target.baseUrl });
         const { mangaId } = await upsertMangaFromIkiru(detail, { saveToS3 });
         summary.mangaCreated += 1;
 
@@ -827,7 +872,7 @@ async function syncFeed(feedItems, { mode, saveToS3 = false }) {
         summary.chaptersInserted += chaptersRes.inserted;
         summary.chaptersSkipped += chaptersRes.skipped;
         results.push({
-          slug: item.slug,
+          slug: target.slug,
           action: 'created',
           mangaId,
           chaptersInserted: chaptersRes.inserted,
@@ -835,7 +880,7 @@ async function syncFeed(feedItems, { mode, saveToS3 = false }) {
         });
       } else {
         summary.mangaSkipped += 1;
-        const detail = await scrapeMangaDetail(item.slug);
+        const detail = await scrapeMangaDetail(target.slug, { baseUrl: target.baseUrl });
         // Backfill alternative_name/synopsis (and genres) when they are still empty.
         await upsertMangaFromIkiru(detail, { saveToS3 });
         const chaptersRes = await insertChaptersIfMissing(localManga, detail.chapters, {
@@ -844,7 +889,7 @@ async function syncFeed(feedItems, { mode, saveToS3 = false }) {
         summary.chaptersInserted += chaptersRes.inserted;
         summary.chaptersSkipped += chaptersRes.skipped;
         results.push({
-          slug: item.slug,
+          slug: target.slug,
           action: 'skipped_manga',
           mangaId: localManga.id,
           chaptersInserted: chaptersRes.inserted,
@@ -948,8 +993,12 @@ const syncSelected = async (req, res) => {
 
     for (const slug of uniqueSlugs) {
       try {
-        const detail = await scrapeMangaDetail(slug);
-        const local = await getMangaBySlugLocal(slug);
+        const target = resolveMangaTarget(slug, BASE_URL);
+        if (!target.slug) {
+          throw new Error('Invalid manga slug');
+        }
+        const detail = await scrapeMangaDetail(target.slug, { baseUrl: target.baseUrl });
+        const local = await getMangaBySlugLocal(target.slug);
 
         let mangaId;
         if (!local) {
@@ -977,13 +1026,15 @@ const syncSelected = async (req, res) => {
             : detail.chapters;
 
         for (const ch of chaptersToProcess) {
-          const { chapterId, created } = await upsertChapterFromIkiru(mangaId, slug, ch);
+          const { chapterId, created } = await upsertChapterFromIkiru(mangaId, target.slug, ch);
           if (created) {
             summary.chaptersCreated += 1;
             chaptersStats.created += 1;
           }
           if (withImages) {
-            const { images } = await scrapeChapterImages(slug, ch.slug);
+            const { images } = await scrapeChapterImages(target.slug, ch.slug, {
+              baseUrl: target.baseUrl,
+            });
             const inserted = await upsertChapterImages(chapterId, images, { saveToS3 });
             summary.imagesInserted += inserted;
             chaptersStats.imagesInserted += inserted;
@@ -991,7 +1042,7 @@ const syncSelected = async (req, res) => {
         }
 
         results.push({
-          slug,
+          slug: target.slug,
           mangaId,
           chapters: chaptersStats,
         });
@@ -1066,9 +1117,11 @@ const cronSyncFeed = async (req, res) => {
     const results = [];
 
     for (const item of feed) {
-      const slug = item.slug;
+      const target = resolveMangaTarget(item.url || item.slug, BASE_URL);
+      const slug = target.slug;
       try {
-        const detail = await scrapeMangaDetail(slug);
+        if (!slug) throw new Error('Invalid manga slug from feed');
+        const detail = await scrapeMangaDetail(slug, { baseUrl: target.baseUrl });
         const local = await getMangaBySlugLocal(slug);
 
         let mangaId;
@@ -1103,7 +1156,9 @@ const cronSyncFeed = async (req, res) => {
             chaptersStats.created += 1;
           }
           if (withImages) {
-            const { images } = await scrapeChapterImages(slug, ch.slug);
+            const { images } = await scrapeChapterImages(slug, ch.slug, {
+              baseUrl: target.baseUrl,
+            });
             const inserted = await upsertChapterImages(chapterId, images, { saveToS3 });
             summary.imagesInserted += inserted;
             chaptersStats.imagesInserted += inserted;
@@ -1137,11 +1192,17 @@ const cronSyncFeed = async (req, res) => {
 };
 
 const syncMangaBySlug = async (req, res) => {
-  const { slug } = req.params;
+  const rawSlug = req.params.slug;
   try {
+    const target = resolveMangaTarget(rawSlug, BASE_URL);
+    const slug = target.slug;
+    if (!slug) {
+      return res.status(400).json({ status: false, error: 'Slug manga tidak valid' });
+    }
+
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
     const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
-    const detail = await scrapeMangaDetail(slug);
+    const detail = await scrapeMangaDetail(slug, { baseUrl: target.baseUrl });
     const local = await getMangaBySlugLocal(slug);
 
     if (!local) {
@@ -1183,13 +1244,19 @@ const syncMangaBySlug = async (req, res) => {
 // - Selalu INSERT/UPDATE baris chapter di DB untuk setiap chapter di plan (mode delta = latest saja).
 // - Jika withImages=true, sekalian scrape + upsert chapter_images (set chaptersFullySynced=true).
 const syncMangaInit = async (req, res) => {
-  const { slug } = req.params;
+  const rawSlug = req.params.slug;
   try {
+    const target = resolveMangaTarget(rawSlug, BASE_URL);
+    const slug = target.slug;
+    if (!slug) {
+      return res.status(400).json({ status: false, error: 'Slug manga tidak valid' });
+    }
+
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
     const withImages = parseBooleanFlag(req.body?.withImages, false);
     const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
-    const detail = await scrapeMangaDetail(slug);
+    const detail = await scrapeMangaDetail(slug, { baseUrl: target.baseUrl });
     const mangaUpsert = await upsertMangaFromIkiru(detail, { saveToS3 });
     const mangaRow = await getMangaBySlugLocal(slug);
     if (!mangaRow) {
@@ -1225,7 +1292,9 @@ const syncMangaInit = async (req, res) => {
 
         if (withImages) {
           try {
-            const { images } = await scrapeChapterImages(slug, ch.slug);
+            const { images } = await scrapeChapterImages(slug, ch.slug, {
+              baseUrl: target.baseUrl,
+            });
             imagesCount = images.length;
             imagesInserted = await upsertChapterImages(chapterId, images, { saveToS3 });
             imagesInsertedTotal += imagesInserted;
@@ -1303,15 +1372,22 @@ const syncMangaInit = async (req, res) => {
 // POST /api/admin/ikiru-sync/manga/:slug/chapter/:chapterSlug
 // Body: { title?, chapterNumber?, withImages?, saveToS3? }
 const syncMangaChapter = async (req, res) => {
-  const { slug, chapterSlug } = req.params;
+  const { chapterSlug } = req.params;
+  const rawSlug = req.params.slug;
   try {
+    const target = resolveMangaTarget(rawSlug, BASE_URL);
+    const slug = target.slug;
+    if (!slug) {
+      return res.status(400).json({ status: false, error: 'Slug manga tidak valid' });
+    }
+
     const withImages = parseBooleanFlag(req.body?.withImages, false);
     const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
     let localManga = await getMangaBySlugLocal(slug);
     let detail = null;
     if (!localManga) {
-      detail = await scrapeMangaDetail(slug);
+      detail = await scrapeMangaDetail(slug, { baseUrl: target.baseUrl });
       await upsertMangaFromIkiru(detail, { saveToS3 });
       localManga = await getMangaBySlugLocal(slug);
     }
@@ -1327,7 +1403,7 @@ const syncMangaChapter = async (req, res) => {
 
     // If title isn't provided, fall back to scraping manga detail once to locate chapter metadata.
     if (!chapterData.title) {
-      if (!detail) detail = await scrapeMangaDetail(slug);
+      if (!detail) detail = await scrapeMangaDetail(slug, { baseUrl: target.baseUrl });
       const found = Array.isArray(detail.chapters)
         ? detail.chapters.find((c) => String(c.slug) === String(chapterSlug))
         : null;
@@ -1343,7 +1419,9 @@ const syncMangaChapter = async (req, res) => {
     let imagesCount = 0;
     let imagesInserted = 0;
     if (withImages) {
-      const { images } = await scrapeChapterImages(slug, chapterSlug);
+      const { images } = await scrapeChapterImages(slug, chapterSlug, {
+        baseUrl: target.baseUrl,
+      });
       imagesCount = images.length;
       imagesInserted = await upsertChapterImages(chapterId, images, { saveToS3 });
     }
@@ -1388,8 +1466,15 @@ const putCloudflareCookies = async (req, res) => {
 };
 
 const syncChapterImages = async (req, res) => {
-  const { slug, chapterSlug } = req.params;
+  const { chapterSlug } = req.params;
+  const rawSlug = req.params.slug;
   try {
+    const target = resolveMangaTarget(rawSlug, BASE_URL);
+    const slug = target.slug;
+    if (!slug) {
+      return res.status(400).json({ status: false, error: 'Slug manga tidak valid' });
+    }
+
     const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
     const localChapterSlug = buildLocalChapterSlug(slug, chapterSlug);
     const chapterId = await findLocalChapterIdBySlug(localChapterSlug);
@@ -1397,7 +1482,9 @@ const syncChapterImages = async (req, res) => {
       return res.status(404).json({ status: false, error: 'Chapter not found in DB' });
     }
 
-    const { images } = await scrapeChapterImages(slug, chapterSlug);
+    const { images } = await scrapeChapterImages(slug, chapterSlug, {
+      baseUrl: target.baseUrl,
+    });
     const inserted = await upsertChapterImages(chapterId, images, { saveToS3 });
 
     res.json({

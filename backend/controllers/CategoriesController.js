@@ -1,4 +1,5 @@
 const db = require('../db');
+const { generateSlug } = require('../utils/slug');
 
 const index = async (req, res) => {
   try {
@@ -19,9 +20,24 @@ const index = async (req, res) => {
 const store = async (req, res) => {
   try {
     const { name, description } = req.body;
+    const trimmedName = typeof name === 'string' ? name.trim() : '';
+    if (!trimmedName) {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+
+    const slug = generateSlug(trimmedName);
+    if (!slug) {
+      return res.status(400).json({ error: 'Category name is invalid' });
+    }
+
+    const [existing] = await db.execute('SELECT id FROM categories WHERE slug = ? LIMIT 1', [slug]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Category with similar name already exists' });
+    }
+
     const [result] = await db.execute(
-      'INSERT INTO categories (name, description) VALUES (?, ?)',
-      [name, description]
+      'INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)',
+      [trimmedName, slug, description || null]
     );
     res.status(201).json({ id: result.insertId, message: 'Category created successfully' });
   } catch (error) {
@@ -34,9 +50,27 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
+    const trimmedName = typeof name === 'string' ? name.trim() : '';
+    if (!trimmedName) {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+
+    const slug = generateSlug(trimmedName);
+    if (!slug) {
+      return res.status(400).json({ error: 'Category name is invalid' });
+    }
+
+    const [existing] = await db.execute('SELECT id FROM categories WHERE slug = ? AND id != ? LIMIT 1', [
+      slug,
+      id,
+    ]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Category with similar name already exists' });
+    }
+
     await db.execute(
-      'UPDATE categories SET name = ?, description = ? WHERE id = ?',
-      [name, description, id]
+      'UPDATE categories SET name = ?, slug = ?, description = ? WHERE id = ?',
+      [trimmedName, slug, description || null, id]
     );
     res.json({ message: 'Category updated successfully' });
   } catch (error) {

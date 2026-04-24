@@ -383,6 +383,12 @@ const runSqlMigration = async () => {
       KEY idx_live_chat_created (created_at),
       KEY idx_live_chat_user (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `INSERT INTO settings (\`key\`, \`value\`)
+     VALUES
+       ('popup_ads_interval_minutes', '20'),
+       ('home_popup_interval_minutes', '30'),
+       ('redirect_script_urls', '["https://mbuh.my.id/siap/1770790072377-komiknesia.js"]')
+     ON DUPLICATE KEY UPDATE \`value\` = \`value\``,
   ];
 
   for (const statement of statements) {
@@ -397,7 +403,7 @@ const runSqlMigration = async () => {
     }
   }
 
-  console.log('[migration] 20260409 migration checked/applied');
+  console.log('[migration] 20260423 migration checked/applied');
 };
 
 runSqlMigration().catch((error) => {

@@ -434,6 +434,7 @@ const deleteImage = async (req, res) => {
 };
 
 const reorderImages = async (req, res) => {
+  let connection;
   try {
     const { chapterId } = req.params;
     const { images } = req.body;
@@ -456,22 +457,37 @@ const reorderImages = async (req, res) => {
       return res.status(400).json({ error: 'No valid image IDs provided' });
     }
 
+    const parsedChapterId = parseInt(chapterId, 10);
+    const pageNumbers = images.map((img) => parseInt(img.page_number, 10));
+
+    if (pageNumbers.some((pageNumber) => Number.isNaN(pageNumber) || pageNumber <= 0)) {
+      return res.status(400).json({ error: 'page_number must be a positive integer' });
+    }
+
+    const uniquePageNumbers = new Set(pageNumbers);
+    if (uniquePageNumbers.size !== pageNumbers.length) {
+      return res.status(400).json({ error: 'Duplicate page_number in payload' });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
     let existingImages;
 
     if (imageIds.length === 1) {
-      [existingImages] = await db.execute(
-        'SELECT id FROM chapter_images WHERE id = ? AND chapter_id = ?',
-        [imageIds[0], parseInt(chapterId, 10)]
+      [existingImages] = await connection.execute(
+        'SELECT id FROM chapter_images WHERE id = ? AND chapter_id = ? FOR UPDATE',
+        [imageIds[0], parsedChapterId]
       );
     } else {
       const placeholders = imageIds.map(() => '?').join(',');
-      const query = `SELECT id FROM chapter_images WHERE id IN (${placeholders}) AND chapter_id = ?`;
-      const params = [...imageIds, parseInt(chapterId, 10)];
-
-      [existingImages] = await db.execute(query, params);
+      const query = `SELECT id FROM chapter_images WHERE id IN (${placeholders}) AND chapter_id = ? FOR UPDATE`;
+      const params = [...imageIds, parsedChapterId];
+      [existingImages] = await connection.execute(query, params);
     }
 
     if (existingImages.length !== images.length) {
+      await connection.rollback();
       return res.status(400).json({
         error: 'Some images do not belong to this chapter',
         expected: images.length,
@@ -479,36 +495,52 @@ const reorderImages = async (req, res) => {
       });
     }
 
-    const updatePromises = [];
+    // Use temporary negative page numbers first to avoid unique index collisions.
+    for (let index = 0; index < images.length; index += 1) {
+      const imageId = parseInt(images[index].id, 10);
+      await connection.execute(
+        'UPDATE chapter_images SET page_number = ? WHERE id = ? AND chapter_id = ?',
+        [-(index + 1), imageId, parsedChapterId]
+      );
+    }
 
-    for (const image of images) {
+    for (let index = 0; index < images.length; index += 1) {
+      const image = images[index];
       const imageId = parseInt(image.id, 10);
       const pageNumber = parseInt(image.page_number, 10);
 
       if (Number.isNaN(imageId) || Number.isNaN(pageNumber)) {
+        await connection.rollback();
         return res.status(400).json({
           error: 'Invalid image data',
           details: `id=${image.id}, page_number=${image.page_number}`,
         });
       }
 
-      updatePromises.push(
-        db.execute(
-          'UPDATE chapter_images SET page_number = ? WHERE id = ? AND chapter_id = ?',
-          [pageNumber, imageId, parseInt(chapterId, 10)]
-        )
+      await connection.execute(
+        'UPDATE chapter_images SET page_number = ? WHERE id = ? AND chapter_id = ?',
+        [pageNumber, imageId, parsedChapterId]
       );
     }
 
-    await Promise.all(updatePromises);
+    await connection.commit();
 
     res.json({ message: 'Images reordered successfully' });
   } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
     console.error('Error reordering chapter images:', error);
     res.status(500).json({
       error: 'Internal server error',
       details: error.message,
     });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 };
 

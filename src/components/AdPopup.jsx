@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getImageUrl, apiClient } from '../utils/api';
 import LazyImage from './LazyImage';
 import { useAds } from '../hooks/useAds';
 
 const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
+const INITIAL_DELAY_MINUTES = 5;
+const STORAGE_KEY = 'adPopupStateV2';
 
 /**
  * AdPopup component to display popup ads.
@@ -21,6 +23,8 @@ const AdPopup = () => {
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState(10);
   const [settingsReady, setSettingsReady] = useState(false);
   const [pendingPremiumRedirect, setPendingPremiumRedirect] = useState(false);
+  const isOpenRef = useRef(false);
+  const fallbackTimingStateRef = useRef(null);
 
   const UNLOCK_SECONDS = 10;
 
@@ -37,89 +41,99 @@ const AdPopup = () => {
       .finally(() => setSettingsReady(true));
   }, []);
 
-  const getCurrentSlotKey = () => {
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  const readTimingState = () => {
     if (typeof window === 'undefined') return null;
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return fallbackTimingStateRef.current;
+      return JSON.parse(raw);
+    } catch {
+      return fallbackTimingStateRef.current;
+    }
+  };
 
-    const slotIndex = Math.floor(minute / slotIntervalMinutes);
-    const slotMinute = slotIndex * slotIntervalMinutes;
-
-    return `${year}-${month}-${day}-${hour}-${slotMinute}`;
+  const writeTimingState = (state) => {
+    fallbackTimingStateRef.current = state;
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // ignore storage write failures (private mode, quota, etc)
+    }
   };
 
   // Jadwal popup: jangan jalan sampai getSettings selesai (default 10 menit), baru pakai interval dari admin
   useEffect(() => {
     if (!settingsReady || !ads.length || loading) return;
 
-    const STORAGE_KEY = 'adPopupState';
     const UNLOCK_MS = UNLOCK_SECONDS * 1000;
+    const INITIAL_DELAY_MS = INITIAL_DELAY_MINUTES * 60 * 1000;
 
-    const checkAndHandleSlot = () => {
+    const checkAndHandleSchedule = () => {
       if (typeof window === 'undefined') return;
 
-      const currentSlotKey = getCurrentSlotKey();
-      if (!currentSlotKey) return;
-
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        let state = raw ? JSON.parse(raw) : null;
         const now = Date.now();
+        const intervalMs = slotIntervalMinutes * 60 * 1000;
+        let state = readTimingState();
 
-        // Slot baru -> buka popup dan catat waktu buka
-        if (!state || state.slotKey !== currentSlotKey) {
+        if (!state || !Number.isFinite(state.startedAt)) {
           state = {
-            slotKey: currentSlotKey,
-            openedAt: now,
+            startedAt: now,
+            lastShownCycle: -1,
           };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          writeTimingState(state);
+        }
 
+        const firstPopupAt = state.startedAt + INITIAL_DELAY_MS;
+        if (now < firstPopupAt) {
+          if (isOpenRef.current) setIsOpen(false);
+          setCanClose(false);
+          setCountdown(UNLOCK_SECONDS);
+          return;
+        }
+
+        const cycleIndex = Math.floor((now - firstPopupAt) / intervalMs);
+        const cycleStartedAt = firstPopupAt + cycleIndex * intervalMs;
+        const elapsedMs = now - cycleStartedAt;
+
+        if (state.lastShownCycle !== cycleIndex) {
+          state.lastShownCycle = cycleIndex;
+          writeTimingState(state);
           setIsOpen(true);
           setCanClose(false);
           setCountdown(UNLOCK_SECONDS);
           return;
         }
 
-        // Slot yang sama: cek sudah berapa lama popup "aktif"
-        const elapsedMs = now - state.openedAt;
-
-        // Jika sudah lewat dari 10 detik -> jendela slot selesai, jangan buka lagi
         if (elapsedMs >= UNLOCK_MS) {
-          if (isOpen) {
-            setIsOpen(false);
-          }
+          if (isOpenRef.current) setIsOpen(false);
           setCanClose(true);
           setCountdown(0);
           return;
         }
 
-        // Masih dalam jendela 10 detik -> pastikan popup tetap terbuka
         const remainingSeconds = Math.max(
           0,
           UNLOCK_SECONDS - Math.floor(elapsedMs / 1000)
         );
 
-        if (!isOpen) {
-          setIsOpen(true);
-        }
+        if (!isOpenRef.current) setIsOpen(true);
 
-        // Selama masih ada sisa detik, tombol close tetap disabled (no skip)
         setCanClose(remainingSeconds === 0);
         setCountdown(remainingSeconds);
 
-        // Jika tepat mencapai 0, auto-close popup
-        if (remainingSeconds === 0 && isOpen) {
+        if (remainingSeconds === 0 && isOpenRef.current) {
           setIsOpen(false);
         }
       } catch (error) {
         console.error('Error handling ad popup slot timing:', error);
-        // Fallback: kalau ada error localStorage, tetap buka popup
-        if (!isOpen) {
+        if (!isOpenRef.current) {
           setIsOpen(true);
           setCanClose(false);
           setCountdown(UNLOCK_SECONDS);
@@ -127,16 +141,14 @@ const AdPopup = () => {
       }
     };
 
-    // Cek sekali di awal (untuk kasus user masuk di tengah slot)
-    checkAndHandleSlot();
+    checkAndHandleSchedule();
 
-    // Lalu cek berkala, supaya kalau user stay dan lewat menit 00/20/40 tetap muncul
     const interval = setInterval(() => {
-      checkAndHandleSlot();
-    }, 1000); // cek tiap detik, cukup ringan
+      checkAndHandleSchedule();
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [settingsReady, ads.length, loading, isOpen, slotIntervalMinutes]);
+  }, [settingsReady, ads.length, loading, slotIntervalMinutes]);
 
   // Effect to prevent body scroll when popup is open
   useEffect(() => {
