@@ -10,20 +10,13 @@ import { getImageUrl } from "../utils/api";
 import { API_BASE_URL } from "../utils/api";
 import LiveChatWidget from "../components/LiveChatWidget";
 
-const countryFlags = {
-  JP: "🇯🇵",
-  KR: "🇰🇷",
-  CN: "🇨🇳",
-  US: "🇺🇸",
-  ID: "🇮🇩",
-};
-
 const statusOptions = ["All", "Ongoing", "Completed", "Hiatus"];
 const typeOptions = [
   { label: "All", value: "All", country: null },
-  { label: "Manga", value: "Manga", country: "JP" },
-  { label: "Manhua", value: "Manhua", country: "CN" },
-  { label: "Manhwa", value: "Manhwa", country: "KR" },
+  { label: "Comic", value: "Comic", country: null, apiType: "comic" },
+  { label: "Manga", value: "Manga", country: "JP", apiType: "manga" },
+  { label: "Manhua", value: "Manhua", country: "CN", apiType: "manhua" },
+  { label: "Manhwa", value: "Manhwa", country: "KR", apiType: "manhwa" },
 ];
 const orderOptions = ["Az", "Za", "Update", "Added", "Popular"];
 
@@ -126,11 +119,10 @@ const Content = () => {
         params.append("status", selectedStatus);
       }
 
-      // Add type/country filter (can be combined with search)
+      // Add type filter (can be combined with search)
       const typeOption = typeOptions.find((t) => t.value === selectedType);
-      if (typeOption && typeOption.country) {
-        params.append("country", typeOption.country);
-        params.append("type", "Comic");
+      if (typeOption && typeOption.value !== "All") {
+        params.append("type", typeOption.apiType || typeOption.value);
       }
 
       // Add order filter (can be combined with search)

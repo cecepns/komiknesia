@@ -25,6 +25,38 @@ function cleanText(text) {
     .trim();
 }
 
+function normalizeContentType(raw) {
+  const normalized = cleanText(raw).toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes('manhwa') || normalized.includes('webtoon')) return 'manhwa';
+  if (normalized.includes('manhua')) return 'manhua';
+  if (normalized.includes('comic')) return 'comic';
+  if (normalized.includes('manga')) return 'manga';
+  return null;
+}
+
+function parseIkiruMangaType($) {
+  const iconSrc =
+    $('img[src*="manhwa.svg"], img[src*="manhua.svg"], img[src*="manga.svg"], img[src*="comic.svg"]')
+      .first()
+      .attr('src') || '';
+  const iconType = normalizeContentType(iconSrc);
+  if (iconType) return iconType;
+
+  const candidates = [];
+  $('h4, span').each((_, el) => {
+    const label = cleanText($(el).text()).toLowerCase();
+    if (label !== 'type') return;
+    const row = $(el).closest('div');
+    const rowText = cleanText(row.text());
+    const parsed = normalizeContentType(rowText);
+    if (parsed) candidates.push(parsed);
+  });
+
+  if (candidates.length) return candidates[0];
+  return null;
+}
+
 async function fetchHtml(url) {
   const maxAttempts = 5;
   let lastError = null;
@@ -494,6 +526,7 @@ async function scrapeMangaDetail(slug, { baseUrl = BASE_URL } = {}) {
   }
 
   const rating = parseIkiruMangaRating($);
+  const contentType = parseIkiruMangaType($);
 
   return {
     slug,
@@ -505,6 +538,7 @@ async function scrapeMangaDetail(slug, { baseUrl = BASE_URL } = {}) {
     genres: Array.from(genres),
     chapters,
     rating,
+    contentType,
   };
 }
 
@@ -541,8 +575,11 @@ async function upsertMangaFromIkiru(detail, { saveToS3 = false } = {}) {
       detail.alternativeName;
     const shouldUpdateSynopsis =
       (!existing.synopsis || String(existing.synopsis).trim() === '') && detail.synopsis;
+    const normalizedExistingType = normalizeContentType(existing.content_type);
+    const shouldUpdateContentType =
+      !!detail.contentType && detail.contentType !== normalizedExistingType;
 
-    if (shouldUpdateAlternative || shouldUpdateSynopsis) {
+    if (shouldUpdateAlternative || shouldUpdateSynopsis || shouldUpdateContentType) {
       const setClauses = [];
       const values = [];
       if (shouldUpdateAlternative) {
@@ -552,6 +589,10 @@ async function upsertMangaFromIkiru(detail, { saveToS3 = false } = {}) {
       if (shouldUpdateSynopsis) {
         setClauses.push('synopsis = ?');
         values.push(detail.synopsis || null);
+      }
+      if (shouldUpdateContentType) {
+        setClauses.push('content_type = ?');
+        values.push(detail.contentType);
       }
       values.push(existing.id);
 
@@ -632,7 +673,7 @@ async function upsertMangaFromIkiru(detail, { saveToS3 = false } = {}) {
       coverUrl,
       null,
       detail.alternativeName || null,
-      'manga',
+      detail.contentType || 'manga',
       null,
       null,
       'ongoing',

@@ -8,6 +8,38 @@ function cleanText(text) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+function normalizeContentType(raw) {
+  const normalized = cleanText(String(raw || '')).toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes('manhwa') || normalized.includes('webtoon')) return 'manhwa';
+  if (normalized.includes('manhua')) return 'manhua';
+  if (normalized.includes('comic')) return 'comic';
+  if (normalized.includes('manga')) return 'manga';
+  return null;
+}
+
+function parseIkiruMangaType($) {
+  const iconSrc =
+    $('img[src*="manhwa.svg"], img[src*="manhua.svg"], img[src*="manga.svg"], img[src*="comic.svg"]')
+      .first()
+      .attr('src') || '';
+  const iconType = normalizeContentType(iconSrc);
+  if (iconType) return iconType;
+
+  const candidates = [];
+  $('h4, span').each((_, el) => {
+    const label = cleanText($(el).text()).toLowerCase();
+    if (label !== 'type') return;
+    const row = $(el).closest('div');
+    const rowText = cleanText(row.text());
+    const parsed = normalizeContentType(rowText);
+    if (parsed) candidates.push(parsed);
+  });
+
+  if (candidates.length) return candidates[0];
+  return null;
+}
+
 async function fetchHtml(url) {
   try {
     return await ikiruFetchHtml(url, { timeout: 15000 });
@@ -437,6 +469,7 @@ async function getMangaDetail(req, res) {
 
     let synopsis = '';
     let genres = [];
+    const contentType = parseIkiruMangaType($);
 
     const synopsisHeader = $('h3, h4')
       .filter((_, el) => cleanText($(el).text()).toLowerCase() === 'synopsis')
@@ -485,6 +518,7 @@ async function getMangaDetail(req, res) {
       favorites,
       synopsis,
       genres,
+      contentType,
       info,
       chapters,
       chaptersCount: chapters.length,

@@ -93,18 +93,21 @@ async function fetchLocalManga(filters) {
     params.push(country);
   }
 
-  if (type && type !== 'Comic') {
+  if (type) {
+    const normalizedType = String(type).trim().toLowerCase();
     const typeMap = {
-      Manga: 'manga',
-      Manhua: 'manhua',
-      Manhwa: 'manhwa',
+      manga: 'manga',
+      manhua: 'manhua',
+      manhwa: 'manhwa',
+      comic: 'comic',
     };
-    if (typeMap[type]) {
-      whereConditions.push('m.content_type = ?');
-      params.push(typeMap[type]);
-    } else if (type === 'Comic') {
+
+    if (typeMap[normalizedType] === 'comic') {
       whereConditions.push('(m.content_type = ? OR m.content_type IS NULL)');
       params.push('comic');
+    } else if (typeMap[normalizedType]) {
+      whereConditions.push('m.content_type = ?');
+      params.push(typeMap[normalizedType]);
     }
   }
 

@@ -40,7 +40,7 @@ const Home = () => {
   const [sharePopupOpen, setSharePopupOpen] = useState(false);
   const shareUrl = typeof window !== "undefined" ? window.location.origin : "https://komiknesia.com";
   const shareTitle = "Baca komik, manga, manhwa, dan manhua Bahasa Indonesia di KomikNesia!";
-  const discordInviteUrl = "https://discord.gg/nUv4G3f5";
+  const discordInviteUrl = "https://discord.gg/dgC22PSm9h";
   const donateUrl = "https://saweria.co/KomikNesia";
 
   useEffect(() => {
