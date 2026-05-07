@@ -286,8 +286,12 @@ class APIClient {
   }
 
   // Bookmarks (requires auth)
-  getBookmarks() {
-    return this.request('/bookmarks');
+  getBookmarks({ page = 1, limit = 24 } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    return this.request(`/bookmarks?${params.toString()}`);
   }
 
   addBookmark(mangaIdOrSlug) {

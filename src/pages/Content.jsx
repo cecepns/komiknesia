@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
@@ -32,14 +32,20 @@ const Content = () => {
   const [genres, setGenres] = useState([]);
   const [loading, setLoading] = useState(false);
   const [genresLoading, setGenresLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Filter states
-  const [selectedGenres, setSelectedGenres] = useState([]);
-  const [selectedStatus, setSelectedStatus] = useState("All");
-  const [selectedType, setSelectedType] = useState("All");
-  const [selectedOrder, setSelectedOrder] = useState("Update");
+  const currentPage = Math.max(1, Number(searchParams.get("page")) || 1);
+  const selectedStatus = statusOptions.includes(searchParams.get("status") || "")
+    ? searchParams.get("status")
+    : "All";
+  const selectedType = typeOptions.some(
+    (type) => type.value === (searchParams.get("type") || ""),
+  )
+    ? searchParams.get("type")
+    : "All";
+  const selectedOrder = orderOptions.includes(searchParams.get("order") || "")
+    ? searchParams.get("order")
+    : "Update";
 
   // Mobile dropdown states
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
@@ -72,12 +78,19 @@ const Content = () => {
     fetchGenres();
   }, []);
 
-  // Initialize filters from URL parameters (by genre name)
-  useEffect(() => {
-    const genreParams = searchParams.getAll("genre");
-    if (genreParams.length > 0 && genres.length > 0) {
-      // Find genre IDs by matching names (case-insensitive)
-      const matchedGenreIds = genreParams
+  const selectedGenres = useMemo(() => {
+    const genreIdParams = searchParams
+      .getAll("genreId")
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id));
+
+    if (genreIdParams.length > 0) {
+      return genreIdParams;
+    }
+
+    const genreNameParams = searchParams.getAll("genre");
+    if (genreNameParams.length > 0 && genres.length > 0) {
+      return genreNameParams
         .map((name) => {
           const genre = genres.find(
             (g) => g.name.toLowerCase() === name.toLowerCase(),
@@ -85,12 +98,66 @@ const Content = () => {
           return genre ? genre.id : null;
         })
         .filter((id) => id !== null);
-
-      if (matchedGenreIds.length > 0) {
-        setSelectedGenres(matchedGenreIds);
-      }
     }
+
+    return [];
   }, [searchParams, genres]);
+
+  const updateSearchParams = useCallback(
+    (updater) => {
+      const nextParams = new URLSearchParams(searchParams);
+      updater(nextParams);
+      setSearchParams(nextParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const setPage = useCallback(
+    (nextPage) => {
+      updateSearchParams((params) => {
+        const safePage = Math.max(1, Number(nextPage) || 1);
+        if (safePage === 1) {
+          params.delete("page");
+        } else {
+          params.set("page", String(safePage));
+        }
+      });
+    },
+    [updateSearchParams],
+  );
+
+  const setStatusFilter = useCallback(
+    (status) => {
+      updateSearchParams((params) => {
+        if (status === "All") params.delete("status");
+        else params.set("status", status);
+        params.delete("page");
+      });
+    },
+    [updateSearchParams],
+  );
+
+  const setTypeFilter = useCallback(
+    (type) => {
+      updateSearchParams((params) => {
+        if (type === "All") params.delete("type");
+        else params.set("type", type);
+        params.delete("page");
+      });
+    },
+    [updateSearchParams],
+  );
+
+  const setOrderFilter = useCallback(
+    (order) => {
+      updateSearchParams((params) => {
+        if (order === "Update") params.delete("order");
+        else params.set("order", order);
+        params.delete("page");
+      });
+    },
+    [updateSearchParams],
+  );
 
   const fetchManga = useCallback(async () => {
     setLoading(true);
@@ -153,17 +220,6 @@ const Content = () => {
     searchQuery,
   ]);
 
-  // Reset page to 1 when search query or filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    searchQuery,
-    selectedGenres,
-    selectedStatus,
-    selectedType,
-    selectedOrder,
-  ]);
-
   // Load manga based on filters
   useEffect(() => {
     fetchManga();
@@ -203,29 +259,42 @@ const Content = () => {
   }, []);
 
   const toggleGenre = (genreId) => {
-    setSelectedGenres((prev) =>
-      prev.includes(genreId)
-        ? prev.filter((id) => id !== genreId)
-        : [...prev, genreId],
-    );
-    setCurrentPage(1);
+    updateSearchParams((params) => {
+      const existing = params
+        .getAll("genreId")
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id));
+
+      const next = existing.includes(genreId)
+        ? existing.filter((id) => id !== genreId)
+        : [...existing, genreId];
+
+      params.delete("genreId");
+      params.delete("genre");
+      next.forEach((id) => params.append("genreId", String(id)));
+      params.delete("page");
+    });
   };
 
   const clearAllFilters = () => {
-    setSelectedGenres([]);
-    setSelectedStatus("All");
-    setSelectedType("All");
-    setSelectedOrder("Update");
-    setCurrentPage(1);
-    // Clear search query
-    if (searchQuery) {
-      setSearchParams({});
-    }
+    updateSearchParams((params) => {
+      params.delete("genreId");
+      params.delete("genre");
+      params.delete("status");
+      params.delete("type");
+      params.delete("order");
+      params.delete("page");
+      if (searchQuery) {
+        params.delete("q");
+      }
+    });
   };
 
   const clearSearch = () => {
-    setSearchParams({});
-    setCurrentPage(1);
+    updateSearchParams((params) => {
+      params.delete("q");
+      params.delete("page");
+    });
   };
 
   const getTimeAgo = (timestamp) => {
@@ -257,7 +326,7 @@ const Content = () => {
     pages.push(
       <button
         key="prev"
-        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+        onClick={() => setPage(currentPage - 1)}
         disabled={currentPage === 1}
         className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${
           currentPage === 1
@@ -274,7 +343,7 @@ const Content = () => {
       pages.push(
         <button
           key={1}
-          onClick={() => setCurrentPage(1)}
+          onClick={() => setPage(1)}
           className="px-3 md:px-4 py-2 rounded-lg text-sm md:text-base bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
         >
           1
@@ -297,7 +366,7 @@ const Content = () => {
       pages.push(
         <button
           key={i}
-          onClick={() => setCurrentPage(i)}
+          onClick={() => setPage(i)}
           className={`px-3 md:px-4 py-2 rounded-lg text-sm md:text-base ${
             currentPage === i
               ? "bg-blue-500 text-white"
@@ -324,7 +393,7 @@ const Content = () => {
       pages.push(
         <button
           key={totalPages}
-          onClick={() => setCurrentPage(totalPages)}
+          onClick={() => setPage(totalPages)}
           className="px-3 md:px-4 py-2 rounded-lg text-sm md:text-base bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
         >
           {totalPages}
@@ -336,7 +405,7 @@ const Content = () => {
     pages.push(
       <button
         key="next"
-        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+        onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
         className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${
           currentPage === totalPages
@@ -373,7 +442,7 @@ const Content = () => {
       <Header />
 
       {/* Ads Section - Top */}
-      <div className="container mx-auto px-4 pt-28 pb-2">
+      <div className="container mx-auto px-4 pt-16 pb-2">
         <AdBanner
           ads={comicTopAds}
           layout="grid"
@@ -383,7 +452,7 @@ const Content = () => {
       </div>
 
       {/* Page Header */}
-      <div className="bg-white dark:bg-primary-900 shadow-md sticky top-20 z-40">
+      <div className="bg-white dark:bg-primary-900 shadow-md top-20 z-40">
         <div className="container mx-auto px-4 py-6 md:py-10">
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -410,7 +479,7 @@ const Content = () => {
             </div>
             <button
               onClick={clearAllFilters}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-300"
+              className="hidden md:flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-300"
             >
               <X className="h-5 w-5" />
               <span className="hidden md:inline">Clear All</span>
@@ -446,8 +515,11 @@ const Content = () => {
                     {selectedGenres.length > 0 && (
                       <button
                         onClick={() => {
-                          setSelectedGenres([]);
-                          setCurrentPage(1);
+                          updateSearchParams((params) => {
+                            params.delete("genreId");
+                            params.delete("genre");
+                            params.delete("page");
+                          });
                         }}
                         className="text-xs text-blue-500 hover:text-blue-600"
                       >
@@ -502,8 +574,7 @@ const Content = () => {
                     <button
                       key={status}
                       onClick={() => {
-                        setSelectedStatus(status);
-                        setCurrentPage(1);
+                        setStatusFilter(status);
                         setShowStatusDropdown(false);
                       }}
                       className={`w-full text-left px-4 py-2 rounded text-sm ${
@@ -538,8 +609,7 @@ const Content = () => {
                     <button
                       key={type.value}
                       onClick={() => {
-                        setSelectedType(type.value);
-                        setCurrentPage(1);
+                        setTypeFilter(type.value);
                         setShowTypeDropdown(false);
                       }}
                       className={`w-full text-left px-4 py-2 rounded text-sm ${
@@ -574,8 +644,7 @@ const Content = () => {
                     <button
                       key={order}
                       onClick={() => {
-                        setSelectedOrder(order);
-                        setCurrentPage(1);
+                        setOrderFilter(order);
                         setShowOrderDropdown(false);
                       }}
                       className={`w-full text-left px-4 py-2 rounded text-sm ${
@@ -619,8 +688,7 @@ const Content = () => {
                     <button
                       key={status}
                       onClick={() => {
-                        setSelectedStatus(status);
-                        setCurrentPage(1);
+                        setStatusFilter(status);
                       }}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedStatus === status
@@ -644,8 +712,7 @@ const Content = () => {
                     <button
                       key={type.value}
                       onClick={() => {
-                        setSelectedType(type.value);
-                        setCurrentPage(1);
+                        setTypeFilter(type.value);
                       }}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedType === type.value
@@ -669,8 +736,7 @@ const Content = () => {
                     <button
                       key={order}
                       onClick={() => {
-                        setSelectedOrder(order);
-                        setCurrentPage(1);
+                        setOrderFilter(order);
                       }}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedOrder === order
@@ -763,7 +829,7 @@ const Content = () => {
                     <span className="inline-flex items-center space-x-2 px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm">
                       <span>Status: {selectedStatus}</span>
                       <button
-                        onClick={() => setSelectedStatus("All")}
+                        onClick={() => setStatusFilter("All")}
                         className="hover:text-green-900 dark:hover:text-green-100"
                       >
                         <X className="h-4 w-4" />
@@ -774,7 +840,7 @@ const Content = () => {
                     <span className="inline-flex items-center space-x-2 px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-sm">
                       <span>Type: {selectedType}</span>
                       <button
-                        onClick={() => setSelectedType("All")}
+                        onClick={() => setTypeFilter("All")}
                         className="hover:text-purple-900 dark:hover:text-purple-100"
                       >
                         <X className="h-4 w-4" />
@@ -785,7 +851,7 @@ const Content = () => {
                     <span className="inline-flex items-center space-x-2 px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded-full text-sm">
                       <span>Order: {selectedOrder}</span>
                       <button
-                        onClick={() => setSelectedOrder("Update")}
+                        onClick={() => setOrderFilter("Update")}
                         className="hover:text-orange-900 dark:hover:text-orange-100"
                       >
                         <X className="h-4 w-4" />

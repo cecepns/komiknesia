@@ -31,6 +31,7 @@ const Library = () => {
   const [bookmarkList, setBookmarkList] = useState([]);
   const [bookmarkPage, setBookmarkPage] = useState(1);
   const [bookmarkHasMore, setBookmarkHasMore] = useState(false);
+  const [bookmarkTotalPages, setBookmarkTotalPages] = useState(1);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -92,15 +93,20 @@ const Library = () => {
       if (res.status && res.data) {
         setBookmarkList(res.data);
         const meta = res.meta || {};
-        setBookmarkHasMore(meta.page < meta.totalPages);
+        const currentPage = Number(meta.page) || bookmarkPage;
+        const totalPages = Math.max(1, Number(meta.totalPages) || 1);
+        setBookmarkTotalPages(totalPages);
+        setBookmarkHasMore(currentPage < totalPages);
       } else {
         setBookmarkList([]);
         setBookmarkHasMore(false);
+        setBookmarkTotalPages(1);
       }
     } catch (err) {
       console.error("Error loading bookmarks:", err);
       setBookmarkList([]);
       setBookmarkHasMore(false);
+      setBookmarkTotalPages(1);
     } finally {
       setBookmarkLoading(false);
     }
@@ -126,6 +132,7 @@ const Library = () => {
   useEffect(() => {
     if (activeTabId === "bookmark") {
       setBookmarkPage(1);
+      setBookmarkTotalPages(1);
     }
   }, [activeTabId]);
 
@@ -169,7 +176,7 @@ const Library = () => {
 
       {/* Tabs */}
       <div
-        className={`sticky top-20 md:top-24 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 ${libraryTopAds.length === 0 ? "" : "mt-20"}`}
+        className={`sticky top-16 md:top-20 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 ${libraryTopAds.length === 0 ? "" : "mt-20"}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 py-2">
@@ -180,7 +187,7 @@ const Library = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${
+                  className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${
                     isActive
                       ? "bg-red-600 text-white shadow-lg"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -398,14 +405,28 @@ const Library = () => {
                           </div>
                         ))}
                       </div>
-                      {bookmarkHasMore && (
-                        <div className="mt-6 flex justify-center">
+                      {(bookmarkPage > 1 || bookmarkHasMore) && (
+                        <div className="mt-6 flex items-center justify-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBookmarkPage((p) => Math.max(1, p - 1))
+                            }
+                            disabled={bookmarkPage <= 1}
+                            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            Sebelumnya
+                          </button>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                            Halaman {bookmarkPage}/{bookmarkTotalPages}
+                          </span>
                           <button
                             type="button"
                             onClick={() => setBookmarkPage((p) => p + 1)}
-                            className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+                            disabled={!bookmarkHasMore}
+                            className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
                           >
-                            Tampilkan bookmark berikutnya
+                            Selanjutnya
                           </button>
                         </div>
                       )}

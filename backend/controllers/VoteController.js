@@ -94,44 +94,74 @@ const submit = async (req, res) => {
     const mangaId = mangaRows[0].id;
 
     const whereClause = userId
-      ? 'manga_id = ? AND user_id = ?'
+      ? 'manga_id = ? AND (user_id = ? OR user_ip = ?)'
       : 'manga_id = ? AND user_ip = ? AND (user_id IS NULL OR user_id = 0)';
-    const whereParams = userId ? [mangaId, userId] : [mangaId, user_ip];
+    const whereParams = userId ? [mangaId, userId, user_ip] : [mangaId, user_ip];
 
     const [existing] = await db.execute(
-      `SELECT id, vote_type FROM votes WHERE ${whereClause}`,
-      whereParams
+      `SELECT id, vote_type, user_id FROM votes WHERE ${whereClause}
+       ORDER BY CASE WHEN user_id = ? THEN 0 ELSE 1 END, id ASC
+       LIMIT 1`,
+      [...whereParams, userId || 0]
     );
 
     if (existing.length > 0) {
-      if (existing[0].vote_type === vote_type) {
-        if (userId) {
-          await db.execute('DELETE FROM votes WHERE id = ?', [existing[0].id]);
+      const existingVote = existing[0];
+      const isOwnedByUser = !!userId && Number(existingVote.user_id) === Number(userId);
+
+      if (existingVote.vote_type === vote_type) {
+        if (isOwnedByUser) {
+          await db.execute('DELETE FROM votes WHERE id = ?', [existingVote.id]);
           return res.json({ status: true, message: 'Vote removed', action: 'removed' });
         }
+
+        if (userId && !isOwnedByUser) {
+          await db.execute('UPDATE votes SET user_id = ?, user_ip = ? WHERE id = ?', [
+            userId,
+            user_ip,
+            existingVote.id,
+          ]);
+        }
+
         return res.json({ status: true, message: 'Already voted', action: 'unchanged' });
       }
-      await db.execute('UPDATE votes SET vote_type = ? WHERE id = ?', [
+
+      await db.execute('UPDATE votes SET vote_type = ?, user_id = ?, user_ip = ? WHERE id = ?', [
         vote_type,
-        existing[0].id,
+        userId,
+        user_ip,
+        existingVote.id,
       ]);
       return res.json({
         status: true,
         message: 'Vote updated',
         action: 'updated',
-        previous_vote: existing[0].vote_type,
+        previous_vote: existingVote.vote_type,
         new_vote: vote_type,
       });
     }
 
     if (userId) {
       await db.execute(
-        'INSERT INTO votes (manga_id, vote_type, user_id, user_ip) VALUES (?, ?, ?, ?)',
+        `
+          INSERT INTO votes (manga_id, vote_type, user_id, user_ip)
+          VALUES (?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            vote_type = VALUES(vote_type),
+            user_id = VALUES(user_id),
+            user_ip = VALUES(user_ip)
+        `,
         [mangaId, vote_type, userId, user_ip]
       );
     } else {
       await db.execute(
-        'INSERT INTO votes (manga_id, vote_type, user_ip) VALUES (?, ?, ?)',
+        `
+          INSERT INTO votes (manga_id, vote_type, user_ip)
+          VALUES (?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            vote_type = VALUES(vote_type),
+            user_ip = VALUES(user_ip)
+        `,
         [mangaId, vote_type, user_ip]
       );
     }
