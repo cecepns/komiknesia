@@ -176,7 +176,7 @@ const Library = () => {
 
       {/* Tabs */}
       <div
-        className={`sticky top-16 md:top-20 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 ${libraryTopAds.length === 0 ? "" : "mt-20"}`}
+        className={`sticky top-16 md:top-[75px] z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 ${libraryTopAds.length === 0 ? "" : "mt-20"}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 py-2">
