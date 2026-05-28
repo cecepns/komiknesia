@@ -1,5 +1,22 @@
 const db = require('../db');
 
+function mapLastChapterRow(row) {
+  const createdTs = parseInt(row.created_at_timestamp, 10) || 0;
+  const updatedRaw = row.updated_at_timestamp;
+  const updatedTs =
+    updatedRaw != null && updatedRaw !== '' ? parseInt(updatedRaw, 10) : null;
+  const chapter = {
+    number: row.number,
+    title: row.title,
+    slug: row.slug,
+    created_at: { time: createdTs },
+  };
+  if (updatedTs != null && !Number.isNaN(updatedTs)) {
+    chapter.updated_at = { time: updatedTs };
+  }
+  return chapter;
+}
+
 /** Short TTL cache + in-flight dedupe for GET /contents (reduces parallel heavy queries). */
 const CONTENTS_LIST_CACHE_TTL_MS = 20 * 1000;
 const CONTENTS_LIST_CACHE_MAX_KEYS = 80;
@@ -36,6 +53,7 @@ function buildContentsListCacheKey(query) {
     type,
     orderBy = 'Update',
     project,
+    popularWindow,
   } = query;
   return JSON.stringify({
     q: String(q || '').trim(),
@@ -47,6 +65,7 @@ function buildContentsListCacheKey(query) {
     type: type != null ? String(type) : '',
     orderBy: String(orderBy || 'Update'),
     project: project != null ? String(project) : '',
+    popularWindow: popularWindow != null ? String(popularWindow) : '',
   });
 }
 
@@ -68,19 +87,28 @@ async function fetchLocalManga(filters) {
     type,
     orderBy = 'Update',
     project,
+    popularWindow,
     page = 1,
     perPage = 24,
   } = filters || {};
 
-  const whereConditions = ['m.is_input_manual = TRUE'];
+  const whereConditions = [];
   const params = [];
+
+  // Project filter: semua manga ber-flag project (manual & sync). Katalog default: manual saja.
+  if (project === 'true') {
+    whereConditions.push('m.is_project = TRUE');
+  } else {
+    whereConditions.push('m.is_input_manual = TRUE');
+    if (project === 'false') {
+      whereConditions.push('(m.is_project IS NULL OR m.is_project = FALSE)');
+    }
+  }
 
   if (q && q.trim()) {
     whereConditions.push('(m.title LIKE ? OR m.alternative_name LIKE ?)');
     const searchTerm = `%${q.trim()}%`;
     params.push(searchTerm, searchTerm);
-  } else if (project === 'true') {
-    whereConditions.push('m.is_project = TRUE');
   }
 
   if (status && status !== 'All') {
@@ -115,17 +143,45 @@ async function fetchLocalManga(filters) {
     ? genreArray.map((g) => parseInt(g, 10)).filter((g) => !Number.isNaN(g))
     : [];
 
-  const shouldSortByLatestChapter = orderBy === 'Update' || !orderBy;
+  let popularIntervalDays = null;
+  if (orderBy === 'Popular' && popularWindow != null && String(popularWindow).trim() !== '') {
+    const pw = String(popularWindow).trim().toLowerCase();
+    if (pw === 'day' || pw === 'daily' || pw === 'd' || pw === '1') {
+      popularIntervalDays = 1;
+    } else if (pw === 'week' || pw === 'weekly' || pw === 'w' || pw === '7') {
+      popularIntervalDays = 7;
+    } else if (pw === 'month' || pw === 'monthly' || pw === 'm' || pw === '30') {
+      popularIntervalDays = 30;
+    }
+  }
+
+  const popularJoin =
+    popularIntervalDays != null
+      ? ' LEFT JOIN (' +
+        '   SELECT manga_id, COUNT(*) AS popular_window_count' +
+        '   FROM manga_view_events' +
+        '   WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)' +
+        '   GROUP BY manga_id' +
+        ' ) pw ON pw.manga_id = m.id'
+      : '';
+
+  // Update / default: urutkan dari chapter terakhir. Popular/Az/Za/Added punya aturan sendiri.
+  const usesChapterActivitySort =
+    orderBy === 'Update' ||
+    orderBy == null ||
+    orderBy === '' ||
+    !['Popular', 'Az', 'Za', 'Added'].includes(orderBy);
   const fromClause =
     ' FROM manga m' +
-    (shouldSortByLatestChapter
+    (usesChapterActivitySort
       ? ' LEFT JOIN (' +
-        '   SELECT manga_id, MAX(COALESCE(updated_at, created_at)) AS last_chapter_activity_at' +
+        '   SELECT manga_id, MAX(created_at) AS last_chapter_activity_at' +
         '   FROM chapters' +
         '   GROUP BY manga_id' +
         ' ) lc ON lc.manga_id = m.id'
       : '') +
-    (genreIds.length > 0 ? ' INNER JOIN manga_genres mg ON m.id = mg.manga_id' : '');
+    (genreIds.length > 0 ? ' INNER JOIN manga_genres mg ON m.id = mg.manga_id' : '') +
+    popularJoin;
   const whereClause = ' WHERE ' + whereConditions.join(' AND ');
   const genreFilterClause = genreIds.length > 0
     ? ' AND mg.category_id IN (' + genreIds.map(() => '?').join(',') + ')'
@@ -143,21 +199,26 @@ async function fetchLocalManga(filters) {
       orderClause = 'ORDER BY m.title DESC';
       break;
     case 'Update':
+      // Paling atas = manga dengan chapter terbaru; tanpa chapter di bawah (bukan m.updated_at / created_at).
       orderClause =
-        'ORDER BY COALESCE(lc.last_chapter_activity_at, m.updated_at, m.created_at) DESC, m.id DESC';
+        'ORDER BY (lc.last_chapter_activity_at IS NULL), lc.last_chapter_activity_at DESC, m.id DESC';
       break;
     case 'Added':
-      orderClause = 'ORDER BY m.created_at DESC';
+      orderClause = 'ORDER BY m.created_at DESC, m.id DESC';
       break;
     case 'Popular':
-      orderClause = 'ORDER BY m.views DESC, m.rating DESC';
+      orderClause =
+        popularIntervalDays != null
+          ? 'ORDER BY COALESCE(pw.popular_window_count, 0) DESC, m.views DESC, m.rating DESC, m.id DESC'
+          : 'ORDER BY m.views DESC, m.rating DESC, m.id DESC';
       break;
     default:
       orderClause =
-        'ORDER BY COALESCE(lc.last_chapter_activity_at, m.updated_at, m.created_at) DESC, m.id DESC';
+        'ORDER BY (lc.last_chapter_activity_at IS NULL), lc.last_chapter_activity_at DESC, m.id DESC';
   }
 
-  const baseParams = [...params];
+  const prefixParams = popularIntervalDays != null ? [popularIntervalDays] : [];
+  const baseParams = [...prefixParams, ...params];
   if (genreIds.length > 0) {
     baseParams.push(...genreIds, genreIds.length);
   }
@@ -241,7 +302,9 @@ async function fetchLocalManga(filters) {
           c.title,
           c.slug,
           c.created_at,
-          UNIX_TIMESTAMP(c.created_at) AS created_at_timestamp
+          c.updated_at,
+          UNIX_TIMESTAMP(c.created_at) AS created_at_timestamp,
+          UNIX_TIMESTAMP(c.updated_at) AS updated_at_timestamp
         FROM chapters c
         WHERE c.manga_id IN (${chapterPlaceholders})
         ORDER BY c.manga_id ASC, CAST(c.chapter_number AS UNSIGNED) DESC, c.created_at DESC
@@ -256,14 +319,7 @@ async function fetchLocalManga(filters) {
       if (acc[row.manga_id].length >= 3) {
         return acc;
       }
-      acc[row.manga_id].push({
-        number: row.number,
-        title: row.title,
-        slug: row.slug,
-        created_at: {
-          time: parseInt(row.created_at_timestamp, 10),
-        },
-      });
+      acc[row.manga_id].push(mapLastChapterRow(row));
       return acc;
     }, {});
   } catch (err) {
@@ -337,6 +393,7 @@ const list = async (req, res) => {
       type,
       orderBy = 'Update',
       project,
+      popularWindow,
     } = req.query;
 
     const cacheKey = buildContentsListCacheKey(req.query);
@@ -380,6 +437,7 @@ const list = async (req, res) => {
           type,
           orderBy,
           project,
+          popularWindow,
           page: pageNum,
           perPage,
         });

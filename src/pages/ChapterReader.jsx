@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { 
-  ArrowLeft, 
-  Home, 
-  ChevronLeft, 
+import {
+  ArrowLeft,
+  Home,
+  ChevronLeft,
   ChevronRight,
   List,
   X,
@@ -15,8 +15,23 @@ import {
   Pause,
   Sparkles,
   Coffee,
-  ExternalLink
+  ExternalLink,
+  Eye,
+  Share2,
+  Copy,
+  Heart,
+  AlertTriangle,
 } from 'lucide-react';
+import {
+  WhatsappShareButton,
+  TelegramShareButton,
+  TwitterShareButton,
+  WhatsappIcon,
+  TelegramIcon,
+  TwitterIcon,
+} from 'react-share';
+import { toast } from 'react-toastify';
+import discordIcon from '../assets/discord.svg';
 import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
 import { API_BASE_URL, apiClient, getImageUrl } from '../utils/api';
@@ -24,6 +39,10 @@ import AdBanner from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 import CommentSection from '../components/CommentSection';
 import { useAuth } from '../contexts/AuthContext';
+import { REACTION_OPTIONS, emptyReactionCounts, sumReactionCounts } from '../constants/reactions';
+
+/** Sementara dimatikan — set `true` untuk menampilkan lagi kontrol auto scroll (premium). */
+const SHOW_AUTO_SCROLL_UI = false;
 
 /** Kecepatan auto-scroll dalam px/detik per nilai slider (0 = paling pelan). */
 const AUTO_SCROLL_PX_PER_SEC = [6, 12, 22, 38, 58, 85, 115, 155, 200];
@@ -46,7 +65,69 @@ const ChapterReader = () => {
   const topRef = useRef(null);
   const { user } = useAuth();
   const isPremiumUser = !!user?.membership_active;
+  const discordInviteUrl = 'https://discord.gg/3tGVDZCF3a';
   const donateUrl = 'https://saweria.co/KomikNesia';
+  const chapterOrigin =
+    typeof window !== 'undefined' ? window.location.origin : 'https://komiknesia.com';
+  const chapterShareUrl = chapterSlug ? `${chapterOrigin}/view/${chapterSlug}` : '';
+  const [chapterSharePopupOpen, setChapterSharePopupOpen] = useState(false);
+
+  const copyChapterShareLink = async (context = 'default') => {
+    if (!chapterShareUrl) return;
+    try {
+      await navigator.clipboard.writeText(chapterShareUrl);
+      if (context === 'tiktok') {
+        toast.success('Link disalin. Buka TikTok dan tempel di bio, DM, atau caption.');
+      } else {
+        toast.success('Tautan chapter berhasil disalin.');
+      }
+    } catch {
+      toast.error('Gagal menyalin. Salin manual: ' + chapterShareUrl);
+    }
+  };
+
+  const [chapterReactionData, setChapterReactionData] = useState(() => emptyReactionCounts());
+  const [selectedChapterReaction, setSelectedChapterReaction] = useState(null);
+  const [chapterReactionLoading, setChapterReactionLoading] = useState(false);
+
+  useEffect(() => {
+    if (!chapterSlug) return undefined;
+    let cancelled = false;
+    setChapterReactionLoading(true);
+    apiClient
+      .getChapterReactions(chapterSlug)
+      .then((res) => {
+        if (cancelled || !res?.status || !res.data) return;
+        setChapterReactionData({ ...emptyReactionCounts(), ...res.data });
+        setSelectedChapterReaction(res.userReaction ?? null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setChapterReactionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [chapterSlug]);
+
+  const handleChapterReaction = async (reactionType) => {
+    if (!chapterSlug) return;
+    setChapterReactionLoading(true);
+    try {
+      const result = await apiClient.submitChapterReaction(chapterSlug, reactionType);
+      if (result?.status) {
+        const refresh = await apiClient.getChapterReactions(chapterSlug);
+        if (refresh?.status && refresh.data) {
+          setChapterReactionData({ ...emptyReactionCounts(), ...refresh.data });
+          setSelectedChapterReaction(refresh.userReaction ?? null);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setChapterReactionLoading(false);
+    }
+  };
 
   // Fetch chapter content (includes all data we need)
   useEffect(() => {
@@ -131,8 +212,8 @@ const ChapterReader = () => {
   const mangaData = chapterData?.content || null;
 
   // Fetch ads for manga-detail-top and manga-detail-bottom
-  const { ads: mangaDetailTopAds } = useAds('manga-detail-top', null, !isPremiumUser);
-  const { ads: mangaDetailBottomAds } = useAds('manga-detail-bottom', null, !isPremiumUser);
+  const { ads: mangaDetailTopAds } = useAds('manga-detail-top', !isPremiumUser);
+  const { ads: mangaDetailBottomAds } = useAds('manga-detail-bottom', !isPremiumUser);
 
   const handlePrevChapter = () => {
     if (currentChapterIndex < allChapters.length - 1) {
@@ -175,7 +256,7 @@ const ChapterReader = () => {
 
   // Scroll functions - scroll incrementally for better reading experience
   const scrollUp = () => {
-    if (autoScrollEnabled) {
+    if (SHOW_AUTO_SCROLL_UI && autoScrollEnabled) {
       setAutoScrollEnabled(false);
       setShowResumeAutoPlay(true);
     }
@@ -188,7 +269,7 @@ const ChapterReader = () => {
   };
 
   const scrollDown = () => {
-    if (autoScrollEnabled) {
+    if (SHOW_AUTO_SCROLL_UI && autoScrollEnabled) {
       setAutoScrollEnabled(false);
       setShowResumeAutoPlay(true);
     }
@@ -201,7 +282,7 @@ const ChapterReader = () => {
   };
 
   useEffect(() => {
-    if (!isPremiumUser || !autoScrollEnabled) {
+    if (!isPremiumUser || !SHOW_AUTO_SCROLL_UI || !autoScrollEnabled) {
       if (autoScrollTimerRef.current != null) {
         cancelAnimationFrame(autoScrollTimerRef.current);
         autoScrollTimerRef.current = null;
@@ -244,10 +325,10 @@ const ChapterReader = () => {
 
   // Turn off auto-scroll when user manually scrolls/interacts.
   useEffect(() => {
-    if (!isPremiumUser) return;
+    if (!isPremiumUser || !SHOW_AUTO_SCROLL_UI) return;
 
     const disableAutoScrollByUser = () => {
-      if (!autoScrollEnabled) return;
+      if (!SHOW_AUTO_SCROLL_UI || !autoScrollEnabled) return;
       setAutoScrollEnabled(false);
       setShowResumeAutoPlay(true);
     };
@@ -268,7 +349,7 @@ const ChapterReader = () => {
       window.removeEventListener('touchmove', disableAutoScrollByUser);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [isPremiumUser, autoScrollEnabled]);
+  }, [isPremiumUser, SHOW_AUTO_SCROLL_UI, autoScrollEnabled]);
 
   if (loading) {
     return (
@@ -312,13 +393,14 @@ const ChapterReader = () => {
   const mangaTitle = mangaData?.title || chapterData?.title || 'KomikNesia';
   const pageTitle = `${mangaTitle} Chapter ${chapterNumber} Bahasa Indonesia | KomikNesia`;
   const pageDescription = `Baca ${mangaTitle} chapter ${chapterNumber} bahasa Indonesia terbaru di KomikNesia. Episode terbaru, Update cepat, kualitas gambar jernih, dan mudah dibaca.`;
+  const chapterShareTitle = `Baca ${mangaTitle} chapter ${chapterNumber} bahasa Indonesia di KomikNesia`;
 
   return (
     <div ref={topRef} className="min-h-screen bg-primary-950 text-gray-100">
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
-        <link rel="canonical" href={`https://02.komiknesia.asia/view/${chapterSlug}`} />
+        <link rel="canonical" href={chapterShareUrl} />
       </Helmet>
       {/* Fixed Header */}
       <header className="bg-primary-950 shadow-lg fixed top-0 left-0 right-0 z-50">
@@ -404,6 +486,16 @@ const ChapterReader = () => {
                     {chapter.title && chapter.title !== `Chapter ${chapter.number}` && (
                       <p className="text-xs sm:text-sm text-gray-400 mt-1 line-clamp-1">{chapter.title}</p>
                     )}
+                    <div className="mt-1.5 flex flex-wrap gap-3 text-[11px] text-gray-500">
+                      <span className="inline-flex items-center gap-1">
+                        <Eye className="h-3 w-3 shrink-0" aria-hidden />
+                        {(Number(chapter.views) || 0).toLocaleString('id-ID')}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Sparkles className="h-3 w-3 shrink-0 text-amber-400/80" aria-hidden />
+                        {(Number(chapter.reaction_count) || 0).toLocaleString('id-ID')}
+                      </span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -423,7 +515,17 @@ const ChapterReader = () => {
             <p className="text-sm sm:text-base md:text-lg text-gray-400">
               Chapter {currentChapter?.number || chapterData?.number}
             </p>
-            {isPremiumUser && (
+            <div className="mt-2 flex flex-wrap justify-center gap-4 text-sm text-gray-400">
+              <span className="inline-flex items-center gap-1.5">
+                <Eye className="h-4 w-4 shrink-0" aria-hidden />
+                {(Number(currentChapter?.views) || 0).toLocaleString('id-ID')} lihat chapter
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 shrink-0 text-amber-300/90" aria-hidden />
+                {sumReactionCounts(chapterReactionData).toLocaleString('id-ID')} reaksi
+              </span>
+            </div>
+            {isPremiumUser && SHOW_AUTO_SCROLL_UI && (
               <div className="mt-4 max-w-md mx-auto rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 sm:p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <button
@@ -492,6 +594,237 @@ const ChapterReader = () => {
                 Tidak ada gambar tersedia untuk chapter ini
               </div>
             )}
+          </div>
+
+          {/* Bagikan chapter, Discord, Donasi, Lapor error */}
+          <div className="px-3 sm:px-4 pt-4 pb-2">
+            <div className="mx-auto grid max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setChapterSharePopupOpen(true)}
+                className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700/90 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-inner sm:h-12 sm:w-12">
+                  <Share2 className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white sm:text-base">Bagikan chapter</p>
+                  <p className="text-xs text-slate-400 sm:text-sm">
+                    Salin tautan, WhatsApp, X, TikTok, Telegram
+                  </p>
+                </div>
+                <ChevronRight
+                  className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-300 sm:h-5 sm:w-5"
+                  aria-hidden
+                />
+              </button>
+
+              <a
+                href={discordInviteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700/90 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-inner sm:h-12 sm:w-12">
+                  <img src={discordIcon} alt="" className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white sm:text-base">Discord</p>
+                  <p className="text-xs text-slate-400 sm:text-sm">Gabung komunitas pembaca</p>
+                </div>
+                <ExternalLink
+                  className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-slate-300 sm:h-5 sm:w-5"
+                  aria-hidden
+                />
+              </a>
+
+              <a
+                href={donateUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700/90 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-inner sm:h-12 sm:w-12">
+                  <Heart className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white sm:text-base">Donasi</p>
+                  <p className="text-xs text-slate-400 sm:text-sm">Dukung lewat Saweria</p>
+                </div>
+                <ExternalLink
+                  className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-slate-300 sm:h-5 sm:w-5"
+                  aria-hidden
+                />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const q = new URLSearchParams({
+                    topic: 'lapor-error-komik',
+                    chapter: chapterSlug || '',
+                  });
+                  if (mangaSlug) q.set('manga', mangaSlug);
+                  const title = mangaData?.title || chapterData?.title;
+                  if (title) q.set('judul', title);
+                  navigate(`/contact?${q.toString()}`);
+                }}
+                className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700/90 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-rose-500/40 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-inner sm:h-12 sm:w-12">
+                  <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white sm:text-base">Lapor komik error</p>
+                  <p className="text-xs text-slate-400 sm:text-sm">
+                    Gambar putus, urutan salah, atau hal lain — ke halaman kontak
+                  </p>
+                </div>
+                <ChevronRight
+                  className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-300 sm:h-5 sm:w-5"
+                  aria-hidden
+                />
+              </button>
+            </div>
+          </div>
+
+          {chapterSharePopupOpen && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Bagikan chapter"
+            >
+              <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">Bagikan chapter ini</h3>
+                  <button
+                    type="button"
+                    onClick={() => setChapterSharePopupOpen(false)}
+                    className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                    aria-label="Tutup"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <p className="mb-4 text-sm text-slate-400">
+                  Pilih cara membagikan tautan chapter ini ke teman atau medsos kamu.
+                </p>
+
+                <div className="flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      copyChapterShareLink('default');
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-600">
+                      <Copy className="h-5 w-5" aria-hidden />
+                    </span>
+                    <span>Salin tautan</span>
+                  </button>
+
+                  <WhatsappShareButton
+                    url={chapterShareUrl}
+                    title={chapterShareTitle}
+                    separator=" — "
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                    resetButtonStyle={false}
+                    onClick={() => setChapterSharePopupOpen(false)}
+                  >
+                    <WhatsappIcon size={40} round />
+                    <span>WhatsApp</span>
+                  </WhatsappShareButton>
+
+                  <TwitterShareButton
+                    url={chapterShareUrl}
+                    title={chapterShareTitle}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                    resetButtonStyle={false}
+                    onClick={() => setChapterSharePopupOpen(false)}
+                  >
+                    <TwitterIcon size={40} round />
+                    <span>X (Twitter)</span>
+                  </TwitterShareButton>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      copyChapterShareLink('tiktok');
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                  >
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black text-lg font-bold tracking-tight text-white ring-1 ring-white/20"
+                      aria-hidden
+                    >
+                      TT
+                    </span>
+                    <span className="flex flex-col">
+                      <span>TikTok</span>
+                      <span className="text-xs font-normal text-slate-400">
+                        Salin tautan untuk dibagikan di TikTok
+                      </span>
+                    </span>
+                  </button>
+
+                  <TelegramShareButton
+                    url={chapterShareUrl}
+                    title={chapterShareTitle}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                    resetButtonStyle={false}
+                    onClick={() => setChapterSharePopupOpen(false)}
+                  >
+                    <TelegramIcon size={40} round />
+                    <span>Telegram</span>
+                  </TelegramShareButton>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Reaksi chapter */}
+          <div className="px-3 sm:px-4 py-6">
+            <div className="rounded-2xl border border-primary-800 bg-primary-900/90 p-4 sm:p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-lg font-bold text-white sm:text-xl">Reaksi chapter ini</h3>
+                <p className="mt-1 text-sm text-gray-400">
+                  {sumReactionCounts(chapterReactionData).toLocaleString('id-ID')} reaksi
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                {REACTION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleChapterReaction(opt.id)}
+                    disabled={chapterReactionLoading}
+                    className={`flex min-w-[4.5rem] flex-col items-center rounded-xl border px-2 py-2 transition-all sm:min-w-[5.5rem] sm:px-3 sm:py-2.5 ${
+                      selectedChapterReaction === opt.id
+                        ? 'border-purple-500 bg-purple-950/50 ring-2 ring-purple-400/60'
+                        : 'border-primary-700 bg-primary-950/50 hover:border-primary-500'
+                    } ${chapterReactionLoading ? 'cursor-not-allowed opacity-50' : ''}`}
+                  >
+                    <img
+                      src={opt.image}
+                      alt={opt.label}
+                      className="h-10 w-10 object-contain sm:h-12 sm:w-12"
+                    />
+                    <span className="mt-1 text-center text-[11px] font-medium text-gray-300 sm:text-xs">
+                      {opt.label}
+                    </span>
+                    <span className="mt-0.5 text-xs font-semibold text-gray-200">
+                      {chapterReactionData[opt.id] ?? 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-4 text-center text-[11px] text-gray-500">
+                Klik untuk memberi reaksi atau mengubah pilihan
+              </p>
+            </div>
           </div>
 
           {/* Navigation Buttons (Bottom) */}
@@ -643,7 +976,7 @@ const ChapterReader = () => {
         </button>
       </div>
 
-      {isPremiumUser && showResumeAutoPlay && !autoScrollEnabled && (
+      {SHOW_AUTO_SCROLL_UI && isPremiumUser && showResumeAutoPlay && !autoScrollEnabled && (
         <button
           type="button"
           onClick={() => {

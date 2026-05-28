@@ -1,34 +1,44 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import {
-  Star,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
   X,
   Share2,
-  Coffee,
   ExternalLink,
+  Copy,
+  Smartphone,
+  Heart,
 } from "lucide-react";
+import ProjectSection from "../components/ProjectSection";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
 import { Link } from "react-router-dom";
 import {
   WhatsappShareButton,
-  FacebookShareButton,
   TelegramShareButton,
   TwitterShareButton,
   WhatsappIcon,
-  FacebookIcon,
   TelegramIcon,
   TwitterIcon,
 } from "react-share";
+import { toast } from "react-toastify";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
-import LiveChatWidget from "../components/LiveChatWidget";
 import discordIcon from "../assets/discord.svg";
+import LiveChatWidget from "../components/LiveChatWidget";
+
+const BANNER_DOTS_MAX = 8;
+
+function synopsisPlain(html) {
+  if (!html || typeof html !== "string") return "";
+  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return text;
+}
 
 const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -38,22 +48,42 @@ const Home = () => {
   const [homePopupIntervalMinutes, setHomePopupIntervalMinutes] = useState(10);
   const [popupSettingsReady, setPopupSettingsReady] = useState(false);
   const [sharePopupOpen, setSharePopupOpen] = useState(false);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
   const shareUrl = typeof window !== "undefined" ? window.location.origin : "https://komiknesia.com";
-  const shareTitle = "Baca komik, manga, manhwa, dan manhua Bahasa Indonesia di KomikNesia!";
+  const shareTitle =
+    "Baca komik, manga, manhwa, dan manhua Bahasa Indonesia di KomikNesia!";
   const discordInviteUrl = "https://discord.gg/dgC22PSm9h";
   const donateUrl = "https://saweria.co/KomikNesia";
+
+  const copyShareLink = async (context = "default") => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      if (context === "tiktok") {
+        toast.success("Link disalin. Buka TikTok dan tempel di bio, DM, atau caption.");
+      } else {
+        toast.success("Tautan berhasil disalin.");
+      }
+    } catch {
+      toast.error("Gagal menyalin. Salin manual: " + shareUrl);
+    }
+  };
 
   useEffect(() => {
     fetchBannerManga();
   }, []);
 
+  useEffect(() => {
+    setCurrentSlide((prev) => {
+      const n = bannerManga.length;
+      if (n === 0) return 0;
+      return prev < n ? prev : n - 1;
+    });
+  }, [bannerManga.length]);
+
   const fetchBannerManga = async () => {
     try {
       const items = await apiClient.getFeaturedItems("banner", true);
-      // Sort by display_order and limit to 5
-      const sorted = items
-        .sort((a, b) => a.display_order - b.display_order)
-        .slice(0, 5);
+      const sorted = items.sort((a, b) => a.display_order - b.display_order);
       setBannerManga(sorted);
     } catch (error) {
       console.error("Error fetching banner manga:", error);
@@ -63,12 +93,10 @@ const Home = () => {
   };
 
   // Fetch ads by type
-  const { ads: homeTopAds } = useAds("home-top", 10);
-  const { ads: newUpdateAds } = useAds("new-update", 10);
-  const { ads: populerAds } = useAds("populer", 10);
-  const { ads: homeFooterAds } = useAds("home-footer", 10);
-  // Home-only popup/banner announcement (single image)
-  const { ads: homePopupAds } = useAds("home-popup", 1);
+  const { ads: homeTopAds } = useAds("home-top");
+  const { ads: populerAds } = useAds("populer");
+  const { ads: homeFooterAds } = useAds("home-footer");
+  const { ads: homePopupAds } = useAds("home-popup");
 
   useEffect(() => {
     apiClient
@@ -139,6 +167,38 @@ const Home = () => {
     setCurrentSlide(index);
   };
 
+  const bannerDotIndices = useMemo(() => {
+    const n = bannerManga.length;
+    if (n === 0) return [];
+    if (n <= BANNER_DOTS_MAX) {
+      return Array.from({ length: n }, (_, i) => i);
+    }
+    const start = Math.min(
+      Math.max(0, currentSlide - Math.floor(BANNER_DOTS_MAX / 2)),
+      n - BANNER_DOTS_MAX,
+    );
+    return Array.from({ length: BANNER_DOTS_MAX }, (_, i) => start + i);
+  }, [bannerManga.length, currentSlide]);
+
+  /** Swipe horizontal di mobile — slide non-aktif pakai pointer-events-none agar tidak menutupi area sentuh */
+  const bannerTouchRef = useRef(null);
+  const onBannerTouchStart = (e) => {
+    if (bannerManga.length < 2) return;
+    const t = e.touches[0];
+    bannerTouchRef.current = { x: t.clientX, y: t.clientY };
+  };
+  const onBannerTouchEnd = (e) => {
+    if (!bannerTouchRef.current || bannerManga.length < 2) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - bannerTouchRef.current.x;
+    const dy = t.clientY - bannerTouchRef.current.y;
+    bannerTouchRef.current = null;
+    const minSwipe = 52;
+    if (Math.abs(dx) < minSwipe || Math.abs(dx) < Math.abs(dy) * 0.85) return;
+    if (dx < 0) nextSlide();
+    else prevSlide();
+  };
+
   const handleClosePopupBanner = () => {
     setPopupBannerVisible(false);
 
@@ -200,14 +260,19 @@ const Home = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Featured Slider - Popular Daily */}
         <div
-          className="mb-12 relative overflow-hidden"
+          className="mb-12 relative"
           data-aos="fade-up"
           data-aos-delay="100"
         >
-          <div className="relative h-[500px] md:h-[500px] rounded-2xl overflow-hidden">
+          <div
+            className="relative h-[500px] md:h-[500px] rounded-2xl overflow-hidden touch-pan-y"
+            onTouchStart={onBannerTouchStart}
+            onTouchEnd={onBannerTouchEnd}
+          >
             {bannerLoading ? (
               <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 animate-pulse">
-                <div className="h-full w-full flex flex-col md:flex-row">
+                <div className="h-full w-full bg-gray-300 dark:bg-gray-700 md:hidden" />
+                <div className="hidden h-full w-full md:flex md:flex-row">
                   <div className="w-full md:w-1/2 h-full p-8 flex flex-col justify-end md:justify-center space-y-4">
                     <div className="h-8 md:h-12 w-3/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
                     <div className="flex gap-3">
@@ -232,133 +297,148 @@ const Home = () => {
                 </p>
               </div>
             ) : (
-              bannerManga.map((item, index) => (
+              bannerManga.map((item, index) => {
+                const latest = item.lastChapters?.[0];
+                const readHref = latest?.slug
+                  ? `/view/${latest.slug}`
+                  : `/komik/${item.slug}`;
+                const synopsis = synopsisPlain(item.synopsis);
+                const genres = Array.isArray(item.genres) ? item.genres : [];
+
+                return (
               <div
                 key={item.id || index}
                 className={`absolute inset-0 transition-all duration-700 ease-in-out ${
                   index === currentSlide
-                    ? "opacity-100 translate-x-0"
-                    : "opacity-0 translate-x-full"
+                    ? "z-[2] opacity-100 translate-x-0 pointer-events-auto"
+                    : "z-0 opacity-0 translate-x-full pointer-events-none"
                 }`}
               >
-                {/* Mobile: Full Cover Background */}
-                <div className="md:hidden absolute inset-0">
+                {/* Mobile: gambar full height + judul & CTA overlay (tanpa panel hitam bawah) */}
+                <div className="absolute inset-0 md:hidden">
                   <img
                     src={getImageUrl(item.cover)}
                     alt={item.title}
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 h-full w-full object-cover"
                   />
-                  {/* Dark Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
-                </div>
-
-                {/* Desktop: Gradient Background */}
-                <div
-                  className="hidden md:block absolute inset-0"
-                  style={{
-                    background: `linear-gradient(135deg, 
-                    ${
-                      item.color
-                        ? "rgba(99, 102, 241, 0.95)"
-                        : "rgba(15, 23, 42, 0.95)"
-                    } 0%, 
-                    ${
-                      item.color
-                        ? "rgba(139, 92, 246, 0.95)"
-                        : "rgba(30, 41, 59, 0.95)"
-                    } 50%,
-                    ${
-                      item.color
-                        ? "rgba(168, 85, 247, 0.95)"
-                        : "rgba(51, 65, 85, 0.95)"
-                    } 100%)`,
-                  }}
-                >
                   <div
-                    className="absolute inset-0 opacity-10"
-                    style={{
-                      backgroundImage: `url(${getImageUrl(item.cover)})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                      filter: "blur(20px)",
-                      transform: "scale(1.1)",
-                    }}
-                  ></div>
+                    className="absolute -bottom-24 inset-0 bg-gradient-to-t from-black via-black/10 to-transparent"
+                    aria-hidden
+                  />
+                  <div className="relative z-[1] flex h-full flex-col justify-end px-4 pb-6 pt-20 text-center">
+                    <Link to={`/komik/${item.slug}`}>
+                      <h2 className="text-lg font-bold leading-snug text-white drop-shadow-md line-clamp-2 transition-colors hover:text-amber-100">
+                        {item.title}
+                      </h2>
+                    </Link>
+                    <div className="mt-3 flex justify-center pb-1">
+                      <Link
+                        to={readHref}
+                        className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-gray-900 shadow-md transition-colors hover:bg-amber-300"
+                      >
+                        Mulai Baca
+                        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+                      </Link>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Content Container */}
-                <div className="relative h-full flex items-end md:items-center">
-                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pb-16 md:pb-0">
-                    <div className="grid md:grid-cols-2 gap-8 items-center">
-                      {/* Content */}
-                      <div className="text-white space-y-3 md:space-y-6">
+                {/* Desktop: blurred cover + dark overlay */}
+                <div className="hidden md:block absolute inset-0 overflow-hidden">
+                  <img
+                    src={getImageUrl(item.cover)}
+                    alt=""
+                    className="absolute inset-0 h-full w-full scale-110 object-cover blur-3xl"
+                    aria-hidden
+                  />
+                  <div className="absolute inset-0 bg-black/75" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-transparent" />
+                </div>
+
+                {/* Desktop: judul, sinopsis, genre, CTA + cover */}
+                <div className="relative hidden h-full md:flex md:items-center">
+                  <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 md:pb-0">
+                    <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12 lg:gap-16">
+                      <div className="z-[1] space-y-4 text-center text-white md:space-y-6 md:text-left">
+                        {latest?.number != null && (
+                          <p className="text-sm font-bold uppercase tracking-wide text-white/90 md:text-base">
+                            Chapter: {latest.number}
+                          </p>
+                        )}
                         <Link to={`/komik/${item.slug}`}>
-                          <h2 className="text-2xl md:text-5xl font-bold leading-tight line-clamp-2 cursor-pointer hover:text-gray-200 transition-colors">
+                          <h2 className="text-2xl font-bold leading-tight line-clamp-2 cursor-pointer transition-colors hover:text-white/90 md:text-4xl lg:text-5xl">
                             {item.title}
                           </h2>
                         </Link>
 
-                        <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                          <div className="flex items-center bg-white/20 backdrop-blur-sm px-2.5 py-1 md:px-3 md:py-1.5 rounded-full">
-                            <Star className="h-4 w-4 md:h-5 md:w-5 fill-yellow-400 text-yellow-400 mr-1" />
-                            <span className="font-bold text-base md:text-lg">
-                              {item.rating || "N/A"}
-                            </span>
-                          </div>
+                        {synopsis ? (
+                          <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/85 line-clamp-3 md:mx-0 md:text-base md:line-clamp-4">
+                            {synopsis}
+                          </p>
+                        ) : (
+                          <p className="mx-auto max-w-xl text-sm text-white/70 md:mx-0 md:text-base">
+                            {item.author ? `Oleh ${item.author}` : "\u00a0"}
+                          </p>
+                        )}
 
-                          {item.hot && (
-                            <span className="bg-red-500 px-2.5 py-1 md:px-3 md:py-1.5 rounded-full text-xs md:text-sm font-semibold">
-                              Romance
+                        {genres.length > 0 && (
+                          <div className="flex flex-wrap justify-center gap-2 md:justify-start">
+                            {genres.slice(0, 8).map((g) => (
+                              <span
+                                key={g.id ?? g.slug ?? g.name}
+                                className="rounded-full border border-white/50 bg-white/5 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm md:text-sm"
+                              >
+                                {g.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-center gap-4 pt-1 md:justify-start">
+                          <Link
+                            to={readHref}
+                            className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-8 py-3.5 text-base font-bold text-gray-900 shadow-lg transition-all hover:bg-amber-300 hover:shadow-xl"
+                          >
+                            Mulai Baca
+                            <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />
+                          </Link>
+                          {item.total_views != null && (
+                            <span className="text-sm text-white/70">
+                              <span className="font-semibold text-white/90">
+                                {Number(item.total_views).toLocaleString()}
+                              </span>{" "}
+                              tayangan
                             </span>
                           )}
-
-                          <span className="bg-white/20 backdrop-blur-sm px-2.5 py-1 md:px-3 md:py-1.5 rounded-full text-xs md:text-sm capitalize">
-                            {item.status}
-                          </span>
-                        </div>
-
-                        <p className="text-white/90 text-sm md:text-lg line-clamp-2 md:line-clamp-3 max-w-xl">
-                          {item.title.split(" ").slice(0, 15).join(" ")}...
-                        </p>
-
-                        <div className="hidden md:flex items-center gap-4">
-                          <Link
-                            to={`/komik/${item.slug}`}
-                            className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center"
-                          >
-                            Baca Sekarang
-                          </Link>
-                          <div className="text-white/80 text-sm">
-                            <span className="font-semibold">
-                              {item.total_views?.toLocaleString()}
-                            </span>{" "}
-                            views
-                          </div>
                         </div>
                       </div>
 
-                      {/* Cover Image - Desktop Only */}
-                      <div className="hidden md:flex justify-center items-center">
-                        <div className="relative group">
-                          <div className="absolute -inset-2 bg-white/20 rounded-2xl blur-xl group-hover:bg-white/30 transition-all"></div>
+                      <div className="relative z-[1] flex justify-center lg:justify-end">
+                        <Link
+                          to={`/komik/${item.slug}`}
+                          className="group relative block"
+                          aria-label={item.title}
+                        >
+                          <div className="absolute -inset-3 rounded-3xl bg-white/10 blur-2xl transition-opacity group-hover:opacity-90" />
                           <img
                             src={getImageUrl(item.cover)}
                             alt={item.title}
-                            className="relative rounded-xl shadow-2xl w-64 h-96 object-cover transform group-hover:scale-105 transition-transform duration-300"
+                            className="relative h-[22rem] w-[14rem] rounded-xl object-cover shadow-2xl ring-1 ring-white/10 transition-transform duration-300 sm:h-[24rem] sm:w-[15rem] md:h-[26rem] md:w-64 md:-rotate-[4deg] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] group-hover:md:-rotate-[2deg]"
                           />
-                        </div>
+                        </Link>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              ))
+                );
+              })
             )}
 
             {/* Navigation Arrows - Hidden on Mobile */}
             <button
               onClick={prevSlide}
-              className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-3 rounded-full transition-all z-10"
+              className="hidden md:flex absolute left-4 top-1/2 z-20 -translate-y-1/2 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-3 rounded-full transition-all"
               aria-label="Previous slide"
             >
               <ChevronLeft className="h-6 w-6" />
@@ -366,100 +446,106 @@ const Home = () => {
 
             <button
               onClick={nextSlide}
-              className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-3 rounded-full transition-all z-10"
+              className="hidden md:flex absolute right-4 top-1/2 z-20 -translate-y-1/2 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-3 rounded-full transition-all"
               aria-label="Next slide"
             >
               <ChevronRight className="h-6 w-6" />
             </button>
+          </div>
 
-            {/* Dots Indicator */}
-            <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-              {bannerManga.map((_, index) => (
+          {/* Dots di luar kartu banner (bawah rounded) — tidak menimpa judul/CTA */}
+          {!bannerLoading && bannerManga.length > 1 && (
+            <div
+              className="mt-4 flex justify-center gap-2.5"
+              role="tablist"
+              aria-label="Pilih slide banner"
+            >
+              {bannerDotIndices.map((slideIdx) => (
                 <button
-                  key={index}
-                  onClick={() => goToSlide(index)}
+                  key={slideIdx}
+                  type="button"
+                  onClick={() => goToSlide(slideIdx)}
                   className={`transition-all rounded-full ${
-                    index === currentSlide
-                      ? "bg-white w-8 h-3"
-                      : "bg-white/50 w-3 h-3 hover:bg-white/75"
+                    slideIdx === currentSlide
+                      ? "h-3 w-8 bg-sky-600 dark:bg-white"
+                      : "h-3 w-3 bg-slate-400/90 hover:bg-slate-500 dark:bg-white/45 dark:hover:bg-white/70"
                   }`}
-                  aria-label={`Go to slide ${index + 1}`}
+                  aria-label={`Ke slide ${slideIdx + 1}`}
+                  aria-current={slideIdx === currentSlide ? "true" : undefined}
                 />
               ))}
             </div>
-          </div>
+          )}
         </div>
 
         <div
-          className="mb-8 grid gap-3 md:grid-cols-3 md:gap-4"
+          className="mx-auto mb-8 grid max-w-4xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4"
           data-aos="fade-up"
           data-aos-delay="120"
         >
-          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-left">
-                <p className="text-sm font-semibold text-white">Share Komiknesia</p>
-                <p className="text-xs text-slate-400">to your friends</p>
-              </div>
-              <div className="rounded-xl bg-white/10 p-2 text-cyan-300">
-                <Share2 className="h-4 w-4" />
-              </div>
+          <button
+            type="button"
+            onClick={() => setSharePopupOpen(true)}
+            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-inner md:h-14 md:w-14">
+              <Share2 className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
             </div>
-            <button
-              type="button"
-              onClick={() => setSharePopupOpen(true)}
-              className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
-            >
-              <span className="inline-flex items-center gap-1.5">
-                <Share2 className="h-4 w-4" />
-                Share now
-              </span>
-            </button>
-          </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-white md:text-lg">Bagikan KomikNesia</p>
+              <p className="text-sm text-slate-400">
+                Salin tautan, WhatsApp, X, TikTok, Telegram
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-300" aria-hidden />
+          </button>
 
-          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-left">
-                <p className="text-sm font-semibold text-white">Discord</p>
-                <p className="text-xs text-slate-400">Join Discord</p>
-              </div>
-              <div className="rounded-xl bg-white/10 p-2">
-                <img src={discordIcon} alt="Discord" className="h-4 w-4" />
-              </div>
+          <a
+            href={discordInviteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-inner md:h-14 md:w-14">
+              <img src={discordIcon} alt="" className="h-7 w-7" aria-hidden />
             </div>
-            <a
-              href={discordInviteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-400"
-            >
-              <img src={discordIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-              Discord
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-white md:text-lg">Discord</p>
+              <p className="text-sm text-slate-400">Gabung komunitas pembaca</p>
+            </div>
+            <ExternalLink className="h-5 w-5 shrink-0 text-slate-500 group-hover:text-slate-300" aria-hidden />
+          </a>
 
-          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-left">
-                <p className="text-sm font-semibold text-white">Kasih Kopi</p>
-                <p className="text-xs text-slate-400">Supportnya kawan</p>
-              </div>
-              <div className="rounded-xl bg-white/10 p-2 text-emerald-300">
-                <Coffee className="h-4 w-4" />
-              </div>
+          <a
+            href={donateUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-inner md:h-14 md:w-14">
+              <Heart className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
             </div>
-            <a
-              href={donateUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
-            >
-              <Coffee className="h-4 w-4" />
-              Donasi
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-white md:text-lg">Donasi</p>
+              <p className="text-sm text-slate-400">Dukung lewat Saweria</p>
+            </div>
+            <ExternalLink className="h-5 w-5 shrink-0 text-slate-500 group-hover:text-slate-300" aria-hidden />
+          </a>
+
+          <button
+            type="button"
+            onClick={() => setInstallModalOpen(true)}
+            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-inner md:h-14 md:w-14">
+              <Smartphone className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-white md:text-lg">Unduh aplikasi</p>
+              <p className="text-sm text-slate-400">Pasang ke layar utama (PWA)</p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-300" aria-hidden />
+          </button>
         </div>
 
         {sharePopupOpen && (
@@ -467,83 +553,140 @@ const Home = () => {
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
-            aria-label="Pilih platform untuk share"
+            aria-label="Bagikan KomikNesia"
           >
-            <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-4 text-left shadow-2xl">
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-white">Share Komiknesia</h3>
+                <h3 className="text-lg font-semibold text-white">Bagikan KomikNesia</h3>
                 <button
                   type="button"
                   onClick={() => setSharePopupOpen(false)}
                   className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
-                  aria-label="Tutup popup share"
+                  aria-label="Tutup"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <p className="mb-4 text-sm text-slate-400">Pilih mau share ke platform mana:</p>
+              <p className="mb-4 text-sm text-slate-400">
+                Pilih cara membagikan tautan situs ke teman atau medsos kamu.
+              </p>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    copyShareLink("default");
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-600">
+                    <Copy className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span>Salin tautan</span>
+                </button>
+
                 <WhatsappShareButton
                   url={shareUrl}
                   title={shareTitle}
-                  separator=" - "
-                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                  separator=" — "
+                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                   resetButtonStyle={false}
                   onClick={() => setSharePopupOpen(false)}
                 >
-                  <WhatsappIcon size={32} round />
+                  <WhatsappIcon size={40} round />
                   <span>WhatsApp</span>
                 </WhatsappShareButton>
-
-                <FacebookShareButton
-                  url={shareUrl}
-                  hashtag="#KomikNesia"
-                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
-                  resetButtonStyle={false}
-                  onClick={() => setSharePopupOpen(false)}
-                >
-                  <FacebookIcon size={32} round />
-                  <span>Facebook</span>
-                </FacebookShareButton>
-
-                <TelegramShareButton
-                  url={shareUrl}
-                  title={shareTitle}
-                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
-                  resetButtonStyle={false}
-                  onClick={() => setSharePopupOpen(false)}
-                >
-                  <TelegramIcon size={32} round />
-                  <span>Telegram</span>
-                </TelegramShareButton>
 
                 <TwitterShareButton
                   url={shareUrl}
                   title={shareTitle}
-                  className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                   resetButtonStyle={false}
                   onClick={() => setSharePopupOpen(false)}
                 >
-                  <TwitterIcon size={32} round />
-                  <span>X / Twitter</span>
+                  <TwitterIcon size={40} round />
+                  <span>X (Twitter)</span>
                 </TwitterShareButton>
+
+                <button
+                  type="button"
+                  onClick={() => copyShareLink("tiktok")}
+                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black text-lg font-bold tracking-tight text-white ring-1 ring-white/20" aria-hidden>
+                    TT
+                  </span>
+                  <span className="flex flex-col">
+                    <span>TikTok</span>
+                    <span className="text-xs font-normal text-slate-400">Salin tautan untuk dibagikan di TikTok</span>
+                  </span>
+                </button>
+
+                <TelegramShareButton
+                  url={shareUrl}
+                  title={shareTitle}
+                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                  resetButtonStyle={false}
+                  onClick={() => setSharePopupOpen(false)}
+                >
+                  <TelegramIcon size={40} round />
+                  <span>Telegram</span>
+                </TelegramShareButton>
               </div>
             </div>
           </div>
         )}
 
-        {/* New Update Ads - 4 ads above Update Section */}
-        {newUpdateAds.length > 0 && (
-          <div className="mb-8" data-aos="fade-up" data-aos-delay="150">
-            <AdBanner
-              ads={newUpdateAds}
-              layout="grid"
-              columns={2}
-            />
+        {installModalOpen && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Cara memasang aplikasi"
+          >
+            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-lg font-semibold text-white">Cara memasang aplikasi</h3>
+                <button
+                  type="button"
+                  onClick={() => setInstallModalOpen(false)}
+                  className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="Tutup"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <p className="mb-4 text-sm leading-relaxed text-slate-300">
+                Ikuti langkah berikut untuk memasang aplikasi web KomikNesia di perangkat kamu (tampilan seperti aplikasi):
+              </p>
+
+              <ol className="mb-6 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-slate-200">
+                <li>Ketuk ikon menu (titik tiga) di pojok browser.</li>
+                <li>
+                  Pilih <strong className="text-white">Pasang aplikasi</strong> atau{" "}
+                  <strong className="text-white">Tambahkan ke Layar utama</strong> (nama menu bisa sedikit berbeda
+                  tergantung browser).
+                </li>
+                <li>Ikuti petunjuk di layar hingga pemasangan selesai.</li>
+              </ol>
+
+              <button
+                type="button"
+                onClick={() => setInstallModalOpen(false)}
+                className="w-full rounded-xl bg-sky-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-500"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         )}
+
+        {/* Project (is_project) — hidden when empty */}
+        <div data-aos="fade-up" data-aos-delay="175">
+          <ProjectSection />
+        </div>
 
         {/* Update Section */}
         <div data-aos="fade-up" data-aos-delay="200">

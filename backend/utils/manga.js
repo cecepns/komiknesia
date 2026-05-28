@@ -11,15 +11,22 @@ async function fetchLocalManga(filters) {
     project,
   } = filters || {};
 
-  const whereConditions = ['m.is_input_manual = TRUE'];
+  const whereConditions = [];
   const params = [];
+
+  if (project === 'true') {
+    whereConditions.push('m.is_project = TRUE');
+  } else {
+    whereConditions.push('m.is_input_manual = TRUE');
+    if (project === 'false') {
+      whereConditions.push('(m.is_project IS NULL OR m.is_project = FALSE)');
+    }
+  }
 
   if (q && q.trim()) {
     whereConditions.push('(m.title LIKE ? OR m.alternative_name LIKE ?)');
     const searchTerm = `%${q.trim()}%`;
     params.push(searchTerm, searchTerm);
-  } else if (project === 'true') {
-    whereConditions.push('m.is_project = TRUE');
   }
 
   if (status && status !== 'All') {

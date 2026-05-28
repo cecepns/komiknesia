@@ -7,6 +7,7 @@ const ChapterController = require('../controllers/ChapterController');
 // Detail chapter by slug
 // Mounted at /api/chapters → full path: /api/chapters/slug/:slug
 router.get('/slug/:slug', optionalAuthenticate, ChapterController.showBySlug);
+router.get('/slug/:slug/download', ChapterController.downloadBySlug);
 
 // Chapter CRUD for admin (mounted at /api/chapters)
 // Full paths:

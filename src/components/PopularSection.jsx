@@ -1,22 +1,44 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useIsMdUp } from "../hooks/useIsMdUp";
 import { Link, useNavigate } from "react-router-dom";
-import { Flame } from "lucide-react";
+import { ChevronRight, Flame, LayoutGrid, List } from "lucide-react";
 import LazyImage from "./LazyImage";
 import { apiClient, getImageUrl } from "../utils/api";
+import { getChapterTimeAgo } from "../utils/chapterTime";
+
+/** Sama dengan Content.jsx — filter tidak aktif & CTA sky */
+const contentBtnTrans = "transition-all duration-200";
+const contentFilterInactive = `rounded-xl border ${contentBtnTrans} border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800`;
+const contentCtaClearAll = `rounded-xl border border-sky-500/25 bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_5px_0_0_#0369a1] ${contentBtnTrans} hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_3px_0_0_#0369a1] dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_5px_0_0_#0ea5e9] dark:hover:shadow-[0_6px_0_0_#38bdf8] dark:active:shadow-[0_3px_0_0_#0369a1] dark:hover:brightness-110`;
+
+const MOBILE_HOME_SECTION_CAP = 14;
 
 const PopularSection = () => {
   const navigate = useNavigate();
   const [filteredManga, setFilteredManga] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cardLayout, setCardLayout] = useState("vertical");
+  const [popularRange, setPopularRange] = useState("all");
+  const isMdUp = useIsMdUp();
+
+  const visibleManga = useMemo(
+    () => (isMdUp ? filteredManga : filteredManga.slice(0, MOBILE_HOME_SECTION_CAP)),
+    [isMdUp, filteredManga],
+  );
 
   const fetchPopularManga = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.getContents({
+      const payload = {
         page: 1,
         per_page: 15,
         orderBy: "Popular",
-      });
+      };
+      if (popularRange === "day") payload.popularWindow = "day";
+      else if (popularRange === "week") payload.popularWindow = "week";
+      else if (popularRange === "month") payload.popularWindow = "month";
+
+      const response = await apiClient.getContents(payload);
       setFilteredManga(response.data || []);
     } catch (error) {
       console.error("Error fetching popular manga:", error);
@@ -24,31 +46,16 @@ const PopularSection = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [popularRange]);
 
   useEffect(() => {
     fetchPopularManga();
   }, [fetchPopularManga]);
 
-  const getTimeAgo = (timestamp) => {
-    if (!timestamp) return "";
-    const now = Math.floor(Date.now() / 1000);
-    const diff = now - timestamp;
-
-    const hours = Math.floor(diff / 3600);
-    const days = Math.floor(diff / (3600 * 24));
-
-    if (hours < 24) {
-      return `${hours} jam`;
-    } else {
-      return `${days} hari`;
-    }
-  };
-
   return (
     <div className="mb-12">
       {/* Section Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-3">
           <div className="bg-gradient-to-r from-red-500 to-orange-500 p-2 rounded-lg">
             <Flame className="h-6 w-6 text-white" />
@@ -57,12 +64,69 @@ const PopularSection = () => {
             Populer
           </h2>
         </div>
-        <button
-          onClick={() => navigate("/content")}
-          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors duration-300"
-        >
-          View All
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-primary-600 dark:bg-primary-800/80"
+            role="group"
+            aria-label="Rentang popularitas"
+          >
+            {[
+              { id: "all", label: "Sepanjang masa" },
+              { id: "day", label: "Harian" },
+              { id: "week", label: "Mingguan" },
+              { id: "month", label: "Bulanan" },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPopularRange(id)}
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all sm:px-3 sm:text-sm ${
+                  popularRange === id
+                    ? "bg-sky-600 text-white shadow-[0_2px_0_0_#0369a1] dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_2px_0_0_#38bdf8]"
+                    : "text-slate-700 hover:bg-white dark:text-gray-200 dark:hover:bg-primary-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setCardLayout((prev) =>
+                prev === "vertical" ? "horizontal" : "vertical",
+              )
+            }
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center ${contentFilterInactive}`}
+            title={
+              cardLayout === "vertical"
+                ? "Tampilan baris (horizontal)"
+                : "Tampilan grid (vertical)"
+            }
+            aria-label={
+              cardLayout === "vertical"
+                ? "Ubah ke tampilan baris"
+                : "Ubah ke tampilan grid"
+            }
+          >
+            {cardLayout === "vertical" ? (
+              <List className="h-5 w-5" aria-hidden />
+            ) : (
+              <LayoutGrid className="h-5 w-5" aria-hidden />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/content")}
+            className={`group inline-flex items-center gap-1.5 ${contentCtaClearAll}`}
+          >
+            Lihat semua
+            <ChevronRight
+              className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </button>
+        </div>
       </div>
 
       {/* Manga Grid */}
@@ -78,15 +142,31 @@ const PopularSection = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">
-          {filteredManga.map((manga) => (
+        <div
+          className={
+            cardLayout === "vertical"
+              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4"
+              : "flex flex-col gap-3"
+          }
+        >
+          {visibleManga.map((manga) => (
             <div
               key={manga.id}
               onClick={() => navigate(`/komik/${manga.slug}`)}
-              className="bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+              className={`bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer ${
+                cardLayout === "horizontal"
+                  ? "flex flex-row gap-3 p-3 sm:gap-4 sm:p-4"
+                  : "flex flex-col"
+              }`}
             >
               {/* Cover Image */}
-              <div className="relative aspect-[3/4] overflow-hidden">
+              <div
+                className={
+                  cardLayout === "vertical"
+                    ? "relative aspect-[3/4] overflow-hidden"
+                    : "relative aspect-[3/4] w-[5.5rem] shrink-0 overflow-hidden rounded-md sm:w-28"
+                }
+              >
                 <LazyImage
                   src={getImageUrl(manga.cover)}
                   alt={manga.title}
@@ -130,42 +210,72 @@ const PopularSection = () => {
               </div>
 
               {/* Info Section */}
-              <div className="p-3 flex flex-col h-[192px]">
+              <div
+                className={
+                  cardLayout === "vertical"
+                    ? "p-3 flex flex-col h-[192px]"
+                    : "flex min-w-0 flex-1 flex-col justify-between gap-2 py-0.5"
+                }
+              >
                 {/* Title */}
-                <div className="min-h-[2.75rem] md:min-h-[3rem] mb-2 flex items-center">
+                <div
+                  className={
+                    cardLayout === "vertical"
+                      ? "min-h-[2.75rem] md:min-h-[3rem] mb-2 flex items-center"
+                      : "mb-0 flex items-start"
+                  }
+                >
                   <Link
                     to={`/komik/${manga.slug}`}
                     onClick={(e) => e.stopPropagation()}
                     className="block w-full"
                   >
-                    <h3 className="font-bold text-sm line-clamp-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                    <h3
+                      className={`font-bold line-clamp-2 text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 ${
+                        cardLayout === "vertical" ? "text-sm" : "text-sm sm:text-base"
+                      }`}
+                    >
                       {manga.title}
                     </h3>
                   </Link>
                 </div>
                 
                 {manga.lastChapters?.length > 0 ? (
-                  <div className="space-y-2 mb-1 mt-auto">
+                  <div
+                    className={
+                      cardLayout === "vertical"
+                        ? "mb-1 mt-auto space-y-2"
+                        : "flex flex-col gap-1.5 sm:gap-2"
+                    }
+                  >
                     {manga.lastChapters.slice(0, 3).map((chapter) => (
                       <Link
                         key={chapter.slug}
                         to={`/view/${chapter.slug}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full flex items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 dark:bg-primary-800/70 px-2.5 py-2 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700 transition-colors"
+                        className={`flex w-full items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 text-left text-gray-700 transition-colors hover:bg-gray-200 dark:bg-primary-800/70 dark:text-gray-300 dark:hover:bg-primary-700 ${
+                          cardLayout === "vertical"
+                            ? "px-2.5 py-2 text-xs"
+                            : "px-2 py-1.5 text-[11px] sm:px-2.5 sm:py-2 sm:text-xs"
+                        }`}
                       >
                         <span className="font-semibold">
                           Chapter {chapter.number || "N/A"}
                         </span>
-                        {chapter?.created_at?.time && (
+                        {getChapterTimeAgo(chapter) && (
                           <span className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400">
-                            {getTimeAgo(chapter.created_at.time)}
+                            {getChapterTimeAgo(chapter)}
                           </span>
                         )}
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-gray-500 dark:text-gray-500 mb-1 mt-auto">
+                  <div
+                    className={`text-xs text-gray-500 dark:text-gray-500 ${
+                      cardLayout === "vertical" ? "mb-1 mt-auto" : ""
+                    }`}
+                  >
                     Chapter N/A
                   </div>
                 )}

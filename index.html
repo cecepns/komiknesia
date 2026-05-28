@@ -33,6 +33,14 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     <meta name="mobile-web-app-capable" content="yes">
+    <script>
+        (function () {
+            var t = localStorage.getItem('komiknesia-theme');
+            if (t !== 'light' && t !== 'dark') t = 'dark';
+            if (t === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        })();
+    </script>
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://02.komiknesia.asia/logo.png">
     <script type='application/ld+json'>

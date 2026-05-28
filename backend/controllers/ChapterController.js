@@ -1,10 +1,70 @@
 const db = require('../db');
+const { recordMangaViewEvent } = require('../utils/recordMangaViewEvent');
 const { upload } = require('../middlewares/upload'); // used in routes, not here
-const { deleteFile } = require('../utils/files'); // adjust path if needed
+const { deleteFile, resolveLocalUploadPath } = require('../utils/files');
 const { uploadFileToS3 } = require('../utils/s3Upload');
 const { deleteUrlFromS3 } = require('../utils/s3Upload');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
+const AdmZip = require('adm-zip');
+
+const guessImageExtension = (imagePath, contentType) => {
+  if (contentType) {
+    if (contentType.includes('png')) return '.png';
+    if (contentType.includes('webp')) return '.webp';
+    if (contentType.includes('gif')) return '.gif';
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) return '.jpg';
+  }
+  if (!imagePath) return '.jpg';
+  const lower = String(imagePath).toLowerCase();
+  if (lower.includes('.png')) return '.png';
+  if (lower.includes('.webp')) return '.webp';
+  if (lower.includes('.gif')) return '.gif';
+  return '.jpg';
+};
+
+const loadImageZipEntry = async (imagePath, index) => {
+  const pageName = `page-${String(index + 1).padStart(3, '0')}`;
+
+  if (!imagePath) return null;
+
+  if (imagePath.startsWith('/uploads/')) {
+    const localPath = resolveLocalUploadPath(imagePath);
+    if (localPath && fs.existsSync(localPath)) {
+      const ext = path.extname(localPath) || guessImageExtension(imagePath);
+      return {
+        name: `${pageName}${ext}`,
+        buffer: fs.readFileSync(localPath),
+      };
+    }
+    return null;
+  }
+
+  const absoluteUrl =
+    imagePath.startsWith('http://') || imagePath.startsWith('https://')
+      ? imagePath
+      : null;
+
+  if (!absoluteUrl) return null;
+
+  try {
+    const response = await axios.get(absoluteUrl, {
+      responseType: 'arraybuffer',
+      timeout: 45000,
+      maxRedirects: 5,
+      validateStatus: (status) => status >= 200 && status < 300,
+    });
+    const ext = guessImageExtension(absoluteUrl, response.headers['content-type']);
+    return {
+      name: `${pageName}${ext}`,
+      buffer: Buffer.from(response.data),
+    };
+  } catch (err) {
+    console.warn(`Failed fetching image for zip (${absoluteUrl}):`, err.message);
+    return null;
+  }
+};
 
 const showBySlug = async (req, res) => {
   try {
@@ -45,6 +105,17 @@ const showBySlug = async (req, res) => {
     if (chapters.length > 0) {
       const chapter = chapters[0];
 
+      try {
+        await db.execute(
+          'UPDATE chapters SET views = COALESCE(views, 0) + 1, updated_at = updated_at WHERE id = ?',
+          [chapter.id]
+        );
+      } catch (viewErr) {
+        console.warn('Chapter view increment failed:', viewErr.message);
+      }
+
+      await recordMangaViewEvent(chapter.manga_id);
+
       if (chapter.is_input_manual) {
         const [images] = await db.execute(
           `
@@ -65,7 +136,11 @@ const showBySlug = async (req, res) => {
             c.title,
             c.slug,
             c.created_at,
-            UNIX_TIMESTAMP(c.created_at) as created_at_timestamp
+            UNIX_TIMESTAMP(c.created_at) as created_at_timestamp,
+            COALESCE(c.views, 0) AS views,
+            (
+              SELECT COUNT(*) FROM chapter_reactions cr WHERE cr.chapter_id = c.id
+            ) AS reaction_count
           FROM chapters c
           WHERE c.manga_id = ?
           ORDER BY CAST(c.chapter_number AS UNSIGNED) DESC, c.chapter_number DESC
@@ -112,6 +187,8 @@ const showBySlug = async (req, res) => {
             number: ch.number,
             title: ch.title || `Chapter ${ch.number}`,
             slug: ch.slug,
+            views: Number(ch.views) || 0,
+            reaction_count: Number(ch.reaction_count) || 0,
             created_at: {
               time: parseInt(ch.created_at_timestamp, 10),
               formatted: new Date(ch.created_at).toLocaleString('id-ID'),
@@ -544,8 +621,89 @@ const reorderImages = async (req, res) => {
   }
 };
 
+const downloadBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const [chapters] = await db.execute(
+      `
+      SELECT
+        c.id,
+        c.chapter_number as number,
+        c.title,
+        c.slug,
+        m.is_input_manual,
+        m.slug as manga_slug,
+        m.title as manga_title
+      FROM chapters c
+      JOIN manga m ON c.manga_id = m.id
+      WHERE c.slug = ?
+    `,
+      [slug]
+    );
+
+    if (!chapters.length) {
+      return res.status(404).json({ error: 'Chapter tidak ditemukan' });
+    }
+
+    const chapter = chapters[0];
+    if (!chapter.is_input_manual) {
+      return res.status(400).json({ error: 'Download hanya tersedia untuk komik manual' });
+    }
+
+    const [images] = await db.execute(
+      `
+      SELECT image_path
+      FROM chapter_images
+      WHERE chapter_id = ?
+      ORDER BY page_number
+    `,
+      [chapter.id]
+    );
+
+    if (!images.length) {
+      return res.status(404).json({ error: 'Chapter ini belum memiliki gambar' });
+    }
+
+    const safeManga = String(chapter.manga_slug || chapter.manga_title || 'manga')
+      .replace(/[^\w.-]+/g, '_')
+      .slice(0, 80);
+    const safeChapter = String(chapter.number || '0').replace(/[^\w.-]+/g, '_');
+    const zipFilename = `${safeManga}_chapter-${safeChapter}.zip`;
+
+    const zip = new AdmZip();
+    let added = 0;
+
+    for (let i = 0; i < images.length; i += 1) {
+      const entry = await loadImageZipEntry(images[i].image_path, i);
+      if (entry) {
+        zip.addFile(entry.name, entry.buffer);
+        added += 1;
+      }
+    }
+
+    if (added === 0) {
+      return res.status(404).json({ error: 'Tidak ada gambar yang bisa diunduh' });
+    }
+
+    const zipBuffer = zip.toBuffer();
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+    res.setHeader('Content-Length', zipBuffer.length);
+    res.send(zipBuffer);
+    return undefined;
+  } catch (error) {
+    console.error('Error downloading chapter zip:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+};
+
 module.exports = {
   showBySlug,
+  downloadBySlug,
   listByManga,
   create,
   update,

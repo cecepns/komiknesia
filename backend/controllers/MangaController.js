@@ -6,6 +6,10 @@ const { deleteUrlFromS3 } = require('../utils/s3Upload');
 const fs = require('fs');
 const path = require('path');
 
+function parseBooleanField(value) {
+  return value === 'true' || value === true || value === 1 || value === '1';
+}
+
 const index = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', category = '', source = 'all' } = req.query;
@@ -76,6 +80,8 @@ const index = async (req, res) => {
 
     for (const m of manga) {
       m.genres = genresByMangaId[m.id] || [];
+      m.is_project = !!m.is_project;
+      m.color = !!m.color;
     }
 
     let countQuery = 'SELECT COUNT(DISTINCT m.id) as total FROM manga m WHERE 1=1';
@@ -230,6 +236,7 @@ const store = async (req, res) => {
       status,
       rating,
       color,
+      is_project,
       source,
       slug: slugOverride,
     } = req.body;
@@ -279,8 +286,8 @@ const store = async (req, res) => {
       `
       INSERT INTO manga (
         title, slug, author, synopsis, category_id, thumbnail, cover_background,
-        alternative_name, content_type, country_id, \`release\`, status, rating, color, source, is_input_manual
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        alternative_name, content_type, country_id, \`release\`, status, rating, color, is_project, source, is_input_manual
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       [
         title,
@@ -296,7 +303,8 @@ const store = async (req, res) => {
         release || null,
         status || 'ongoing',
         rating ? parseFloat(rating) : null,
-        color === 'true' || color === true ? true : false,
+        parseBooleanField(color),
+        parseBooleanField(is_project),
         source || null,
         true,
       ]
@@ -337,6 +345,7 @@ const update = async (req, res) => {
       status,
       rating,
       color,
+      is_project,
       source,
     } = req.body;
 
@@ -352,7 +361,7 @@ const update = async (req, res) => {
 
     let query = `UPDATE manga SET 
       title = ?, slug = ?, author = ?, synopsis = ?, category_id = ?,
-      alternative_name = ?, content_type = ?, country_id = ?, \`release\` = ?, status = ?, rating = ?, color = ?, source = ?`;
+      alternative_name = ?, content_type = ?, country_id = ?, \`release\` = ?, status = ?, rating = ?, color = ?, is_project = ?, source = ?`;
     const params = [
       title,
       slug,
@@ -365,7 +374,8 @@ const update = async (req, res) => {
       release || null,
       status || 'ongoing',
       rating ? parseFloat(rating) : null,
-      color === 'true' || color === true ? true : false,
+      parseBooleanField(color),
+      parseBooleanField(is_project),
       source || null,
     ];
 

@@ -62,7 +62,9 @@ function AppContent() {
           path="/content"
           element={
             <>
-              <Content />
+              <Layout>
+                <Content />
+              </Layout>
               <BottomNavigation />
             </>
           }

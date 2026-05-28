@@ -5,36 +5,46 @@ import LazyImage from './LazyImage';
 import { useAds } from '../hooks/useAds';
 
 const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
-const INITIAL_DELAY_MINUTES = 5;
+const POPUP_INITIAL_DELAY_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30];
+const POPUP_UNLOCK_SECONDS_OPTIONS = [5, 10, 15, 20, 30, 45, 60];
+const DEFAULT_INITIAL_DELAY_MINUTES = 5;
+const DEFAULT_UNLOCK_SECONDS = 10;
 const STORAGE_KEY = 'adPopupStateV2';
 
 /**
  * AdPopup component to display popup ads.
  * - Desktop: 3 kiri, 3 kanan (6 ads). Mobile: 6 items dengan jarak.
- * - Tidak bisa di-close selama 10 detik pertama (no skip 10 detik).
- * - Slot waktu sesuai setting menit (10, 15, 20, ..., 60) dari admin.
+ * - Durasi no-skip & jadwal interval diatur dari admin (settings API).
  */
 const AdPopup = () => {
   const navigate = useNavigate();
   const { ads, loading } = useAds('popup');
   const [isOpen, setIsOpen] = useState(false);
   const [canClose, setCanClose] = useState(false);
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(DEFAULT_UNLOCK_SECONDS);
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState(10);
+  const [initialDelayMinutes, setInitialDelayMinutes] = useState(DEFAULT_INITIAL_DELAY_MINUTES);
+  const [unlockSeconds, setUnlockSeconds] = useState(DEFAULT_UNLOCK_SECONDS);
   const [settingsReady, setSettingsReady] = useState(false);
   const [pendingPremiumRedirect, setPendingPremiumRedirect] = useState(false);
   const isOpenRef = useRef(false);
   const fallbackTimingStateRef = useRef(null);
 
-  const UNLOCK_SECONDS = 10;
-
   useEffect(() => {
     apiClient
       .getSettings()
       .then((s) => {
-        const v = s.popup_ads_interval_minutes;
-        if (Number.isFinite(v) && POPUP_INTERVAL_OPTIONS.includes(v)) {
-          setSlotIntervalMinutes(v);
+        const interval = s.popup_ads_interval_minutes;
+        if (Number.isFinite(interval) && POPUP_INTERVAL_OPTIONS.includes(interval)) {
+          setSlotIntervalMinutes(interval);
+        }
+        const initialDelay = s.popup_ads_initial_delay_minutes;
+        if (Number.isFinite(initialDelay) && POPUP_INITIAL_DELAY_OPTIONS.includes(initialDelay)) {
+          setInitialDelayMinutes(initialDelay);
+        }
+        const unlock = s.popup_ads_unlock_seconds;
+        if (Number.isFinite(unlock) && POPUP_UNLOCK_SECONDS_OPTIONS.includes(unlock)) {
+          setUnlockSeconds(unlock);
         }
       })
       .catch(() => {})
@@ -67,12 +77,11 @@ const AdPopup = () => {
     }
   };
 
-  // Jadwal popup: jangan jalan sampai getSettings selesai (default 10 menit), baru pakai interval dari admin
   useEffect(() => {
     if (!settingsReady || !ads.length || loading) return;
 
-    const UNLOCK_MS = UNLOCK_SECONDS * 1000;
-    const INITIAL_DELAY_MS = INITIAL_DELAY_MINUTES * 60 * 1000;
+    const UNLOCK_MS = unlockSeconds * 1000;
+    const INITIAL_DELAY_MS = initialDelayMinutes * 60 * 1000;
 
     const checkAndHandleSchedule = () => {
       if (typeof window === 'undefined') return;
@@ -94,7 +103,7 @@ const AdPopup = () => {
         if (now < firstPopupAt) {
           if (isOpenRef.current) setIsOpen(false);
           setCanClose(false);
-          setCountdown(UNLOCK_SECONDS);
+          setCountdown(unlockSeconds);
           return;
         }
 
@@ -105,9 +114,19 @@ const AdPopup = () => {
         if (state.lastShownCycle !== cycleIndex) {
           state.lastShownCycle = cycleIndex;
           writeTimingState(state);
-          setIsOpen(true);
-          setCanClose(false);
-          setCountdown(UNLOCK_SECONDS);
+          if (elapsedMs < UNLOCK_MS) {
+            const remainingSeconds = Math.max(
+              0,
+              unlockSeconds - Math.floor(elapsedMs / 1000)
+            );
+            setIsOpen(true);
+            setCanClose(false);
+            setCountdown(remainingSeconds);
+          } else {
+            if (isOpenRef.current) setIsOpen(false);
+            setCanClose(false);
+            setCountdown(unlockSeconds);
+          }
           return;
         }
 
@@ -120,23 +139,18 @@ const AdPopup = () => {
 
         const remainingSeconds = Math.max(
           0,
-          UNLOCK_SECONDS - Math.floor(elapsedMs / 1000)
+          unlockSeconds - Math.floor(elapsedMs / 1000)
         );
 
-        if (!isOpenRef.current) setIsOpen(true);
-
+        setIsOpen(true);
         setCanClose(remainingSeconds === 0);
         setCountdown(remainingSeconds);
-
-        if (remainingSeconds === 0 && isOpenRef.current) {
-          setIsOpen(false);
-        }
       } catch (error) {
         console.error('Error handling ad popup slot timing:', error);
         if (!isOpenRef.current) {
           setIsOpen(true);
           setCanClose(false);
-          setCountdown(UNLOCK_SECONDS);
+          setCountdown(unlockSeconds);
         }
       }
     };
@@ -148,18 +162,14 @@ const AdPopup = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [settingsReady, ads.length, loading, slotIntervalMinutes]);
+  }, [settingsReady, ads.length, loading, slotIntervalMinutes, initialDelayMinutes, unlockSeconds]);
 
-  // Effect to prevent body scroll when popup is open
   useEffect(() => {
     if (isOpen) {
-      // Save current overflow style
       const originalOverflow = document.body.style.overflow;
-      // Prevent scrolling
       document.body.style.overflow = 'hidden';
-      
+
       return () => {
-        // Restore original overflow when popup closes
         document.body.style.overflow = originalOverflow;
       };
     }
@@ -189,36 +199,23 @@ const AdPopup = () => {
     }
   };
 
-  // Don't render if no ads or not open
   if (!isOpen || !ads.length) {
     return null;
   }
 
-  const displayAds = ads.slice(0, 6);
+  const displayAds = ads;
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-slate-800">
-      {/* Fullscreen: mobile = 1 kolom 6 ke bawah; desktop = 3 kiri + 3 kanan */}
       <div className="absolute inset-0 flex flex-col justify-center w-full h-full">
-        {/* Bar atas: countdown kiri, tombol close kanan (seperti screenshot mobile) */}
         <div className="flex-shrink-0 flex items-center justify-between md:justify-center md:gap-5 px-4 py-3 bg-slate-800 z-10">
           {!canClose ? (
             <span className="text-white text-sm font-medium">Close in {countdown}</span>
           ) : (
             <span />
           )}
-          <button
-            onClick={handlePremiumClick}
-            className={`px-3 py-1.5 rounded text-white text-sm font-medium transition-opacity ${
-              canClose ? 'opacity-100 cursor-pointer bg-amber-600 hover:bg-amber-700' : 'opacity-100 cursor-pointer bg-amber-600/80 hover:bg-amber-700'
-            }`}
-            aria-label="Beli premium"
-          >
-            Beli Premium
-          </button>
         </div>
 
-        {/* Mobile: 1 kolom 6 baris sama tinggi, jarak antar banner. Desktop: 2 kolom × 3 baris */}
         <div className="grid md:grid-cols-2 p-4 gap-2">
           {displayAds.map((ad, index) => (
             <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} />
@@ -240,7 +237,6 @@ function AdItem({ ad, onAdClick }) {
       }`}
       title={title || undefined}
     >
-      {/* Mobile: isi tinggi baris (1/6). Desktop: max 28vh agar tidak terlalu besar */}
       <LazyImage
         src={getImageUrl(ad.image)}
         alt={alt}
@@ -253,4 +249,3 @@ function AdItem({ ad, onAdClick }) {
 }
 
 export default AdPopup;
-

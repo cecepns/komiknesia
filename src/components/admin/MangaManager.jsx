@@ -40,6 +40,7 @@ const MangaManager = () => {
     status: "ongoing",
     rating: "",
     color: false,
+    is_project: false,
   });
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
@@ -211,6 +212,7 @@ const MangaManager = () => {
       submitData.append("rating", formData.rating);
     }
     submitData.append("color", formData.color ? "true" : "false");
+    submitData.append("is_project", formData.is_project ? "true" : "false");
 
     if (thumbnailFile) {
       submitData.append("thumbnail", thumbnailFile);
@@ -240,6 +242,7 @@ const MangaManager = () => {
         status: "ongoing",
         rating: "",
         color: false,
+        is_project: false,
       });
       setThumbnailFile(null);
       setCoverFile(null);
@@ -274,6 +277,7 @@ const MangaManager = () => {
       status: item.status || "ongoing",
       rating: item.rating || "",
       color: item.color || false,
+      is_project: !!item.is_project,
     });
     setShowForm(true);
   };
@@ -773,6 +777,28 @@ const MangaManager = () => {
                   </label>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Centang jika manga ini berwarna
+                  </p>
+                </div>
+
+                <div>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_project}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          is_project: e.target.checked,
+                        }))
+                      }
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 border-gray-300 dark:border-gray-600"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Project (tampil di beranda)
+                    </span>
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Centang untuk menampilkan manga di section Project di home
                   </p>
                 </div>
 

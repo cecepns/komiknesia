@@ -1,4 +1,5 @@
 const db = require('../db');
+const { recordMangaViewEvent } = require('../utils/recordMangaViewEvent');
 
 const detailBySlug = async (req, res) => {
   try {
@@ -15,6 +16,12 @@ const detailBySlug = async (req, res) => {
 
     if (rows.length > 0) {
       const manga = rows[0];
+
+      const [bookmarkRows] = await db.execute(
+        'SELECT COUNT(*) AS cnt FROM bookmarks WHERE manga_id = ?',
+        [manga.id]
+      );
+      const bookmarkCount = Number(bookmarkRows[0]?.cnt) || 0;
 
       const [genres] = await db.execute(
         `
@@ -36,6 +43,10 @@ const detailBySlug = async (req, res) => {
           c.slug,
           c.created_at,
           c.updated_at,
+          COALESCE(c.views, 0) AS views,
+          (
+            SELECT COUNT(*) FROM chapter_reactions cr WHERE cr.chapter_id = c.id
+          ) AS reaction_count,
           UNIX_TIMESTAMP(c.created_at) as created_at_timestamp,
           UNIX_TIMESTAMP(COALESCE(c.updated_at, c.created_at)) as updated_at_timestamp
         FROM chapters c
@@ -60,8 +71,8 @@ const detailBySlug = async (req, res) => {
         is_project: !!manga.is_project,
         is_safe: !!manga.is_safe,
         rating: parseFloat(manga.rating) || 0,
-        bookmark_count: manga.bookmark_count || 0,
-        total_views: manga.views || 0,
+        bookmark_count: bookmarkCount,
+        total_views: Number(manga.views) || 0,
         release: manga.release || null,
         status: manga.status || 'ongoing',
         genres,
@@ -73,6 +84,8 @@ const detailBySlug = async (req, res) => {
             number: ch.number,
             title: ch.title || `Chapter ${ch.number}`,
             slug: ch.slug,
+            views: Number(ch.views) || 0,
+            reaction_count: Number(ch.reaction_count) || 0,
             created_at: {
               time: parseInt(ch.created_at_timestamp, 10),
               formatted: new Date(ch.created_at).toLocaleString('id-ID', {
@@ -138,12 +151,14 @@ const incrementView = async (req, res) => {
 
     await db.execute(
       `
-      UPDATE manga 
-      SET views = ?
+      UPDATE manga
+      SET views = ?, updated_at = updated_at
       WHERE id = ?
     `,
       [newViews, manga.id]
     );
+
+    await recordMangaViewEvent(manga.id);
 
     res.json({
       status: true,

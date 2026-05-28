@@ -36,10 +36,10 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => handleNavigation(item)}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-lg transition-all duration-300 min-h-0 ${
+              className={`flex flex-col items-center justify-center gap-0.5 rounded-lg border px-0.5 py-1.5 transition-all duration-200 min-h-0 ${
                 isActive
-                  ? 'bg-red-600 text-white'
-                  : 'text-gray-400 hover:text-gray-300'
+                  ? 'border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#c61737] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#c61737]'
+                  : 'border-transparent text-gray-400 hover:text-gray-300'
               } ${item.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}
               disabled={item.comingSoon}
             >

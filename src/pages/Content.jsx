@@ -3,13 +3,12 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import LazyImage from "../components/LazyImage";
-import Header from "../components/Header";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
 import { getImageUrl } from "../utils/api";
 import { API_BASE_URL } from "../utils/api";
+import { getChapterTimeAgo } from "../utils/chapterTime";
 import LiveChatWidget from "../components/LiveChatWidget";
-
 const statusOptions = ["All", "Ongoing", "Completed", "Hiatus"];
 const typeOptions = [
   { label: "All", value: "All", country: null },
@@ -20,13 +19,20 @@ const typeOptions = [
 ];
 const orderOptions = ["Az", "Za", "Update", "Added", "Popular"];
 
+const projectFilterOptions = [
+  { label: "Semua", value: "all" },
+  { label: "Project", value: "true" },
+  { label: "Bukan project", value: "false" },
+];
+
 const Content = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get("q") || "";
 
   // Ads
-  const { ads: comicTopAds } = useAds("comic-top", 10);
+  const { ads: comicTopAds } = useAds("comic-top");
+  const { ads: comicFooterAds } = useAds("comic-footer");
 
   const [mangaList, setMangaList] = useState([]);
   const [genres, setGenres] = useState([]);
@@ -47,17 +53,23 @@ const Content = () => {
     ? searchParams.get("order")
     : "Update";
 
+  const projectParam = searchParams.get("project");
+  const selectedProject =
+    projectParam === "true" || projectParam === "false" ? projectParam : "all";
+
   // Mobile dropdown states
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showOrderDropdown, setShowOrderDropdown] = useState(false);
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 
   // Refs for click outside detection
   const genreDropdownRef = useRef(null);
   const statusDropdownRef = useRef(null);
   const typeDropdownRef = useRef(null);
   const orderDropdownRef = useRef(null);
+  const projectDropdownRef = useRef(null);
 
   // Load genres from API
   useEffect(() => {
@@ -159,6 +171,17 @@ const Content = () => {
     [updateSearchParams],
   );
 
+  const setProjectFilter = useCallback(
+    (project) => {
+      updateSearchParams((params) => {
+        if (project === "all") params.delete("project");
+        else params.set("project", project);
+        params.delete("page");
+      });
+    },
+    [updateSearchParams],
+  );
+
   const fetchManga = useCallback(async () => {
     setLoading(true);
     try {
@@ -167,8 +190,10 @@ const Content = () => {
       // Add search query if exists
       if (searchQuery.trim()) {
         params.append("q", searchQuery.trim());
-      } else {
-        // Only add project filter when no search query
+      }
+      if (selectedProject === "true") {
+        params.append("project", "true");
+      } else if (selectedProject === "false") {
         params.append("project", "false");
       }
 
@@ -218,6 +243,7 @@ const Content = () => {
     selectedType,
     selectedOrder,
     searchQuery,
+    selectedProject,
   ]);
 
   // Load manga based on filters
@@ -252,6 +278,12 @@ const Content = () => {
       ) {
         setShowOrderDropdown(false);
       }
+      if (
+        projectDropdownRef.current &&
+        !projectDropdownRef.current.contains(event.target)
+      ) {
+        setShowProjectDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -283,6 +315,7 @@ const Content = () => {
       params.delete("status");
       params.delete("type");
       params.delete("order");
+      params.delete("project");
       params.delete("page");
       if (searchQuery) {
         params.delete("q");
@@ -295,20 +328,6 @@ const Content = () => {
       params.delete("q");
       params.delete("page");
     });
-  };
-
-  const getTimeAgo = (timestamp) => {
-    const now = Math.floor(Date.now() / 1000);
-    const diff = now - timestamp;
-
-    const hours = Math.floor(diff / 3600);
-    const days = Math.floor(diff / (3600 * 24));
-
-    if (hours < 24) {
-      return `${hours} jam`;
-    } else {
-      return `${days} hari`;
-    }
   };
 
   const renderPagination = () => {
@@ -421,7 +440,7 @@ const Content = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-primary-950">
+    <div className="min-h-screen bg-transparent">
       <Helmet>
         <title>
           {searchQuery
@@ -438,11 +457,8 @@ const Content = () => {
         />
       </Helmet>
 
-      {/* Main Navigation Header */}
-      <Header />
-
-      {/* Ads Section - Top */}
-      <div className="container mx-auto px-4 pt-16 pb-2">
+      {/* Ads Section - Top — Layout sudah menyediakan Header + pt-16 di main */}
+      <div className="container mx-auto px-4 pt-5 pb-2 md:pt-8">
         <AdBanner
           ads={comicTopAds}
           layout="grid"
@@ -452,7 +468,7 @@ const Content = () => {
       </div>
 
       {/* Page Header */}
-      <div className="bg-white dark:bg-primary-900 shadow-md top-20 z-40">
+      <div className="bg-white dark:bg-transparent border-b border-gray-200 dark:border-white/10 shadow-md dark:shadow-none top-20 z-40">
         <div className="container mx-auto px-4 py-6 md:py-10">
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -479,9 +495,9 @@ const Content = () => {
             </div>
             <button
               onClick={clearAllFilters}
-              className="hidden md:flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-300"
+              className="hidden items-center gap-2 rounded-xl border border-sky-500/50 bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_0_0_#facc15] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#facc15] active:translate-y-px active:shadow-[0_2px_0_0_#facc15] md:inline-flex dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15] dark:hover:shadow-[0_5px_0_0_#facc15] dark:active:shadow-[0_2px_0_0_#facc15] dark:hover:brightness-110"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5 shrink-0" />
               <span className="hidden md:inline">Clear All</span>
             </button>
           </div>
@@ -495,7 +511,7 @@ const Content = () => {
           <div ref={genreDropdownRef} className="relative">
             <button
               onClick={() => setShowGenreDropdown(!showGenreDropdown)}
-              className="w-full px-4 py-3 bg-white dark:bg-primary-900 rounded-lg shadow-md flex items-center justify-between text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-primary-800 transition-colors"
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
             >
               <span className="text-sm font-medium">
                 Genre{" "}
@@ -506,9 +522,9 @@ const Content = () => {
               />
             </button>
             {showGenreDropdown && (
-              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-primary-900 rounded-lg shadow-xl max-h-96 overflow-y-auto">
-                <div className="p-3 border-b border-gray-200 dark:border-primary-700">
-                  <div className="flex items-center justify-between mb-2">
+              <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
+                <div className="border-b border-slate-200 p-3 dark:border-primary-700">
+                  <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       Pilih Genre
                     </span>
@@ -521,7 +537,7 @@ const Content = () => {
                             params.delete("page");
                           });
                         }}
-                        className="text-xs text-blue-500 hover:text-blue-600"
+                        className="rounded-lg border border-sky-500/50 bg-sky-600 px-2 py-1 text-xs font-semibold text-white shadow-[0_2px_0_0_#facc15] transition-all hover:-translate-y-px hover:brightness-105 dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_2px_0_0_#facc15]"
                       >
                         Clear
                       </button>
@@ -560,7 +576,7 @@ const Content = () => {
           <div ref={statusDropdownRef} className="relative">
             <button
               onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="w-full px-4 py-3 bg-white dark:bg-primary-900 rounded-lg shadow-md flex items-center justify-between text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-primary-800 transition-colors"
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
             >
               <span className="text-sm font-medium">Status</span>
               <ChevronDown
@@ -568,7 +584,7 @@ const Content = () => {
               />
             </button>
             {showStatusDropdown && (
-              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-primary-900 rounded-lg shadow-xl">
+              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
                 <div className="p-2">
                   {statusOptions.map((status) => (
                     <button
@@ -577,13 +593,48 @@ const Content = () => {
                         setStatusFilter(status);
                         setShowStatusDropdown(false);
                       }}
-                      className={`w-full text-left px-4 py-2 rounded text-sm ${
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
                         selectedStatus === status
-                          ? "bg-blue-500 text-white"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
+                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
                       }`}
                     >
                       {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Project filter (is_project) */}
+          <div ref={projectDropdownRef} className="relative">
+            <button
+              onClick={() => setShowProjectDropdown(!showProjectDropdown)}
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
+            >
+              <span className="text-sm font-medium">Project</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${showProjectDropdown ? "rotate-180" : ""}`}
+              />
+            </button>
+            {showProjectDropdown && (
+              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
+                <div className="p-2">
+                  {projectFilterOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setProjectFilter(opt.value);
+                        setShowProjectDropdown(false);
+                      }}
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
+                        selectedProject === opt.value
+                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
+                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
+                      }`}
+                    >
+                      {opt.label}
                     </button>
                   ))}
                 </div>
@@ -595,7 +646,7 @@ const Content = () => {
           <div ref={typeDropdownRef} className="relative">
             <button
               onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-              className="w-full px-4 py-3 bg-white dark:bg-primary-900 rounded-lg shadow-md flex items-center justify-between text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-primary-800 transition-colors"
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
             >
               <span className="text-sm font-medium">Type</span>
               <ChevronDown
@@ -603,7 +654,7 @@ const Content = () => {
               />
             </button>
             {showTypeDropdown && (
-              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-primary-900 rounded-lg shadow-xl">
+              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
                 <div className="p-2">
                   {typeOptions.map((type) => (
                     <button
@@ -612,10 +663,10 @@ const Content = () => {
                         setTypeFilter(type.value);
                         setShowTypeDropdown(false);
                       }}
-                      className={`w-full text-left px-4 py-2 rounded text-sm ${
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
                         selectedType === type.value
-                          ? "bg-blue-500 text-white"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
+                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
                       }`}
                     >
                       {type.label}
@@ -630,7 +681,7 @@ const Content = () => {
           <div ref={orderDropdownRef} className="relative">
             <button
               onClick={() => setShowOrderDropdown(!showOrderDropdown)}
-              className="w-full px-4 py-3 bg-white dark:bg-primary-900 rounded-lg shadow-md flex items-center justify-between text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-primary-800 transition-colors"
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
             >
               <span className="text-sm font-medium">Sort By</span>
               <ChevronDown
@@ -638,7 +689,7 @@ const Content = () => {
               />
             </button>
             {showOrderDropdown && (
-              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-primary-900 rounded-lg shadow-xl">
+              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
                 <div className="p-2">
                   {orderOptions.map((order) => (
                     <button
@@ -647,10 +698,10 @@ const Content = () => {
                         setOrderFilter(order);
                         setShowOrderDropdown(false);
                       }}
-                      className={`w-full text-left px-4 py-2 rounded text-sm ${
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
                         selectedOrder === order
-                          ? "bg-blue-500 text-white"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
+                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
                       }`}
                     >
                       {order}
@@ -665,14 +716,14 @@ const Content = () => {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters Sidebar - Desktop Only */}
           <div className="hidden lg:block lg:w-80">
-            <div className="bg-white dark:bg-primary-900 rounded-lg shadow-md p-6 sticky top-24">
-              <div className="flex items-center justify-between mb-4">
+            <div className="sticky top-24 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-[0_6px_0_0_#e2e8f0] dark:border-cyan-200/15 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(250,204,21,0.22)]">
+              <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   Filter
                 </h3>
                 <button
                   onClick={clearAllFilters}
-                  className="text-sm text-blue-500 hover:text-blue-600"
+                  className="inline-flex items-center justify-center rounded-lg border border-sky-500/50 bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_3px_0_0_#facc15] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#facc15] active:translate-y-px active:shadow-[0_2px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15] dark:hover:shadow-[0_4px_0_0_#facc15] dark:hover:brightness-110"
                 >
                   Clear All
                 </button>
@@ -690,13 +741,38 @@ const Content = () => {
                       onClick={() => {
                         setStatusFilter(status);
                       }}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                         selectedStatus === status
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
+                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
                       }`}
                     >
                       {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Project filter */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                  Project
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {projectFilterOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setProjectFilter(opt.value);
+                      }}
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                        selectedProject === opt.value
+                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
+                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
+                      }`}
+                    >
+                      {opt.label}
                     </button>
                   ))}
                 </div>
@@ -714,10 +790,10 @@ const Content = () => {
                       onClick={() => {
                         setTypeFilter(type.value);
                       }}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                         selectedType === type.value
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
+                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
                       }`}
                     >
                       {type.label}
@@ -738,10 +814,10 @@ const Content = () => {
                       onClick={() => {
                         setOrderFilter(order);
                       }}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                         selectedOrder === order
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
+                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
                       }`}
                     >
                       {order}
@@ -790,8 +866,9 @@ const Content = () => {
               selectedGenres.length > 0 ||
               selectedStatus !== "All" ||
               selectedType !== "All" ||
-              selectedOrder !== "Update") && (
-              <div className="mb-6 bg-white dark:bg-primary-900 rounded-lg shadow-md p-4">
+              selectedOrder !== "Update" ||
+              selectedProject !== "all") && (
+              <div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_4px_0_0_#e2e8f0] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.18)]">
                 <div className="flex flex-wrap gap-2">
                   {searchQuery && (
                     <span className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">
@@ -847,6 +924,20 @@ const Content = () => {
                       </button>
                     </span>
                   )}
+                  {selectedProject !== "all" && (
+                    <span className="inline-flex items-center space-x-2 px-3 py-1 bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-800 dark:text-fuchsia-200 rounded-full text-sm">
+                      <span>
+                        Project:{" "}
+                        {selectedProject === "true" ? "Ya" : "Bukan project"}
+                      </span>
+                      <button
+                        onClick={() => setProjectFilter("all")}
+                        className="hover:text-fuchsia-950 dark:hover:text-fuchsia-50"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </span>
+                  )}
                   {selectedOrder !== "Update" && (
                     <span className="inline-flex items-center space-x-2 px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded-full text-sm">
                       <span>Order: {selectedOrder}</span>
@@ -871,7 +962,7 @@ const Content = () => {
                 </p>
               </div>
             ) : mangaList.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-primary-900 rounded-lg">
+              <div className="text-center py-12 bg-white dark:bg-white/[0.04] dark:border dark:border-white/10 rounded-lg">
                 <p className="text-gray-500 dark:text-gray-400">
                   No manga found with the selected filters
                 </p>
@@ -884,7 +975,7 @@ const Content = () => {
                     <div
                       key={manga.id}
                       onClick={() => navigate(`/komik/${manga.slug}`)}
-                      className="bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                      className="bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
                     >
                       {/* Cover Image */}
                       <div className="relative aspect-[3/4] overflow-hidden">
@@ -967,9 +1058,9 @@ const Content = () => {
                                   <span>Chapter</span>
                                   <span>{chapter.number || "N/A"}</span>
                                 </span>
-                                {chapter?.created_at?.time && (
+                                {getChapterTimeAgo(chapter) && (
                                   <span className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400">
-                                    {getTimeAgo(chapter.created_at.time)}
+                                    {getChapterTimeAgo(chapter)}
                                   </span>
                                 )}
                               </Link>
@@ -986,9 +1077,20 @@ const Content = () => {
                 </div>
 
                 {/* Pagination */}
-                <div className="flex justify-center items-center space-x-2 pb-20 md:pb-8">
+                <div className="flex justify-center items-center space-x-2 pb-8 md:pb-4">
                   {renderPagination()}
                 </div>
+
+                {comicFooterAds.length > 0 && (
+                  <div className="mt-6 pb-20 md:pb-8">
+                    <AdBanner
+                      ads={comicFooterAds}
+                      layout="grid"
+                      columns={2}
+                      className="gap-4"
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>

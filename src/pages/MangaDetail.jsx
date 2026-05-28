@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { 
-  ArrowLeft, 
-  Home, 
-  Play, 
-  Star, 
-  Eye, 
+import {
+  ArrowLeft,
+  Home,
+  Play,
+  Star,
+  Eye,
   Bookmark,
   Search,
   ChevronDown,
@@ -15,34 +15,37 @@ import {
   ChevronLeft,
   ChevronRight,
   Share2,
-  X
+  X,
+  Sparkles,
+  Copy,
+  ExternalLink,
+  Heart,
+  ListChecks,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
 import { API_BASE_URL, apiClient, getImageUrl } from '../utils/api';
 import AdBanner from '../components/AdBanner';
+import FloatingFixedAd from '../components/FloatingFixedAd';
 import { useAds } from '../hooks/useAds';
 import { useAuth } from '../contexts/AuthContext';
 import CommentSection from '../components/CommentSection';
-import LiveChatWidget from '../components/LiveChatWidget';
+import { headerNavLinkClass } from '../components/Header';
 import {
   WhatsappShareButton,
-  FacebookShareButton,
   TelegramShareButton,
   TwitterShareButton,
   WhatsappIcon,
-  FacebookIcon,
   TelegramIcon,
   TwitterIcon,
 } from 'react-share';
+import { toast } from 'react-toastify';
+import discordIcon from '../assets/discord.svg';
+import { downloadChapterZip } from '../utils/downloadChapterZip';
 
-
-// Import vote assets
-import senangImg from '../assets/votes/senang.png';
-import biasaAjaImg from '../assets/votes/biasa-aja.png';
-import kecewaImg from '../assets/votes/kecewa.png';
-import marahImg from '../assets/votes/marah.png';
-import sedihImg from '../assets/votes/sedih.png';
+import { REACTION_OPTIONS, sumReactionCounts } from '../constants/reactions';
 
 const MangaDetail = () => {
   const { slug } = useParams();
@@ -51,6 +54,10 @@ const MangaDetail = () => {
   const [manga, setManga] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkChecking, setBookmarkChecking] = useState(false);
+  const [readlistPickerOpen, setReadlistPickerOpen] = useState(false);
+  const [readlistsForPicker, setReadlistsForPicker] = useState([]);
+  const [readlistsPickerLoading, setReadlistsPickerLoading] = useState(false);
+  const [readlistAddSubmitting, setReadlistAddSubmitting] = useState(null);
   const [activeTab, setActiveTab] = useState('chapters');
   const [searchChapter, setSearchChapter] = useState('');
   const [chapters, setChapters] = useState([]);
@@ -59,6 +66,7 @@ const MangaDetail = () => {
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' (from chapter 1) or 'desc' (from last chapter)
   const [currentPage, setCurrentPage] = useState(1);
   const [sharePopupOpen, setSharePopupOpen] = useState(false);
+  const [downloadingChapterSlug, setDownloadingChapterSlug] = useState(null);
   const itemsPerPage = 10;
   
   // Vote states
@@ -72,9 +80,14 @@ const MangaDetail = () => {
   const [selectedVote, setSelectedVote] = useState(null);
   const [voteLoading, setVoteLoading] = useState(false);
 
-  const { ads: chapterTopAds } = useAds('chapter-top', 4);
-  const { ads: listChapterAds } = useAds('list-chapter', 2);
-  const { ads: topUpvoteAds } = useAds('top-upvote', 2);
+  const { ads: chapterTopAds } = useAds('chapter-top');
+  const { ads: listChapterAds } = useAds('list-chapter');
+  const { ads: topUpvoteAds } = useAds('top-upvote');
+  const { ads: floatingTopAds } = useAds('floating-fixed-top');
+  const { ads: floatingBottomAds } = useAds('floating-fixed-bottom');
+
+  const discordInviteUrl = 'https://discord.gg/dgC22PSm9h';
+  const donateUrl = 'https://saweria.co/KomikNesia';
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -139,6 +152,62 @@ const MangaDetail = () => {
     }).catch(() => setBookmarked(false)).finally(() => setBookmarkChecking(false));
   }, [isAuthenticated, slug]);
 
+  useEffect(() => {
+    if (!readlistPickerOpen || !isAuthenticated) return undefined;
+    let cancelled = false;
+    setReadlistsPickerLoading(true);
+    apiClient
+      .getReadlists()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status && Array.isArray(res.data)) setReadlistsForPicker(res.data);
+        else setReadlistsForPicker([]);
+      })
+      .catch(() => {
+        if (!cancelled) setReadlistsForPicker([]);
+      })
+      .finally(() => {
+        if (!cancelled) setReadlistsPickerLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [readlistPickerOpen, isAuthenticated]);
+
+  const openReadlistPicker = () => {
+    if (!isAuthenticated) {
+      navigate('/akun');
+      return;
+    }
+    setReadlistPickerOpen(true);
+  };
+
+  const addMangaToReadlist = async (readlistId) => {
+    if (!slug) return;
+    setReadlistAddSubmitting(readlistId);
+    try {
+      const res = await apiClient.addReadlistItems(readlistId, { slugs: [slug] });
+      if (res.status) {
+        const added = Number(res.added) || 0;
+        const title =
+          readlistsForPicker.find((r) => Number(r.id) === Number(readlistId))?.title || 'readlist';
+        if (added > 0) {
+          toast.success(`Komik ditambahkan ke “${title}”.`);
+        } else {
+          toast.info('Komik ini sudah ada di readlist tersebut.');
+        }
+        setReadlistPickerOpen(false);
+      } else {
+        toast.error(res.error || 'Gagal menambahkan ke readlist.');
+      }
+    } catch (err) {
+      console.error('Readlist add error:', err);
+      toast.error('Gagal menambahkan ke readlist.');
+    } finally {
+      setReadlistAddSubmitting(null);
+    }
+  };
+
   const generateChapters = (mangaData) => {
     // Create chapters from API response
     const chapterList = [];
@@ -146,14 +215,9 @@ const MangaDetail = () => {
     if (mangaData.chapters && mangaData.chapters.length > 0) {
       // Use chapters from API
       mangaData.chapters.forEach((ch, index) => {
-        // Handle timestamp conversion
-        // Prefer updated_at if available (more accurate for "last updated" display)
-        // Otherwise use created_at
-        // API returns Unix timestamp in seconds, convert to milliseconds
+        // Waktu chapter = saat publish (created_at), bukan saat dibaca/di-update view counter
         let uploadedAt = Date.now();
-        
-        // Try updated_at first, then created_at
-        const timeSource = ch.updated_at || ch.created_at;
+        const timeSource = ch.created_at;
         
         if (timeSource?.time) {
           const timestamp = timeSource.time;
@@ -199,11 +263,13 @@ const MangaDetail = () => {
           id: ch.id,
           content_id: ch.content_id,
           number: ch.number,
-          title: `Chapter ${ch.number}`,
+          title: ch.title || `Chapter ${ch.number}`,
           thumbnail: mangaData.cover,
           uploadedAt: uploadedAt,
           isNew: index === 0,
-          slug: ch.slug
+          slug: ch.slug,
+          views: Number(ch.views) || 0,
+          reactionCount: Number(ch.reaction_count) || 0,
         });
       });
     }
@@ -286,15 +352,12 @@ const MangaDetail = () => {
     setCurrentPage(1);
   }, [searchChapter, sortOrder]);
 
-  const voteOptions = [
-    { id: 'senang', label: 'Senang', image: senangImg, count: voteData.senang },
-    { id: 'biasaAja', label: 'Biasa Aja', image: biasaAjaImg, count: voteData.biasaAja },
-    { id: 'kecewa', label: 'Kecewa', image: kecewaImg, count: voteData.kecewa },
-    { id: 'marah', label: 'Marah', image: marahImg, count: voteData.marah },
-    { id: 'sedih', label: 'Sedih', image: sedihImg, count: voteData.sedih }
-  ];
+  const voteOptions = REACTION_OPTIONS.map((opt) => ({
+    ...opt,
+    count: voteData[opt.id] ?? 0,
+  }));
 
-  const totalVotes = Object.values(voteData).reduce((sum, val) => sum + val, 0);
+  const totalVotes = sumReactionCounts(voteData);
 
   const handleVote = async (voteId) => {
     if (!slug) return;
@@ -331,6 +394,26 @@ const MangaDetail = () => {
     }
   };
 
+  const handleDownloadChapter = async (chapter, event) => {
+    event?.stopPropagation?.();
+    if (!chapter?.slug || downloadingChapterSlug) return;
+
+    setDownloadingChapterSlug(chapter.slug);
+    try {
+      await downloadChapterZip({
+        slug: chapter.slug,
+        mangaTitle: manga?.title,
+        chapterNumber: chapter.number,
+      });
+      toast.success(`Chapter ${chapter.number} berhasil diunduh (ZIP).`);
+    } catch (err) {
+      console.error('Download chapter error:', err);
+      toast.error(err?.message || 'Gagal mengunduh chapter.');
+    } finally {
+      setDownloadingChapterSlug(null);
+    }
+  };
+
   const toggleBookmark = async () => {
     if (!isAuthenticated) {
       navigate('/akun');
@@ -345,9 +428,25 @@ const MangaDetail = () => {
       if (bookmarked) {
         await apiClient.removeBookmark(identifier);
         setBookmarked(false);
+        setManga((prev) =>
+          prev
+            ? {
+                ...prev,
+                bookmark_count: Math.max(0, (Number(prev.bookmark_count) || 0) - 1),
+              }
+            : prev
+        );
       } else {
         await apiClient.addBookmark(identifier);
         setBookmarked(true);
+        setManga((prev) =>
+          prev
+            ? {
+                ...prev,
+                bookmark_count: (Number(prev.bookmark_count) || 0) + 1,
+              }
+            : prev
+        );
       }
     } catch (err) {
       console.error('Bookmark error:', err);
@@ -401,9 +500,24 @@ const MangaDetail = () => {
   };
 
   // SEO data
-  const siteUrl = 'https://02.komiknesia.asia';
+  const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://komiknesia.com';
   const pageUrl = `${siteUrl}/komik/${slug}`;
-  const shareTitle = `Baca ${manga?.title || 'komik'} Bahasa Indonesia di KomikNesia!`;
+  const shareOrigin = typeof window !== 'undefined' ? window.location.origin : siteUrl;
+  const mangaShareUrl = `${shareOrigin}/komik/${slug}`;
+  const shareTitle = `Baca ${manga?.title || 'komik'} bahasa Indonesia di KomikNesia`;
+
+  const copyMangaShareLink = async (context = 'default') => {
+    try {
+      await navigator.clipboard.writeText(mangaShareUrl);
+      if (context === 'tiktok') {
+        toast.success('Link disalin. Buka TikTok dan tempel di bio, DM, atau caption.');
+      } else {
+        toast.success('Tautan berhasil disalin.');
+      }
+    } catch {
+      toast.error('Gagal menyalin. Salin manual: ' + mangaShareUrl);
+    }
+  };
   const coverImage = manga ? getImageUrl(manga.cover) : `${siteUrl}/logo.png`;
   const seriesType = manga?.content_type || 'Komik';
   const description = `Baca ${seriesType} ${manga?.title || 'komik'} bahasa Indonesia di KomikNesia. Sinopsis lengkap, daftar chapter, dan update terbaru tersedia di sini.`;
@@ -505,93 +619,136 @@ const MangaDetail = () => {
             </div>
           )}
 
-          {/* Hero Section with Cover */}
-          <div className="relative h-80 md:h-96 rounded-xl overflow-hidden mb-8">
-            <div 
-              className="absolute inset-0 bg-cover bg-center blur-xl scale-110"
+          {/* Hero: mobile = kolom tengah (sample); md+ = layout horizontal seperti sebelumnya */}
+          <div className="relative mb-8 overflow-hidden rounded-2xl bg-black ring-1 ring-white/10 md:h-96 md:rounded-xl md:bg-primary-950 md:ring-0">
+            <div
+              className="absolute inset-0 scale-110 bg-cover bg-center blur-2xl opacity-45 md:opacity-100 md:blur-xl md:scale-110"
               style={{ backgroundImage: `url(${getImageUrl(manga.cover)})` }}
+              aria-hidden
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-primary-950 via-primary-950/50 to-transparent" />
-            
-            <div className="relative h-full flex items-end p-6">
-              <div className="flex items-end space-x-6 w-full">
-                {/* Cover Image */}
-                <div className="flex-shrink-0">
-                  <LazyImage
-                    src={getImageUrl(manga.cover)}
-                    alt={manga.title}
-                    className="w-32 md:w-48 rounded-lg shadow-2xl"
-                    wrapperClassName="w-32 md:w-48"
-                  />
+            <div
+              className="absolute inset-0 bg-gradient-to-b from-black/30 via-primary-950/90 to-primary-950 md:bg-gradient-to-t md:from-primary-950 md:via-primary-950/50 md:to-transparent"
+              aria-hidden
+            />
+
+            <div className="relative flex flex-col items-center px-4 pb-8 pt-10 text-center md:h-full md:flex-row md:items-end md:justify-start md:gap-6 md:p-6 md:pb-6 md:pt-6 md:text-left">
+              <div className="mx-auto w-[11.5rem] shrink-0 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/15 sm:w-48 md:mx-0 md:w-32 md:rounded-lg md:ring-0 lg:w-48">
+                <LazyImage
+                  src={getImageUrl(manga.cover)}
+                  alt={manga.title}
+                  className="aspect-[3/4] w-full object-cover"
+                  wrapperClassName="block w-full"
+                />
+              </div>
+
+              <div className="mt-7 flex w-full max-w-md flex-1 flex-col items-center md:mt-0 md:max-w-none md:items-stretch md:pb-2">
+                <h1 className="mb-2 text-2xl font-bold leading-tight text-white sm:text-3xl md:text-3xl lg:text-4xl">
+                  {manga.title}
+                </h1>
+                {manga.alternative_name && (
+                  <p className="mt-2 max-w-xl text-sm text-gray-300/95 line-clamp-4 sm:text-base md:mb-4 md:line-clamp-2">
+                    {manga.alternative_name}
+                  </p>
+                )}
+
+                {/* Urutan: tombol dulu (mobile), stat dulu (desktop) */}
+                <div className="order-1 mt-6 flex w-full flex-col space-y-3 md:order-2 md:mt-0 md:flex-row md:flex-wrap md:gap-3 md:space-y-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (chapters.length > 0) navigate(`/view/${chapters[0].slug}`);
+                    }}
+                    disabled={chapters.length === 0}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3.5 text-base font-semibold text-white shadow-lg transition hover:bg-red-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:px-6 md:py-3"
+                  >
+                    <Play className="h-5 w-5 shrink-0" aria-hidden />
+                    Baca
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleBookmark()}
+                    disabled={bookmarkChecking}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-base font-semibold transition active:scale-[0.99] md:w-auto md:px-3 md:py-3 ${
+                      bookmarked
+                        ? 'bg-violet-600 text-white shadow-md hover:bg-violet-500 md:bg-violet-600 md:shadow-md md:hover:bg-violet-500'
+                        : 'bg-primary-800/95 text-gray-100 hover:bg-primary-700 md:bg-primary-800 md:text-gray-300 md:hover:bg-primary-700'
+                    }`}
+                    title={bookmarked ? 'Hapus bookmark' : 'Simpan bookmark'}
+                  >
+                    <Bookmark className={`h-5 w-5 shrink-0 md:h-5 md:w-5 ${bookmarked ? 'fill-current' : ''}`} aria-hidden />
+                    <span className="md:sr-only">{bookmarked ? 'Hapus bookmark' : 'Simpan bookmark'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openReadlistPicker()}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-800/95 px-4 py-3.5 text-base font-semibold text-gray-100 transition hover:bg-primary-700 active:scale-[0.99] md:w-auto md:px-3 md:py-3 md:bg-primary-800 md:text-gray-300 md:hover:bg-primary-700"
+                    title="Tambah ke readlist"
+                  >
+                    <ListChecks className="h-5 w-5 shrink-0" aria-hidden />
+                    <span className="md:sr-only">Tambah ke readlist</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSharePopupOpen(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-800/95 px-4 py-3.5 text-base font-semibold text-gray-100 transition hover:bg-primary-700 active:scale-[0.99] md:hidden"
+                  >
+                    <Share2 className="h-5 w-5 shrink-0" aria-hidden />
+                    Bagikan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSharePopupOpen(true)}
+                    className="hidden md:inline-flex md:items-center md:justify-center md:rounded-lg md:bg-primary-800 md:p-3 md:text-gray-300 md:transition-all md:hover:bg-primary-700 md:hover:text-white"
+                    title="Bagikan komik ini"
+                    aria-label="Bagikan"
+                  >
+                    <Share2 className="h-5 w-5" aria-hidden />
+                  </button>
                 </div>
 
-                {/* Info */}
-                <div className="flex-1 pb-2">
-                  <h1 className="text-md md:text-3xl md:text-4xl font-bold text-white mb-2 line-clamp-3">
-                    {manga.title}
-                  </h1>
-                  {manga.alternative_name && (
-                    <p className="text-xs md:text-sm text-gray-300 mb-4 line-clamp-2">{manga.alternative_name}</p>
-                  )}
-                  
-                  {/* Stats */}
-                  <div className="flex flex-wrap items-center gap-4 text-white mb-4">
-                    <div className="flex items-center">
-                      <Star className="h-5 w-5 text-yellow-400 mr-1 fill-yellow-400" />
-                      <span className="font-semibold">{manga.rating || 'N/A'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Eye className="h-5 w-5 text-green-400 mr-1" />
-                      <span>{manga.total_views?.toLocaleString() || '0'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Bookmark className="h-5 w-5 text-purple-400 mr-1" />
-                      <span>{manga.bookmark_count?.toLocaleString() || '0'}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => {
-                        if (chapters.length > 0) {
-                          navigate(`/view/${chapters[0].slug}`);
-                        }
-                      }}
-                      className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={chapters.length === 0}
-                    >
-                      <Play className="h-5 w-5 mr-2" />
-                      Baca
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSharePopupOpen(true)}
-                      className="hidden md:inline-flex p-3 rounded-lg bg-primary-800 text-gray-300 hover:bg-primary-700 hover:text-white transition-all"
-                      title="Share manga ini"
-                    >
-                      <Share2 className="h-5 w-5" />
-                    </button>
-                    {isAuthenticated && (
-                      <button
-                        type="button"
-                        onClick={toggleBookmark}
-                        disabled={bookmarkChecking}
-                        className={`p-3 rounded-lg transition-all ${bookmarked ? 'bg-purple-600 text-white' : 'bg-primary-800 text-gray-300 hover:bg-primary-700'}`}
-                        title={bookmarked ? 'Hapus bookmark' : 'Simpan bookmark'}
-                      >
-                        <Bookmark className={`h-5 w-5 ${bookmarked ? 'fill-current' : ''}`} />
-                      </button>
+                <div className="order-2 mt-7 flex w-full max-w-md flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-6 text-sm text-gray-100 sm:gap-3 md:order-1 md:mt-0 md:max-w-none md:justify-start md:gap-3 md:border-0 md:pt-0 md:mb-4">
+                  {(() => {
+                    const r = manga.rating;
+                    const n = r != null && r !== '' ? Number(r) : NaN;
+                    const ratingLabel = Number.isFinite(n) ? n.toFixed(1) : 'N/A';
+                    return (
+                  <div className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-500/10 px-3.5 py-2 tabular-nums shadow-sm md:gap-1 md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none">
+                    <Star className="h-5 w-5 shrink-0 text-amber-400 fill-amber-400" aria-hidden />
+                    <span className="text-base font-bold tracking-tight text-white md:text-sm md:font-semibold">
+                      {ratingLabel}
+                    </span>
+                    {Number.isFinite(n) && (
+                      <span className="text-xs font-medium text-amber-200/90">/ 10</span>
                     )}
+                  </div>
+                    );
+                  })()}
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/30 px-3 py-2 tabular-nums backdrop-blur-sm">
+                    <Eye className="h-4 w-4 shrink-0 text-sky-300" aria-hidden />
+                    <span className="font-semibold text-white">
+                      {(Number(manga.total_views) || 0).toLocaleString('id-ID')}
+                    </span>
+                    <span className="text-xs text-gray-400">tayangan</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/30 px-3 py-2 tabular-nums backdrop-blur-sm">
+                    <Bookmark className="h-4 w-4 shrink-0 text-violet-300" aria-hidden />
+                    <span className="font-semibold text-white">
+                      {(Number(manga.bookmark_count) || 0).toLocaleString('id-ID')}
+                    </span>
+                    <span className="text-xs text-gray-400">bookmark</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Synopsis */}
-          <div className="bg-primary-900 rounded-lg p-6 mb-6">
-            <div 
-              className="text-gray-300 leading-relaxed prose prose-sm max-w-none prose-invert"
+          {/* Sinopsis: mobile = kartu + judul; desktop = blok sederhana seperti sebelumnya */}
+          <div className="mb-6 rounded-2xl border border-white/10 bg-primary-900/90 p-5 shadow-inner sm:p-6 md:rounded-lg md:border-0 md:bg-primary-900 md:p-6 md:shadow-none">
+            <h2 className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 md:hidden">
+              Sinopsis
+            </h2>
+            <div
+              className="prose prose-sm max-w-none leading-relaxed text-gray-300 prose-invert prose-p:my-2 prose-headings:text-gray-200 md:prose-p:my-0"
               dangerouslySetInnerHTML={{ __html: manga.sinopsis || 'Tidak ada sinopsis tersedia.' }}
             />
           </div>
@@ -603,13 +760,12 @@ const MangaDetail = () => {
               <>
                 {manga.genres.map((genre) => (
                   <button
+                    type="button"
                     key={genre.id}
                     onClick={() => navigate(`/content?genre=${encodeURIComponent(genre.name)}`)}
-                    className="px-4 py-2 bg-purple-900/30 rounded-lg hover:bg-purple-900/50 transition-colors cursor-pointer"
+                    className={headerNavLinkClass}
                   >
-                    <span className="text-sm font-medium text-purple-300">
-                      {genre.name}
-                    </span>
+                    {genre.name}
                   </button>
                 ))}
               </>
@@ -657,18 +813,6 @@ const MangaDetail = () => {
             )}
           </div>
 
-          <div className="mb-8 md:hidden">
-            <button
-              type="button"
-              onClick={() => setSharePopupOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-800 px-4 py-3 text-gray-200 transition-all hover:bg-primary-700 hover:text-white"
-              title="Share manga ini"
-            >
-              <Share2 className="h-5 w-5" />
-              <span className="font-medium">Share Manga</span>
-            </button>
-          </div>
-
           {/* List Chapter Ads - 2 ads above tabs */}
           {listChapterAds.length > 0 && (
             <div className="mb-6">
@@ -713,6 +857,67 @@ const MangaDetail = () => {
           {/* Tab Content */}
           {activeTab === 'chapters' && (
             <div>
+              {/* Bagikan komik, Discord, Donasi — di atas daftar chapter */}
+              <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSharePopupOpen(true)}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700/90 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-inner sm:h-12 sm:w-12">
+                    <Share2 className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white sm:text-base">Bagikan komik</p>
+                    <p className="text-xs text-slate-400 sm:text-sm">
+                      Salin tautan, WhatsApp, X, TikTok, Telegram
+                    </p>
+                  </div>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-300 sm:h-5 sm:w-5"
+                    aria-hidden
+                  />
+                </button>
+
+                <a
+                  href={discordInviteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700/90 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-inner sm:h-12 sm:w-12">
+                    <img src={discordIcon} alt="" className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white sm:text-base">Discord</p>
+                    <p className="text-xs text-slate-400 sm:text-sm">Gabung komunitas pembaca</p>
+                  </div>
+                  <ExternalLink
+                    className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-slate-300 sm:h-5 sm:w-5"
+                    aria-hidden
+                  />
+                </a>
+
+                <a
+                  href={donateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700/90 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-inner sm:h-12 sm:w-12">
+                    <Heart className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white sm:text-base">Donasi</p>
+                    <p className="text-xs text-slate-400 sm:text-sm">Dukung lewat Saweria</p>
+                  </div>
+                  <ExternalLink
+                    className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-slate-300 sm:h-5 sm:w-5"
+                    aria-hidden
+                  />
+                </a>
+              </div>
+
               {/* Search Bar and Sort Toggle */}
               <div className="mb-6 flex gap-3">
                 <div className="flex-1 relative">
@@ -754,26 +959,59 @@ const MangaDetail = () => {
                 {paginatedChapters.map((chapter) => (
                   <div
                     key={chapter.id}
-                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between p-4"
+                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between gap-3 p-3 sm:gap-4 sm:p-4"
                     onClick={() => navigate(`/view/${chapter.slug}`)}
                   >
-                    {/* Info */}
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-base md:text-lg mb-1 text-gray-100">
-                        {chapter.title}
-                      </h3>
-                      <p className="text-sm text-gray-400">
-                        {formatTimeAgo(chapter.uploadedAt)}
-                      </p>
+                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                      <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-md bg-primary-800 ring-1 ring-primary-700/80 sm:w-16">
+                        <LazyImage
+                          src={getImageUrl(chapter.thumbnail || manga?.cover)}
+                          alt={chapter.title}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          wrapperClassName="h-full w-full"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="mb-1 text-base font-semibold text-gray-100 md:text-lg">
+                          {chapter.title}
+                        </h3>
+                        <p className="text-sm text-gray-400">
+                          {formatTimeAgo(chapter.uploadedAt)}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                          <span className="inline-flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden />
+                            <span>{(chapter.views ?? 0).toLocaleString('id-ID')} lihat</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-400/90" aria-hidden />
+                            <span>{(chapter.reactionCount ?? 0).toLocaleString('id-ID')} reaksi</span>
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Badges and Icon */}
-                    <div className="flex items-center gap-3">
+                    {/* Badges and actions */}
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                       {chapter.isNew && (
                         <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
                           UP
                         </div>
                       )}
+                      <button
+                        type="button"
+                        onClick={(e) => handleDownloadChapter(chapter, e)}
+                        disabled={downloadingChapterSlug === chapter.slug}
+                        className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-primary-800 hover:text-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Unduh gambar chapter (ZIP)"
+                        aria-label={`Unduh chapter ${chapter.number} sebagai ZIP`}
+                      >
+                        {downloadingChapterSlug === chapter.slug ? (
+                          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                        ) : (
+                          <Download className="h-5 w-5" aria-hidden />
+                        )}
+                      </button>
                       <Play className="h-6 w-6 text-gray-400 group-hover:text-purple-400 transition-colors duration-300" />
                     </div>
                   </div>
@@ -907,16 +1145,22 @@ const MangaDetail = () => {
                   <span>{chapters.length}</span>
                 </div>
                 <div className="flex">
-                  <span className="font-semibold w-32 text-gray-400">Total Views:</span>
-                  <span>{manga.total_views?.toLocaleString() || '0'}</span>
+                  <span className="font-semibold w-32 text-gray-400">Total tayangan:</span>
+                  <span>{(Number(manga.total_views) || 0).toLocaleString('id-ID')}</span>
                 </div>
                 <div className="flex">
-                  <span className="font-semibold w-32 text-gray-400">Bookmarks:</span>
-                  <span>{manga.bookmark_count?.toLocaleString() || '0'}</span>
+                  <span className="font-semibold w-32 text-gray-400">Total bookmark:</span>
+                  <span>{(Number(manga.bookmark_count) || 0).toLocaleString('id-ID')}</span>
                 </div>
                 <div className="flex">
                   <span className="font-semibold w-32 text-gray-400">Rating:</span>
-                  <span>{manga.rating || 'N/A'}</span>
+                  <span className="tabular-nums">
+                    {(() => {
+                      const r = manga.rating;
+                      const n = r != null && r !== '' ? Number(r) : NaN;
+                      return Number.isFinite(n) ? `${n.toFixed(1)} / 10` : 'N/A';
+                    })()}
+                  </span>
                 </div>
                 {manga.created_at && (
                   <div className="flex">
@@ -954,9 +1198,9 @@ const MangaDetail = () => {
           {/* Vote Section */}
           <div className="mt-8 bg-primary-900 rounded-lg p-6">
             <div className="text-center mb-6">
-              <h3 className="text-2xl md:text-3xl font-bold mb-2">Vote Manga</h3>
+              <h3 className="text-2xl md:text-3xl font-bold mb-2">Reaksi manga</h3>
               <p className="text-xl md:text-2xl text-gray-300 font-semibold">
-                {totalVotes} <span className="text-base text-gray-400 font-normal">Reactions</span>
+                {totalVotes} <span className="text-base text-gray-400 font-normal">reaksi</span>
               </p>
             </div>
 
@@ -970,34 +1214,37 @@ const MangaDetail = () => {
                     selectedVote === option.id ? 'scale-110' : ''
                   } ${voteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {/* Vote Count Badge */}
-                  <div className={`mb-2 px-4 py-1 rounded-full font-bold text-sm transition-all duration-300 ${
-                    selectedVote === option.id 
-                      ? 'bg-purple-600 text-white ring-2 ring-purple-400' 
-                      : 'bg-primary-800 text-gray-300 group-hover:bg-purple-600 group-hover:text-white'
-                  }`}>
+                  <div
+                    className={`mb-2 rounded-full px-3 py-1 text-sm font-bold transition-all duration-300 ${
+                      selectedVote === option.id
+                        ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                        : 'bg-primary-800 text-gray-300 group-hover:bg-purple-600 group-hover:text-white'
+                    }`}
+                  >
                     {option.count}
                   </div>
 
-                  {/* Character Avatar */}
-                  <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden transition-all duration-300 ${
-                    selectedVote === option.id 
-                      ? 'ring-4 ring-purple-500 shadow-lg shadow-purple-500/50' 
-                      : 'ring-2 ring-primary-700 group-hover:ring-4 group-hover:ring-purple-400'
-                  }`}>
-                    <img 
-                      src={option.image} 
+                  <div
+                    className={`flex h-20 w-20 select-none items-center justify-center overflow-hidden rounded-full transition-all duration-300 md:h-24 md:w-24 ${
+                      selectedVote === option.id
+                        ? 'ring-4 ring-purple-500 shadow-lg shadow-purple-500/50'
+                        : 'ring-2 ring-primary-700 group-hover:ring-4 group-hover:ring-purple-400'
+                    }`}
+                  >
+                    <img
+                      src={option.image}
                       alt={option.label}
-                      className="w-full h-full object-contain"
+                      className="h-full w-full object-cover"
                     />
                   </div>
 
-                  {/* Label */}
-                  <p className={`mt-2 text-sm md:text-base font-medium transition-colors duration-300 ${
-                    selectedVote === option.id 
-                      ? 'text-purple-400' 
-                      : 'text-gray-300 group-hover:text-purple-400'
-                  }`}>
+                  <p
+                    className={`mt-2 text-sm font-medium transition-colors duration-300 md:text-base ${
+                      selectedVote === option.id
+                        ? 'text-purple-400'
+                        : 'text-gray-300 group-hover:text-purple-400'
+                    }`}
+                  >
                     {option.label}
                   </p>
                 </button>
@@ -1005,7 +1252,7 @@ const MangaDetail = () => {
             </div>
 
             <div className="mt-6 text-center text-xs text-gray-500">
-              Klik untuk memberikan vote atau mengubah pilihan
+              Klik untuk memberikan reaksi atau mengubah pilihan
             </div>
           </div>
 
@@ -1021,73 +1268,159 @@ const MangaDetail = () => {
         </div>
       </main>
 
+      {readlistPickerOpen && (
+        <div
+          className="fixed inset-0 z-[71] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pilih readlist"
+        >
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Tambah ke readlist</h3>
+              <button
+                type="button"
+                onClick={() => setReadlistPickerOpen(false)}
+                className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Tutup"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-slate-400">
+              Pilih readlist untuk menyimpan komik ini. Kamu bisa mengatur readlist di halaman Library.
+            </p>
+            {readlistsPickerLoading ? (
+              <p className="py-8 text-center text-sm text-slate-400">Memuat readlist…</p>
+            ) : readlistsForPicker.length === 0 ? (
+              <div className="space-y-4 py-2">
+                <p className="text-sm text-slate-300">
+                  Belum ada readlist. Buat readlist dulu di Library, lalu kembali ke halaman ini.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReadlistPickerOpen(false);
+                    navigate('/library?tab=readlist');
+                  }}
+                  className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
+                >
+                  Buka Library — Readlist
+                </button>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {readlistsForPicker.map((rl) => (
+                  <li key={rl.id}>
+                    <button
+                      type="button"
+                      disabled={readlistAddSubmitting != null}
+                      onClick={() => addMangaToReadlist(rl.id)}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="min-w-0 truncate">{rl.title}</span>
+                      <span className="shrink-0 text-xs text-slate-400">
+                        {readlistAddSubmitting === rl.id
+                          ? 'Menyimpan…'
+                          : `${Number(rl.manga_count) || 0} komik`}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
       {sharePopupOpen && (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-label="Pilih platform untuk share manga"
+          aria-label="Bagikan komik"
         >
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-primary-900 p-4 text-left shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Share Manga</h3>
+              <h3 className="text-lg font-semibold text-white">Bagikan komik ini</h3>
               <button
                 type="button"
                 onClick={() => setSharePopupOpen(false)}
                 className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                 aria-label="Tutup popup share"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="mb-4 text-sm text-gray-400">Pilih platform untuk membagikan manga ini:</p>
+            <p className="mb-4 text-sm text-slate-400">
+              Pilih cara membagikan tautan halaman komik ini ke teman atau medsos kamu.
+            </p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => copyMangaShareLink('default')}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-600">
+                  <Copy className="h-5 w-5" aria-hidden />
+                </span>
+                <span>Salin tautan</span>
+              </button>
+
               <WhatsappShareButton
-                url={pageUrl}
+                url={mangaShareUrl}
                 title={shareTitle}
-                separator=" - "
-                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                separator=" — "
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                 resetButtonStyle={false}
                 onClick={() => setSharePopupOpen(false)}
               >
-                <WhatsappIcon size={32} round />
+                <WhatsappIcon size={40} round />
                 <span>WhatsApp</span>
               </WhatsappShareButton>
 
-              <FacebookShareButton
-                url={pageUrl}
-                hashtag="#KomikNesia"
-                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+              <TwitterShareButton
+                url={mangaShareUrl}
+                title={shareTitle}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                 resetButtonStyle={false}
                 onClick={() => setSharePopupOpen(false)}
               >
-                <FacebookIcon size={32} round />
-                <span>Facebook</span>
-              </FacebookShareButton>
+                <TwitterIcon size={40} round />
+                <span>X (Twitter)</span>
+              </TwitterShareButton>
+
+              <button
+                type="button"
+                onClick={() => copyMangaShareLink('tiktok')}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black text-lg font-bold tracking-tight text-white ring-1 ring-white/20"
+                  aria-hidden
+                >
+                  TT
+                </span>
+                <span className="flex flex-col">
+                  <span>TikTok</span>
+                  <span className="text-xs font-normal text-slate-400">
+                    Salin tautan untuk dibagikan di TikTok
+                  </span>
+                </span>
+              </button>
 
               <TelegramShareButton
-                url={pageUrl}
+                url={mangaShareUrl}
                 title={shareTitle}
-                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                 resetButtonStyle={false}
                 onClick={() => setSharePopupOpen(false)}
               >
-                <TelegramIcon size={32} round />
+                <TelegramIcon size={40} round />
                 <span>Telegram</span>
               </TelegramShareButton>
-
-              <TwitterShareButton
-                url={pageUrl}
-                title={shareTitle}
-                className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 text-left text-sm text-white transition-colors hover:bg-white/10"
-                resetButtonStyle={false}
-                onClick={() => setSharePopupOpen(false)}
-              >
-                <TwitterIcon size={32} round />
-                <span>X / Twitter</span>
-              </TwitterShareButton>
             </div>
           </div>
         </div>
@@ -1095,7 +1428,10 @@ const MangaDetail = () => {
 
       {/* Bottom Navigation - Mobile */}
       <BottomNavigation />
-      <LiveChatWidget />
+
+      <FloatingFixedAd position="top" ads={floatingTopAds} />
+      <FloatingFixedAd position="bottom" ads={floatingBottomAds} />
+      {/* <LiveChatWidget /> */}
     </div>
   );
 };

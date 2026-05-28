@@ -58,6 +58,16 @@ export const getImageUrl = (imagePath) => {
 };
 
 class APIClient {
+  getDeviceId() {
+    const key = 'device_id';
+    let deviceId = localStorage.getItem(key);
+    if (deviceId && /^[a-zA-Z0-9_-]{8,40}$/.test(deviceId)) return deviceId;
+
+    deviceId = `dv_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-6)}`;
+    localStorage.setItem(key, deviceId);
+    return deviceId;
+  }
+
   getAuthToken() {
     return localStorage.getItem('auth_token');
   }
@@ -85,6 +95,7 @@ class APIClient {
       ...options.headers,
       // Don't set Content-Type for FormData - browser will set it with boundary
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      'X-Device-Id': this.getDeviceId(),
     };
 
     // Always add auth token if available (this will override any Authorization in options.headers)
@@ -312,6 +323,51 @@ class APIClient {
     return this.request(`/bookmarks/check/${encodeURIComponent(mangaIdOrSlug)}`);
   }
 
+  // Readlists (requires auth)
+  getReadlists() {
+    return this.request('/readlists');
+  }
+
+  createReadlist(body) {
+    return this.request('/readlists', {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getReadlist(id) {
+    return this.request(`/readlists/${encodeURIComponent(id)}`);
+  }
+
+  updateReadlist(id, body) {
+    return this.request(`/readlists/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  deleteReadlist(id) {
+    return this.request(`/readlists/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  addReadlistItems(id, body) {
+    return this.request(`/readlists/${encodeURIComponent(id)}/items`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  removeReadlistItem(readlistId, mangaIdOrSlug) {
+    return this.request(
+      `/readlists/${encodeURIComponent(readlistId)}/items/${encodeURIComponent(mangaIdOrSlug)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  }
+
   // Comments
   getComments(params) {
     const q = new URLSearchParams(params).toString();
@@ -403,6 +459,17 @@ class APIClient {
     return this.request('/votes', {
       method: 'POST',
       body: { slug, vote_type },
+    });
+  }
+
+  getChapterReactions(chapterSlug) {
+    return this.request(`/chapter-reactions/${encodeURIComponent(chapterSlug)}`);
+  }
+
+  submitChapterReaction(chapterSlug, reaction_type) {
+    return this.request('/chapter-reactions', {
+      method: 'POST',
+      body: { slug: chapterSlug, reaction_type },
     });
   }
 
@@ -862,7 +929,8 @@ class APIClient {
     if (params.type) queryParams.append('type', params.type);
     if (params.orderBy) queryParams.append('orderBy', params.orderBy);
     if (params.project) queryParams.append('project', params.project);
-    
+    if (params.popularWindow) queryParams.append('popularWindow', params.popularWindow);
+
     const queryString = queryParams.toString();
     return this.request(`/contents${queryString ? `?${queryString}` : ''}`);
   }

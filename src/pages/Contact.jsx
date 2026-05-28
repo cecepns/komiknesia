@@ -89,18 +89,18 @@ const Contact = () => {
             {/* Email */}
             <a
               href={`mailto:${contactInfo.email}`}
-              className="group flex items-start space-x-4 p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-lg transition-all duration-300"
+              className="group flex items-start gap-4 p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-lg transition-all duration-300"
             >
               <div className="flex-shrink-0">
                 <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Mail className="h-6 w-6 text-white" />
                 </div>
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                   Email
                 </h3>
-                <p className="text-blue-600 dark:text-blue-400 font-medium group-hover:underline">
+                <p className="text-blue-600 dark:text-blue-400 font-medium group-hover:underline break-all">
                   {contactInfo.email}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -114,18 +114,18 @@ const Contact = () => {
               href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-start space-x-4 p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-lg transition-all duration-300"
+              className="group flex items-start gap-4 p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-lg transition-all duration-300"
             >
               <div className="flex-shrink-0">
                 <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                   <MessageCircle className="h-6 w-6 text-white" />
                 </div>
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                   WhatsApp
                 </h3>
-                <p className="text-green-600 dark:text-green-400 font-medium group-hover:underline">
+                <p className="text-green-600 dark:text-green-400 font-medium group-hover:underline break-words">
                   {formatWhatsAppNumber(contactInfo.whatsapp)}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

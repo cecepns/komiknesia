@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, UserPlus, Loader2, LogOut, Camera } from 'lucide-react';
@@ -224,293 +225,454 @@ const Akun = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950">
-        <Loader2 className="h-10 w-10 animate-spin text-red-500" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-transparent">
+        <Loader2 className="h-10 w-10 animate-spin text-sky-600 dark:text-cyan-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <div className="relative min-h-screen overflow-hidden bg-slate-50 text-gray-900 dark:bg-transparent dark:text-gray-100">
       <Helmet>
         <title>Akun | KomikNesia</title>
         <meta name="description" content="Kelola akun KomikNesia: login, daftar, dan profil." />
       </Helmet>
 
-      <div className="max-w-md mx-auto px-4 py-14 md:py-24">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-45"
+        aria-hidden
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(14,165,233,0.12),transparent_42%),radial-gradient(circle_at_88%_78%,rgba(250,204,21,0.1),transparent_40%)] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(56,189,248,0.14),transparent_40%),radial-gradient(circle_at_85%_80%,rgba(250,204,21,0.08),transparent_38%)]" />
+        <div className="absolute inset-0 [--grid:rgba(14,165,233,0.07)] [background-image:linear-gradient(var(--grid)_1px,transparent_1px),linear-gradient(90deg,var(--grid)_1px,transparent_1px)] [background-size:40px_40px] dark:[--grid:rgba(56,189,248,0.1)]" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-md px-4 py-14 md:py-24">
         {isAuthenticated ? (
-          /* Profile */
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-6">Profil</h1>
-            <div className="relative inline-block mb-4">
-              <div className="w-28 h-28 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 border-4 border-red-500 flex items-center justify-center">
-                {user?.profile_image ? (
-                  <img
-                    src={getImageUrl(user.profile_image)}
-                    alt={user.username}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-4xl font-bold text-gray-500">
-                    {(user?.username || 'U').charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <label className="absolute bottom-0 right-0 bg-red-600 text-white rounded-full p-2 cursor-pointer hover:bg-red-700 shadow-lg">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleUpdateProfileImage}
-                  disabled={profileLoading}
-                />
-                {profileLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Camera className="h-5 w-5" />
-                )}
-              </label>
+          <div className="rounded-3xl border border-sky-200/80 bg-white/95 p-6 shadow-[0_7px_0_0_#38bdf8] backdrop-blur-sm dark:border-cyan-200/25 dark:bg-[#0b355f]/95 dark:shadow-[0_7px_0_0_#facc15] sm:p-8">
+            <div className="mb-6 text-center">
+              <h1 className="text-2xl font-extrabold tracking-tight text-[#163a5f] dark:text-cyan-50 sm:text-3xl">
+                Profil
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-sky-900/75 dark:text-cyan-100/80">
+                Kelola foto, data akun, dan keamanan password.
+              </p>
             </div>
+
+            <div className="mb-6 flex flex-col items-center">
+              <div className="relative inline-block">
+                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-slate-200 ring-4 ring-sky-200/90 dark:bg-[#0a2d52] dark:ring-cyan-400/35">
+                  {user?.profile_image ? (
+                    <img
+                      src={getImageUrl(user.profile_image)}
+                      alt={user.username}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-4xl font-bold text-sky-700/70 dark:text-cyan-200/80">
+                      {(user?.username || 'U').charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <label className="absolute bottom-0 right-0 cursor-pointer rounded-full border border-sky-400/40 bg-sky-600 p-2.5 text-white shadow-[0_4px_0_0_#0369a1] transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-[0_5px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_2px_0_0_#0369a1] dark:border-cyan-200/30 dark:bg-[#0a2d52] dark:shadow-[0_4px_0_0_#42a5f5] dark:hover:shadow-[0_5px_0_0_#60a5fa] dark:active:shadow-[0_2px_0_0_#3b82f6]">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleUpdateProfileImage}
+                    disabled={profileLoading}
+                  />
+                  {profileLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Camera className="h-5 w-5" />
+                  )}
+                </label>
+              </div>
+              <p className="mt-3 text-xs text-sky-800/70 dark:text-cyan-200/60">Tap ikon kamera untuk ganti foto</p>
+            </div>
+
             {user?.membership_active && (
-              <div className="mb-5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+              <div className="mb-6 rounded-2xl border border-amber-300/80 bg-amber-50/95 px-4 py-3 text-left text-sm text-amber-950 shadow-[0_4px_0_0_#f59e0b] dark:border-amber-400/35 dark:bg-amber-500/15 dark:text-amber-100 dark:shadow-[0_4px_0_0_rgba(251,191,36,0.45)]">
                 <p className="font-semibold">Premium Member</p>
-                <p>
+                <p className="mt-0.5 text-amber-900/90 dark:text-amber-100/90">
                   Aktif sampai{' '}
                   {formatMembershipDate(user?.membership_expires_at) || 'waktu yang tidak ditentukan'}
                 </p>
               </div>
             )}
-            <form onSubmit={handleUpdateProfileInfo} className="mt-4 space-y-3 text-left">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nama</label>
-                <input
-                  type="text"
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
-                  disabled={profileLoading}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Username</label>
-                <input
-                  type="text"
-                  value={profileUsername}
-                  onChange={(e) => setProfileUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
-                  disabled={profileLoading}
-                  minLength={3}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <input
-                  type="email"
-                  value={profileEmail}
-                  onChange={(e) => setProfileEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
-                  disabled={profileLoading}
-                  placeholder="email@contoh.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Bio</label>
-                <textarea
-                  value={profileBio}
-                  onChange={(e) => setProfileBio(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
-                  disabled={profileLoading}
-                  rows={4}
-                  maxLength={500}
-                  placeholder="Tulis bio singkat tentang kamu..."
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {profileBio.length}/500 karakter
-                </p>
-              </div>
-              <button
-                type="submit"
-                disabled={profileLoading}
-                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {profileLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Simpan Profil
-              </button>
-            </form>
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-left">
-              <h2 className="text-sm font-semibold mb-3">Ubah Password</h2>
-              <form onSubmit={handleUpdatePassword} className="space-y-3">
+
+            <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-5 shadow-[0_5px_0_0_rgba(56,189,248,0.45)] dark:border-cyan-200/20 dark:bg-[#0a2d52]/40 dark:shadow-[0_5px_0_0_rgba(250,204,21,0.28)] sm:p-6">
+              <h2 className="mb-4 text-left text-sm font-bold uppercase tracking-wide text-[#163a5f] dark:text-cyan-100">
+                Data profil
+              </h2>
+              <form onSubmit={handleUpdateProfileInfo} className="space-y-5 text-left">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Password Lama</label>
+                  <label
+                    htmlFor="akun-profile-name"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Nama
+                  </label>
                   <input
+                    id="akun-profile-name"
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    disabled={profileLoading}
+                    required
+                    autoComplete="name"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="akun-profile-username"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Username
+                  </label>
+                  <input
+                    id="akun-profile-username"
+                    type="text"
+                    value={profileUsername}
+                    onChange={(e) => setProfileUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    disabled={profileLoading}
+                    minLength={3}
+                    required
+                    autoComplete="username"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="akun-profile-email"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Email
+                  </label>
+                  <input
+                    id="akun-profile-email"
+                    type="email"
+                    value={profileEmail}
+                    onChange={(e) => setProfileEmail(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    disabled={profileLoading}
+                    placeholder="email@contoh.com"
+                    autoComplete="email"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="akun-profile-bio"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Bio
+                  </label>
+                  <textarea
+                    id="akun-profile-bio"
+                    value={profileBio}
+                    onChange={(e) => setProfileBio(e.target.value)}
+                    className="min-h-[7rem] w-full resize-y rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    disabled={profileLoading}
+                    rows={4}
+                    maxLength={500}
+                    placeholder="Tulis bio singkat tentang kamu..."
+                  />
+                  <p className="mt-1.5 text-xs text-sky-800/60 dark:text-cyan-200/50">
+                    {profileBio.length}/500 karakter
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={profileLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-600 py-3.5 text-[15px] font-semibold text-white shadow-[0_7px_0_0_#0369a1] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_4px_0_0_#0369a1] disabled:pointer-events-none disabled:opacity-55 dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#42a5f5] dark:hover:shadow-[0_8px_0_0_#60a5fa] dark:active:shadow-[0_4px_0_0_#3b82f6] dark:hover:brightness-110"
+                >
+                  {profileLoading ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : null}
+                  Simpan profil
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-200/90 bg-slate-50/90 p-5 shadow-[0_5px_0_0_rgba(100,116,139,0.55)] dark:border-cyan-200/15 dark:bg-[#082441]/80 dark:shadow-[0_5px_0_0_rgba(56,189,248,0.2)] sm:p-6">
+              <h2 className="mb-4 text-left text-sm font-bold uppercase tracking-wide text-slate-800 dark:text-cyan-100">
+                Ubah password
+              </h2>
+              <form onSubmit={handleUpdatePassword} className="space-y-5 text-left">
+                <div>
+                  <label
+                    htmlFor="akun-pw-current"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Password lama
+                  </label>
+                  <input
+                    id="akun-pw-current"
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all focus:border-slate-500 focus:ring-2 focus:ring-slate-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
                     disabled={passwordLoading}
+                    autoComplete="current-password"
                   />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Password Baru</label>
+                    <label
+                      htmlFor="akun-pw-new"
+                      className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    >
+                      Password baru
+                    </label>
                     <input
+                      id="akun-pw-new"
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all focus:border-slate-500 focus:ring-2 focus:ring-slate-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
                       disabled={passwordLoading}
+                      autoComplete="new-password"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Konfirmasi Password Baru</label>
+                    <label
+                      htmlFor="akun-pw-confirm"
+                      className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    >
+                      Konfirmasi password baru
+                    </label>
                     <input
+                      id="akun-pw-confirm"
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all focus:border-slate-500 focus:ring-2 focus:ring-slate-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
                       disabled={passwordLoading}
+                      autoComplete="new-password"
                     />
                   </div>
                 </div>
                 <button
                   type="submit"
                   disabled={passwordLoading}
-                  className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-700/30 bg-slate-800 py-3.5 text-[15px] font-semibold text-white shadow-[0_7px_0_0_#0f172a] transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-700 hover:shadow-[0_8px_0_0_#0f172a] active:translate-y-0.5 active:shadow-[0_4px_0_0_#0f172a] disabled:pointer-events-none disabled:opacity-55 dark:border-cyan-200/15 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#38bdf8] dark:hover:shadow-[0_8px_0_0_#7dd3fc] dark:active:shadow-[0_4px_0_0_#0ea5e9] dark:hover:brightness-110"
                 >
-                  {passwordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Simpan Password
+                  {passwordLoading ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : null}
+                  Simpan password
                 </button>
               </form>
             </div>
+
             <button
               type="button"
-              onClick={() => { logout(); toast.success('Berhasil keluar.'); }}
-              className="mt-8 w-full py-3 px-4 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-lg font-medium flex items-center justify-center gap-2"
+              onClick={() => {
+                logout();
+                toast.success('Berhasil keluar.');
+              }}
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-slate-100 py-3.5 text-[15px] font-semibold text-slate-800 shadow-[0_6px_0_0_#94a3b8] transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-200 hover:shadow-[0_7px_0_0_#94a3b8] active:translate-y-0.5 active:shadow-[0_3px_0_0_#94a3b8] dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-100 dark:shadow-[0_6px_0_0_#475569] dark:hover:bg-slate-700 dark:hover:shadow-[0_7px_0_0_#64748b] dark:active:shadow-[0_3px_0_0_#475569]"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-5 w-5 shrink-0" />
               Keluar
             </button>
           </div>
         ) : (
           /* Login / Register */
-          <>
-            <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1 mb-6">
+          <div className="rounded-3xl border border-sky-200/80 bg-white/95 p-6 shadow-[0_7px_0_0_#38bdf8] backdrop-blur-sm dark:border-cyan-200/25 dark:bg-[#0b355f]/95 dark:shadow-[0_7px_0_0_#facc15] sm:p-8">
+            <div className="mb-6 text-center">
+              <h1 className="text-2xl font-extrabold tracking-tight text-[#163a5f] dark:text-cyan-50 sm:text-3xl">
+                Akun
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-sky-900/75 dark:text-cyan-100/80">
+                Masuk dengan akun yang ada atau daftar akun baru.
+              </p>
+            </div>
+
+            <div className="mb-6 flex gap-1 rounded-2xl border border-slate-200/90 bg-slate-100/80 p-1 dark:border-cyan-200/15 dark:bg-[#0a2d52]/60">
               <button
                 type="button"
-                onClick={() => { setMode('login'); }}
-                className={`flex-1 py-2 rounded-md font-medium flex items-center justify-center gap-2 ${mode === 'login' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
+                onClick={() => {
+                  setMode('login');
+                }}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  mode === 'login'
+                    ? 'bg-white text-sky-800 shadow-[0_4px_0_0_#38bdf8] dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#42a5f5]'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-cyan-200/70 dark:hover:text-cyan-100'
+                }`}
               >
-                <LogIn className="h-4 w-4" />
+                <LogIn className="h-4 w-4 shrink-0" />
                 Login
               </button>
               <button
                 type="button"
-                onClick={() => { setMode('register'); }}
-                className={`flex-1 py-2 rounded-md font-medium flex items-center justify-center gap-2 ${mode === 'register' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
+                onClick={() => {
+                  setMode('register');
+                }}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  mode === 'register'
+                    ? 'bg-white text-sky-800 shadow-[0_4px_0_0_#38bdf8] dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#42a5f5]'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-cyan-200/70 dark:hover:text-cyan-100'
+                }`}
               >
-                <UserPlus className="h-4 w-4" />
+                <UserPlus className="h-4 w-4 shrink-0" />
                 Daftar
               </button>
             </div>
 
             {mode === 'login' ? (
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Username atau Email</label>
+                  <label
+                    htmlFor="akun-login-username"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Username atau email
+                  </label>
                   <input
+                    id="akun-login-username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
                     placeholder="Username atau email"
                     required
                     disabled={loading}
+                    autoComplete="username"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Password</label>
+                  <label
+                    htmlFor="akun-login-password"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Password
+                  </label>
                   <input
+                    id="akun-login-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
-                    placeholder="Password"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    placeholder="••••••••"
                     required
                     disabled={loading}
+                    autoComplete="current-password"
                   />
                 </div>
+                <p className="text-center text-sm leading-relaxed text-slate-600 dark:text-cyan-100/75">
+                  Lupa sandi?{' '}
+                  <Link
+                    to="/contact"
+                    className="font-semibold text-sky-700 underline decoration-sky-600/40 underline-offset-2 transition-colors hover:text-sky-800 dark:text-cyan-300 dark:decoration-cyan-400/40 dark:hover:text-cyan-200"
+                  >
+                    Hubungi admin
+                  </Link>
+                  .
+                </p>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-600 py-3.5 text-[15px] font-semibold text-white shadow-[0_7px_0_0_#0369a1] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_4px_0_0_#0369a1] disabled:pointer-events-none disabled:opacity-55 dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#42a5f5] dark:hover:shadow-[0_8px_0_0_#60a5fa] dark:active:shadow-[0_4px_0_0_#3b82f6] dark:hover:brightness-110"
                 >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                  ) : (
+                    <LogIn className="h-5 w-5 shrink-0" />
+                  )}
                   Masuk
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleRegister} className="space-y-4">
+              <form onSubmit={handleRegister} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Nama</label>
+                  <label
+                    htmlFor="akun-reg-name"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Nama
+                  </label>
                   <input
+                    id="akun-reg-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
                     placeholder="Nama lengkap"
                     required
                     disabled={loading}
+                    autoComplete="name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Username (unik, minimal 3 karakter)</label>
+                  <label
+                    htmlFor="akun-reg-username"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Username (unik, min. 3 karakter)
+                  </label>
                   <input
+                    id="akun-reg-username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
-                    placeholder="Username"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    placeholder="username_unik"
                     required
                     minLength={3}
                     disabled={loading}
+                    autoComplete="username"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Email (opsional)</label>
+                  <label
+                    htmlFor="akun-reg-email"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Email (opsional)
+                  </label>
                   <input
+                    id="akun-reg-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
                     placeholder="email@contoh.com"
                     disabled={loading}
+                    autoComplete="email"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Password</label>
+                  <label
+                    htmlFor="akun-reg-password"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                  >
+                    Password
+                  </label>
                   <input
+                    id="akun-reg-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
-                    placeholder="Password"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    placeholder="••••••••"
                     required
                     disabled={loading}
+                    autoComplete="new-password"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-600 py-3.5 text-[15px] font-semibold text-white shadow-[0_7px_0_0_#0369a1] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_4px_0_0_#0369a1] disabled:pointer-events-none disabled:opacity-55 dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#42a5f5] dark:hover:shadow-[0_8px_0_0_#60a5fa] dark:active:shadow-[0_4px_0_0_#3b82f6] dark:hover:brightness-110"
                 >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                  ) : (
+                    <UserPlus className="h-5 w-5 shrink-0" />
+                  )}
                   Daftar
                 </button>
               </form>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>

@@ -23,7 +23,17 @@ const deleteFile = (filePath) => {
   }
 };
 
+const resolveLocalUploadPath = (filePath) => {
+  if (!filePath || !filePath.startsWith('/uploads/')) {
+    return null;
+  }
+  const filename = filePath.replace('/uploads/', '');
+  return path.join(uploadsDir, filename);
+};
+
 module.exports = {
   deleteFile,
+  resolveLocalUploadPath,
+  uploadsDir,
 };
 

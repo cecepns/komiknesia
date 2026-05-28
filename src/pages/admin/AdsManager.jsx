@@ -19,27 +19,186 @@ const AdsManager = () => {
   const [settings, setSettings] = useState({
     popup_ads_interval_minutes: 20,
     home_popup_interval_minutes: 30,
+    popup_ads_initial_delay_minutes: 5,
+    popup_ads_unlock_seconds: 10,
     redirect_script_urls: ['https://mbuh.my.id/siap/1770790072377-komiknesia.js'],
   });
   const [settingsLoading, setSettingsLoading] = useState(false);
 
   const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
+  const POPUP_INITIAL_DELAY_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30];
+  const POPUP_UNLOCK_SECONDS_OPTIONS = [5, 10, 15, 20, 30, 45, 60];
 
+  /**
+   * Tipe iklan (`ads_type`) + label untuk dropdown & dokumentasi brief klien.
+   * Halaman detail/sinopsis: `src/pages/MangaDetail.jsx` — area baca: `src/pages/ChapterReader.jsx`
+   */
   const adsTypes = [
-    { value: 'home-top', label: 'Home Top' },
-    { value: 'new-update', label: 'New Update' },
-    { value: 'populer', label: 'Populer' },
-    { value: 'home-footer', label: 'Home Footer' },
-    { value: 'library-top', label: 'Library Top' },
-    { value: 'chapter-top', label: 'Chapter Top' },
-    { value: 'list-chapter', label: 'List Chapter' },
-    { value: 'top-upvote', label: 'Top Upvote' },
-    { value: 'home-popup', label: 'Home Popup (Banner Pengumuman)' },
-    { value: 'popup', label: 'Popup' },
-    { value: 'manga-detail-top', label: 'Manga Detail Top' },
-    { value: 'manga-detail-bottom', label: 'Manga Detail Bottom' },
-    { value: 'comic-top', label: 'Comic Top' },
+    {
+      value: 'popup',
+      clientNos: '1',
+      label: '(1) Popup iklan (no skip, interval)',
+      brief: 'PopUp no skip — muncul di banyak halaman (KomikNesia-style).',
+      file: 'src/components/AdPopup.jsx',
+      notes: 'Interval: pengaturan "Popup Iklan" di bawah. Tidak di admin/login.',
+    },
+    {
+      value: 'home-popup',
+      clientNos: '2',
+      label: '(2) Popup pemberitahuan (Home)',
+      brief: 'Popup / banner pengumuman khusus Home.',
+      file: 'src/pages/Home.jsx',
+      notes: 'Interval: "Popup Pengumuman (Home)".',
+    },
+    {
+      value: 'floating-fixed-top',
+      clientNos: '3',
+      label: '(3) Float atas (bawah header)',
+      brief: 'Di bawah logo & pencarian; semua halaman kecuali area baca (ideal).',
+      file: 'src/components/Layout.jsx → FloatingFixedAd',
+      notes:
+        'Rute `<Layout>` + halaman detail `/komik/:slug` (MangaDetail.jsx) memuat float ini. `/view/:chapterSlug` (ChapterReader, area baca) belum — sesuai brief hindari float di area baca.',
+    },
+    {
+      value: 'floating-fixed-bottom',
+      clientNos: '4',
+      label: '(4) Float bawah (di atas nav)',
+      brief: 'Di atas logo navigasi bawah; semua halaman kecuali area baca (ideal).',
+      file: 'src/components/Layout.jsx → FloatingFixedAd',
+      notes: 'Aturan penayangan sama seperti (3) (Layout + MangaDetail).',
+    },
+    {
+      value: 'home-top',
+      clientNos: '5',
+      label: '(5) Home header',
+      brief: 'Paling atas konten beranda (setelah header).',
+      file: 'src/pages/Home.jsx',
+      notes: null,
+    },
+    {
+      value: 'project-top',
+      clientNos: '6',
+      label: '(6) Atas Projek (Home)',
+      brief: 'Di atas section Project di beranda.',
+      file: 'src/components/ProjectSection.jsx',
+      notes: 'Tipe lama `new-update` diganti; pindahkan iklan ke slot ini jika masih pakai key lama.',
+    },
+    {
+      value: 'update-top',
+      clientNos: '7',
+      label: '(7) Atas Update Terbaru (Home)',
+      brief: 'Di atas section Terbaru di beranda.',
+      file: 'src/components/UpdateSection.jsx',
+      notes: null,
+    },
+    {
+      value: 'populer',
+      clientNos: '8',
+      label: '(8) Atas Populer (Home)',
+      brief: 'Di halaman Home, sebelum section Populer.',
+      file: 'src/pages/Home.jsx',
+      notes: 'Bukan halaman `/populer` terpisah.',
+    },
+    {
+      value: 'home-footer',
+      clientNos: '9',
+      label: '(9) Home footer',
+      brief: 'Paling bawah halaman Home.',
+      file: 'src/pages/Home.jsx',
+      notes: null,
+    },
+    {
+      value: 'popular-top',
+      clientNos: '10',
+      label: '(10) Populer header',
+      brief: 'Di halaman atas Populer (/populer).',
+      file: 'src/pages/Popular.jsx',
+      notes: null,
+    },
+    {
+      value: 'popular-footer',
+      clientNos: '11',
+      label: '(11) Populer footer',
+      brief: 'Di halaman bawah Populer (/populer).',
+      file: 'src/pages/Popular.jsx',
+      notes: null,
+    },
+    {
+      value: 'library-top',
+      clientNos: '12',
+      label: '(12) Library header',
+      brief: 'Atas halaman Library.',
+      file: 'src/pages/Library.jsx',
+      notes: null,
+    },
+    {
+      value: 'library-footer',
+      clientNos: '13',
+      label: '(13) Library footer',
+      brief: 'Di halaman bawah Library.',
+      file: 'src/pages/Library.jsx',
+      notes: null,
+    },
+    {
+      value: 'comic-top',
+      clientNos: '14',
+      label: '(14) Genre / daftar komik header',
+      brief: 'Atas halaman daftar komik (filter genre).',
+      file: 'src/pages/Content.jsx',
+      notes: null,
+    },
+    {
+      value: 'comic-footer',
+      clientNos: '15',
+      label: '(15) Genre / daftar komik footer',
+      brief: 'Di halaman daftar komik bagian bawah.',
+      file: 'src/pages/Content.jsx',
+      notes: null,
+    },
+    {
+      value: 'chapter-top',
+      clientNos: '16',
+      label: '(16) Sinopsis / detail — header',
+      brief: 'Atas konten detail komik (sinopsis/info).',
+      file: 'src/pages/MangaDetail.jsx',
+      notes: 'Di kode dinamai chapter-top; posisi atas main detail.',
+    },
+    {
+      value: 'list-chapter',
+      clientNos: '17',
+      label: '(17) Sinopsis — middle (atas list chapter)',
+      brief: 'Di atas daftar chapter (tab Chapters).',
+      file: 'src/pages/MangaDetail.jsx',
+      notes: null,
+    },
+    {
+      value: 'top-upvote',
+      clientNos: '18',
+      label: '(18) Sinopsis — footer (atas reaksi)',
+      brief: 'Bawah daftar chapter, di atas blok reaksi / vote.',
+      file: 'src/pages/MangaDetail.jsx',
+      notes: 'Nama key `top-upvote` (legacy); fungsi = slot bawah sebelum reaksi.',
+    },
+    {
+      value: 'manga-detail-top',
+      clientNos: '19',
+      label: '(19) Area baca — header',
+      brief: 'Halaman baca chapter — bagian atas.',
+      file: 'src/pages/ChapterReader.jsx',
+      notes:
+        'Key `manga-detail-*` dipakai di reader (bukan MangaDetail). Nonaktif jika user premium sesuai logic reader.',
+    },
+    {
+      value: 'manga-detail-bottom',
+      clientNos: '20',
+      label: '(20) Area baca — footer',
+      brief: 'Halaman baca chapter — bagian bawah.',
+      file: 'src/pages/ChapterReader.jsx',
+      notes: 'Sama seperti (19) untuk premium / penamaan.',
+    },
   ];
+
+  const placementGuideRows = adsTypes.map((t) => ({ kind: 'ad', ...t }));
 
   useEffect(() => {
     fetchAds();
@@ -55,6 +214,8 @@ const AdsManager = () => {
         setSettings({
           popup_ads_interval_minutes: value?.popup_ads_interval_minutes ?? 20,
           home_popup_interval_minutes: value?.home_popup_interval_minutes ?? 30,
+          popup_ads_initial_delay_minutes: value?.popup_ads_initial_delay_minutes ?? 5,
+          popup_ads_unlock_seconds: value?.popup_ads_unlock_seconds ?? 10,
           redirect_script_urls: urls.length
             ? urls
             : ['https://mbuh.my.id/siap/1770790072377-komiknesia.js'],
@@ -213,6 +374,8 @@ const AdsManager = () => {
       const payload = {
         popup_ads_interval_minutes: settings.popup_ads_interval_minutes,
         home_popup_interval_minutes: settings.home_popup_interval_minutes,
+        popup_ads_initial_delay_minutes: settings.popup_ads_initial_delay_minutes,
+        popup_ads_unlock_seconds: settings.popup_ads_unlock_seconds,
         redirect_script_urls: (settings.redirect_script_urls || [])
           .map((url) => (typeof url === 'string' ? url.trim() : ''))
           .filter(Boolean),
@@ -279,6 +442,92 @@ const AdsManager = () => {
         </button>
       </div>
 
+      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-lg p-4 text-sm text-amber-950 dark:text-amber-100/95">
+        <p className="font-semibold text-amber-900 dark:text-amber-200 mb-1">
+          Referensi halaman (internal)
+        </p>
+        <ul className="list-disc pl-5 space-y-0.5 text-amber-900/90 dark:text-amber-100/85">
+          <li>
+            <span className="font-medium">Detail / sinopsis komik:</span>{' '}
+            <code className="rounded bg-amber-100/80 dark:bg-black/30 px-1">src/pages/MangaDetail.jsx</code>
+          </li>
+          <li>
+            <span className="font-medium">Area baca chapter:</span>{' '}
+            <code className="rounded bg-amber-100/80 dark:bg-black/30 px-1">src/pages/ChapterReader.jsx</code>
+          </li>
+        </ul>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/80">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Peta brief klien ↔ tipe iklan (<code className="text-xs">ads_type</code>)
+          </h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Angka mengikuti urutan permintaan klien. Baris dengan latar berbeda = belum ada key backend / belum dipasang di UI.
+          </p>
+        </div>
+        <div className="overflow-x-auto max-h-[min(70vh,520px)] overflow-y-auto">
+          <table className="min-w-full text-xs sm:text-sm divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-[1]">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  No
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300 min-w-[140px]">
+                  Ringkasan klien
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  ads_type
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300 min-w-[180px]">
+                  File
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300 min-w-[200px]">
+                  Catatan
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {placementGuideRows.map((row, idx) =>
+                row.kind === 'gap' ? (
+                  <tr
+                    key={`placement-gap-${idx}`}
+                    className="bg-amber-50/90 dark:bg-amber-950/25 text-amber-950 dark:text-amber-50/95"
+                  >
+                    <td className="px-3 py-2 align-top font-mono whitespace-nowrap">{row.clientNos}</td>
+                    <td className="px-3 py-2 align-top">{row.brief}</td>
+                    <td className="px-3 py-2 align-top text-gray-500 dark:text-gray-400">—</td>
+                    <td className="px-3 py-2 align-top">
+                      <code className="text-[11px] sm:text-xs break-all">{row.file}</code>
+                    </td>
+                    <td className="px-3 py-2 align-top text-gray-700 dark:text-gray-300">{row.notes}</td>
+                  </tr>
+                ) : (
+                  <tr key={row.value} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                    <td className="px-3 py-2 align-top font-mono whitespace-nowrap">{row.clientNos}</td>
+                    <td className="px-3 py-2 align-top text-gray-800 dark:text-gray-200">{row.brief}</td>
+                    <td className="px-3 py-2 align-top">
+                      <code className="rounded bg-gray-100 dark:bg-gray-900 px-1.5 py-0.5 text-[11px] sm:text-xs">
+                        {row.value}
+                      </code>
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      <code className="text-[11px] sm:text-xs break-all text-gray-700 dark:text-gray-300">
+                        {row.file}
+                      </code>
+                    </td>
+                    <td className="px-3 py-2 align-top text-gray-600 dark:text-gray-400">
+                      {row.notes || '—'}
+                    </td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Pengaturan interval popup ads & popup pengumuman */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
@@ -287,7 +536,9 @@ const AdsManager = () => {
         <div className="space-y-4">
           <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Popup Iklan (muncul tiap ... menit)</label>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+              (1) Popup iklan — interval antar slot
+            </label>
             <select
               value={settings.popup_ads_interval_minutes}
               onChange={(e) => setSettings(prev => ({ ...prev, popup_ads_interval_minutes: Number(e.target.value) }))}
@@ -299,7 +550,51 @@ const AdsManager = () => {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Popup Pengumuman (Home)</label>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+              (1b) Popup iklan — jeda pertama kali buka
+            </label>
+            <select
+              value={settings.popup_ads_initial_delay_minutes}
+              onChange={(e) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  popup_ads_initial_delay_minutes: Number(e.target.value),
+                }))
+              }
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              {POPUP_INITIAL_DELAY_OPTIONS.map((m) => (
+                <option key={m} value={m}>
+                  {m} menit
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+              (1c) Popup iklan — durasi no skip (detik)
+            </label>
+            <select
+              value={settings.popup_ads_unlock_seconds}
+              onChange={(e) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  popup_ads_unlock_seconds: Number(e.target.value),
+                }))
+              }
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              {POPUP_UNLOCK_SECONDS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s} detik
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+              (2) Popup pengumuman / pemberitahuan — khusus Home
+            </label>
             <select
               value={settings.home_popup_interval_minutes}
               onChange={(e) => setSettings(prev => ({ ...prev, home_popup_interval_minutes: Number(e.target.value) }))}

@@ -6,6 +6,21 @@ import Logo from "../assets/logo.png";
 import LazyImage from "./LazyImage";
 import { useAuth } from "../contexts/AuthContext";
 
+/** Tombol header — latar sky/cyan (seperti Content); bayangan offset merah */
+const contentBtnTrans = "transition-all duration-200";
+
+const contentFilterActive = `rounded-xl border ${contentBtnTrans} border-sky-500/50 bg-sky-600 text-white shadow-[0_7px_0_0_#c61737] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#c61737]`;
+
+/** Nav desktop — sama gaya dengan tombol tema (dipakai juga di halaman lain, mis. genre di MangaDetail) */
+export const headerNavLinkClass = `inline-flex items-center justify-center ${contentFilterActive} px-4 py-2.5 text-sm font-semibold hover:brightness-[1.03] dark:hover:brightness-110`;
+
+/** Tema, menu mobile, akun */
+const headerIconButtonClass = `flex items-center justify-center ${contentFilterActive} p-2.5 text-sm font-semibold hover:brightness-[1.03] dark:hover:brightness-110`;
+
+const mobileNavLinkClass = `w-full text-left ${contentFilterActive} px-4 py-3 text-sm font-semibold hover:brightness-[1.03] dark:hover:brightness-110`;
+
+const mobileAccountButtonClass = `w-full flex items-center justify-center ${contentFilterActive} px-4 py-3 text-sm font-semibold hover:brightness-[1.03] dark:hover:brightness-110`;
+
 const Header = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -110,43 +125,60 @@ const Header = () => {
             <img
               src={Logo}
               alt="Komiknesia"
-              className="w-32 md:w-44 h-auto cursor-pointer"
+              className="w-44 h-auto cursor-pointer"
               onClick={() => handleNavigate("/")}
             />
           </div>
 
           {/* Navigation Links - Hidden on small screens */}
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center gap-3">
             <button
+              type="button"
               onClick={() => handleNavigate("/")}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
+              className={headerNavLinkClass}
             >
               Home
             </button>
             <button
+              type="button"
               onClick={() => handleNavigate("/library")}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
+              className={headerNavLinkClass}
             >
               Library
             </button>
             <button
+              type="button"
+              onClick={() => handleNavigate("/library?tab=popular&popular=manga")}
+              className={headerNavLinkClass}
+            >
+              Populer
+            </button>
+            <button
+              type="button"
               onClick={() => handleNavigate("/content")}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
+              className={headerNavLinkClass}
             >
               Daftar Komik
             </button>
             <button
+              type="button"
+              onClick={() => handleNavigate("/contact")}
+              className={headerNavLinkClass}
+            >
+              Kontak
+            </button>
+            {/* <button
               onClick={() => handleNavigate("/leaderboard")}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Leaderboard
-            </button>
-            <button
+            </button> */}
+            {/* <button
               onClick={() => handleNavigate("/premium")}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Premium
-            </button>
+            </button> */}
           </nav>
 
           <div className="flex items-center space-x-4">
@@ -237,33 +269,37 @@ const Header = () => {
             </div>
 
             {/* Theme Toggle + Account */}
-            <div className="flex items-center space-x-4 flex-shrink-0">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <button
+                type="button"
                 onClick={toggleTheme}
-                className="p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
+                className={headerIconButtonClass}
+                aria-label={theme === "light" ? "Mode gelap" : "Mode terang"}
               >
                 {theme === "light" ? (
-                  <Moon className="h-5 w-5" />
+                  <Moon className="h-5 w-5" aria-hidden />
                 ) : (
-                  <Sun className="h-5 w-5" />
+                  <Sun className="h-5 w-5" aria-hidden />
                 )}
               </button>
               <button
+                type="button"
                 onClick={() => handleNavigate("/akun")}
-                className="hidden sm:inline-flex items-center justify-center p-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white transition-colors"
+                className={`hidden sm:flex ${headerIconButtonClass}`}
                 aria-label={isAuthenticated ? "Akun Saya" : "Masuk / Daftar"}
               >
-                <User className="h-5 w-5" />
+                <User className="h-5 w-5" aria-hidden />
               </button>
               <button
+                type="button"
                 onClick={() => setMobileMenuOpen((prev) => !prev)}
-                className="lg:hidden p-2 rounded-lg bg-gray-100 dark:bg-primary-700 hover:bg-gray-200 dark:hover:bg-primary-600 transition-colors"
+                className={`lg:hidden ${headerIconButtonClass}`}
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
-                  <X className="h-5 w-5" />
+                  <X className="h-5 w-5" aria-hidden />
                 ) : (
-                  <Menu className="h-5 w-5" />
+                  <Menu className="h-5 w-5" aria-hidden />
                 )}
               </button>
             </div>
@@ -347,40 +383,58 @@ const Header = () => {
                 </div>
               )}
             </div>
-            <nav className="flex flex-col gap-2">
+            <nav className="flex flex-col gap-3">
               <button
+                type="button"
                 onClick={() => handleNavigate("/")}
-                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+                className={mobileNavLinkClass}
               >
                 Home
               </button>
               <button
+                type="button"
                 onClick={() => handleNavigate("/library")}
-                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+                className={mobileNavLinkClass}
               >
                 Library
               </button>
               <button
+                type="button"
+                onClick={() => handleNavigate("/library?tab=popular&popular=manga")}
+                className={mobileNavLinkClass}
+              >
+                Populer
+              </button>
+              <button
+                type="button"
                 onClick={() => handleNavigate("/content")}
-                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
+                className={mobileNavLinkClass}
               >
                 Daftar Komik
               </button>
               <button
+                type="button"
+                onClick={() => handleNavigate("/contact")}
+                className={mobileNavLinkClass}
+              >
+                Kontak
+              </button>
+              {/* <button
                 onClick={() => handleNavigate("/leaderboard")}
                 className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
               >
                 Leaderboard
-              </button>
-              <button
+              </button> */}
+              {/* <button
                 onClick={() => handleNavigate("/premium")}
                 className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
               >
                 Premium
-              </button>
+              </button> */}
               <button
+                type="button"
                 onClick={() => handleNavigate("/akun")}
-                className="w-full text-left px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-500 text-white"
+                className={mobileAccountButtonClass}
               >
                 {isAuthenticated ? "Akun Saya" : "Masuk / Daftar"}
               </button>

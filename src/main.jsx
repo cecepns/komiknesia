@@ -4,6 +4,7 @@ import { HelmetProvider } from 'react-helmet-async'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App.jsx'
 import './index.css'
+import { applyTheme, getStoredTheme } from './hooks/useTheme.js'
 
 const hostname = window.location.hostname;
 const isLocalhost =
@@ -20,14 +21,8 @@ if (!isAllowedHost) {
   throw new Error('Blocked domain');
 }
 
-// Initialize theme before app renders
-const savedTheme = localStorage.getItem('komiknesia-theme');
-const theme = savedTheme || 'dark'; // Default to dark
-if (theme === 'dark') {
-  document.documentElement.classList.add('dark');
-} else {
-  document.documentElement.classList.remove('dark');
-}
+// Initialize theme before app renders (must match useTheme persistence)
+applyTheme(getStoredTheme());
 
 registerSW({
   immediate: true,
