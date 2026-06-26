@@ -12,7 +12,8 @@ const AdsManager = () => {
     image: null,
     imagePreview: null,
     image_alt: '',
-    title: ''
+    title: '',
+    expired_at: '',
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -311,6 +312,9 @@ const AdsManager = () => {
       formData.append('ads_type', newAd.ads_type);
       formData.append('image_alt', newAd.image_alt || '');
       formData.append('title', newAd.title || '');
+      if (newAd.expired_at) {
+        formData.append('expired_at', newAd.expired_at);
+      }
 
       await apiClient.createAd(formData);
       setNewAd({ 
@@ -319,7 +323,8 @@ const AdsManager = () => {
         image: null,
         imagePreview: null,
         image_alt: '',
-        title: ''
+        title: '',
+        expired_at: '',
       });
       setShowAddForm(false);
       fetchAds();
@@ -342,6 +347,7 @@ const AdsManager = () => {
       formData.append('ads_type', data.ads_type);
       formData.append('image_alt', data.image_alt ?? '');
       formData.append('title', data.title ?? '');
+      formData.append('expired_at', data.expired_at || '');
 
       await apiClient.updateAd(id, formData);
       setEditingAd(null);
@@ -362,7 +368,8 @@ const AdsManager = () => {
       ads_type: editingAd.ads_type,
       image: editingAd.image,
       image_alt: editingAd.image_alt ?? '',
-      title: editingAd.title ?? ''
+      title: editingAd.title ?? '',
+      expired_at: editingAd.expired_at || '',
     };
     
     await handleUpdate(editingAd.id, updated);
@@ -410,7 +417,8 @@ const AdsManager = () => {
       image: null,
       imagePreview: getImageUrl(ad.image),
       image_alt: ad.image_alt ?? '',
-      title: ad.title ?? ''
+      title: ad.title ?? '',
+      expired_at: ad.expired_at ? new Date(ad.expired_at).toISOString().slice(0, 16) : '',
     });
   };
 
@@ -724,6 +732,20 @@ const AdsManager = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Tanggal Expired
+              </label>
+              <input
+                type="datetime-local"
+                value={newAd.expired_at}
+                onChange={(e) => setNewAd(prev => ({ ...prev, expired_at: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Kosongkan jika iklan tidak memiliki batas waktu.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Tipe Iklan *
               </label>
               <select
@@ -758,7 +780,8 @@ const AdsManager = () => {
                     image: null,
                     imagePreview: null,
                     image_alt: '',
-                    title: ''
+                    title: '',
+                    expired_at: '',
                   });
                 }}
                 className="inline-flex items-center px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"
@@ -790,6 +813,9 @@ const AdsManager = () => {
                   Tipe
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Expired
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Dibuat
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -800,7 +826,7 @@ const AdsManager = () => {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {ads.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan="7" className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     Belum ada iklan. Klik &quot;Tambah Iklan&quot; untuk menambahkan.
                   </td>
                 </tr>
@@ -921,6 +947,22 @@ const AdsManager = () => {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200">
                           {adsTypes.find(t => t.value === ad.ads_type)?.label || ad.ads_type}
                         </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {editingAd && editingAd.id === ad.id ? (
+                        <input
+                          type="datetime-local"
+                          value={editingAd.expired_at}
+                          onChange={(e) => setEditingAd(prev => ({ ...prev, expired_at: e.target.value }))}
+                          className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                        />
+                      ) : (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {ad.expired_at
+                            ? new Date(ad.expired_at).toLocaleString('id-ID')
+                            : '-'}
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -393,6 +393,7 @@ const runSqlMigration = async () => {
        ('home_popup_interval_minutes', '30'),
        ('redirect_script_urls', '["https://mbuh.my.id/siap/1770790072377-komiknesia.js"]')
      ON DUPLICATE KEY UPDATE \`value\` = \`value\``,
+    'ALTER TABLE ads ADD COLUMN expired_at DATETIME NULL',
   ];
 
   for (const statement of statements) {

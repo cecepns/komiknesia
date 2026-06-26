@@ -11,6 +11,13 @@ const DEFAULT_INITIAL_DELAY_MINUTES = 5;
 const DEFAULT_UNLOCK_SECONDS = 10;
 const STORAGE_KEY = 'adPopupStateV2';
 
+const sanitizeRedirectUrls = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((url) => /^https?:\/\//i.test(url));
+};
+
 /**
  * AdPopup component to display popup ads.
  * - Desktop: 3 kiri, 3 kanan (6 ads). Mobile: 6 items dengan jarak.
@@ -26,6 +33,7 @@ const AdPopup = () => {
   const [initialDelayMinutes, setInitialDelayMinutes] = useState(DEFAULT_INITIAL_DELAY_MINUTES);
   const [unlockSeconds, setUnlockSeconds] = useState(DEFAULT_UNLOCK_SECONDS);
   const [settingsReady, setSettingsReady] = useState(false);
+  const [redirectScriptUrls, setRedirectScriptUrls] = useState([]);
   const [pendingPremiumRedirect, setPendingPremiumRedirect] = useState(false);
   const isOpenRef = useRef(false);
   const fallbackTimingStateRef = useRef(null);
@@ -46,6 +54,7 @@ const AdPopup = () => {
         if (Number.isFinite(unlock) && POPUP_UNLOCK_SECONDS_OPTIONS.includes(unlock)) {
           setUnlockSeconds(unlock);
         }
+        setRedirectScriptUrls(sanitizeRedirectUrls(s?.redirect_script_urls));
       })
       .catch(() => {})
       .finally(() => setSettingsReady(true));
@@ -110,6 +119,13 @@ const AdPopup = () => {
         const cycleIndex = Math.floor((now - firstPopupAt) / intervalMs);
         const cycleStartedAt = firstPopupAt + cycleIndex * intervalMs;
         const elapsedMs = now - cycleStartedAt;
+
+        if (state.skippedCycle === cycleIndex) {
+          if (isOpenRef.current) setIsOpen(false);
+          setCanClose(true);
+          setCountdown(0);
+          return;
+        }
 
         if (state.lastShownCycle !== cycleIndex) {
           state.lastShownCycle = cycleIndex;
@@ -193,6 +209,40 @@ const AdPopup = () => {
     setPendingPremiumRedirect(true);
   };
 
+  const handleSkipAd = () => {
+    const urls = redirectScriptUrls.length
+      ? redirectScriptUrls
+      : sanitizeRedirectUrls(['https://mbuh.my.id/siap/1770790072377-komiknesia.js']);
+    if (!urls.length) return;
+
+    const randomUrl = urls[Math.floor(Math.random() * urls.length)];
+
+    try {
+      const now = Date.now();
+      const intervalMs = slotIntervalMinutes * 60 * 1000;
+      const initialDelayMs = initialDelayMinutes * 60 * 1000;
+      let state = readTimingState();
+
+      if (!state || !Number.isFinite(state.startedAt)) {
+        state = { startedAt: now, lastShownCycle: -1 };
+      }
+
+      const firstPopupAt = state.startedAt + initialDelayMs;
+      const cycleIndex = Math.max(0, Math.floor((now - firstPopupAt) / intervalMs));
+
+      writeTimingState({
+        ...state,
+        skippedCycle: cycleIndex,
+        lastShownCycle: cycleIndex,
+      });
+    } catch {
+      // ignore storage failures
+    }
+
+    setIsOpen(false);
+    window.location.href = randomUrl;
+  };
+
   const handleAdClick = (ad) => {
     if (ad.link_url) {
       window.open(ad.link_url, '_blank', 'noopener,noreferrer');
@@ -208,12 +258,19 @@ const AdPopup = () => {
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-slate-800">
       <div className="absolute inset-0 flex flex-col justify-center w-full h-full">
-        <div className="flex-shrink-0 flex items-center justify-between md:justify-center md:gap-5 px-4 py-3 bg-slate-800 z-10">
+        <div className="flex-shrink-0 relative flex items-center justify-center px-4 py-3 bg-slate-800 z-10">
           {!canClose ? (
-            <span className="text-white text-sm font-medium">Close in {countdown}</span>
-          ) : (
-            <span />
-          )}
+            <span className="absolute left-4 text-white text-sm font-medium">
+              Close in {countdown}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleSkipAd}
+            className="inline-flex items-center justify-center rounded-xl border border-sky-500/25 bg-sky-600 px-8 py-2.5 text-sm font-semibold text-white shadow-[0_5px_0_0_#0369a1] transition-all hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-[0_6px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_3px_0_0_#0369a1]"
+          >
+            Skip Iklan
+          </button>
         </div>
 
         <div className="grid md:grid-cols-2 p-4 gap-2">

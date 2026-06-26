@@ -23,12 +23,13 @@ const index = async (req, res) => {
 
 const store = async (req, res) => {
   try {
-    const { link_url, ads_type } = req.body;
+    const { link_url, ads_type, expired_at } = req.body;
     const image = req.file ? `/uploads/${req.file.filename}` : null;
+    const expiredAt = expired_at && String(expired_at).trim() ? expired_at : null;
 
     const [result] = await db.execute(
-      'INSERT INTO ads (image, link_url, ads_type) VALUES (?, ?, ?)',
-      [image, link_url, ads_type]
+      'INSERT INTO ads (image, link_url, ads_type, expired_at) VALUES (?, ?, ?, ?)',
+      [image, link_url, ads_type, expiredAt]
     );
 
     invalidateCache();
@@ -43,10 +44,11 @@ const store = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { link_url, ads_type, image_alt, title } = req.body;
+    const { link_url, ads_type, image_alt, title, expired_at } = req.body;
 
-    let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?';
-    const params = [link_url || null, ads_type || null, image_alt || null, title || null];
+    let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?, expired_at = ?';
+    const expiredAt = expired_at && String(expired_at).trim() ? expired_at : null;
+    const params = [link_url || null, ads_type || null, image_alt || null, title || null, expiredAt];
 
     if (req.file) {
       query += ', image = ?';

@@ -9,6 +9,7 @@ import { getImageUrl } from "../utils/api";
 import { API_BASE_URL } from "../utils/api";
 import { getChapterTimeAgo } from "../utils/chapterTime";
 import LiveChatWidget from "../components/LiveChatWidget";
+import ChapterAccessLink from "../components/ChapterAccessLink";
 const statusOptions = ["All", "Ongoing", "Completed", "Hiatus"];
 const typeOptions = [
   { label: "All", value: "All", country: null },
@@ -251,6 +252,10 @@ const Content = () => {
     fetchManga();
   }, [fetchManga]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [currentPage]);
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -463,7 +468,6 @@ const Content = () => {
           ads={comicTopAds}
           layout="grid"
           columns={2}
-          className="gap-4"
         />
       </div>
 
@@ -1047,23 +1051,15 @@ const Content = () => {
 
                         {manga.lastChapters?.length > 0 ? (
                           <div className="space-y-2 mb-1 mt-auto">
-                            {manga.lastChapters.slice(0, 3).map((chapter) => (
-                              <Link
+                            {manga.lastChapters.slice(0, 3).map((chapter, chapterIndex) => (
+                              <ChapterAccessLink
                                 key={chapter.slug}
+                                chapter={chapter}
                                 to={`/view/${chapter.slug}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-full flex items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 dark:bg-primary-800/70 px-2.5 py-2 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700 transition-colors"
-                              >
-                                <span className="text-xs md:text-sm font-semibold flex items-center gap-1">
-                                  <span>Chapter</span>
-                                  <span>{chapter.number || "N/A"}</span>
-                                </span>
-                                {getChapterTimeAgo(chapter) && (
-                                  <span className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400">
-                                    {getChapterTimeAgo(chapter)}
-                                  </span>
-                                )}
-                              </Link>
+                                label={`Chapter ${chapter.number || "N/A"}`}
+                                meta={getChapterTimeAgo(chapter) || null}
+                              />
                             ))}
                           </div>
                         ) : (
@@ -1087,7 +1083,6 @@ const Content = () => {
                       ads={comicFooterAds}
                       layout="grid"
                       columns={2}
-                      className="gap-4"
                     />
                   </div>
                 )}

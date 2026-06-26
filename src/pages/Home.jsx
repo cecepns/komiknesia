@@ -10,11 +10,12 @@ import {
   Copy,
   Smartphone,
   Heart,
+  Crown,
 } from "lucide-react";
 import ProjectSection from "../components/ProjectSection";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   WhatsappShareButton,
   TelegramShareButton,
@@ -31,6 +32,8 @@ import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
 import discordIcon from "../assets/discord.svg";
 import LiveChatWidget from "../components/LiveChatWidget";
+import LoginModal from "../components/LoginModal";
+import { useChapterAccess } from "../hooks/useChapterAccess";
 
 const BANNER_DOTS_MAX = 8;
 
@@ -41,6 +44,8 @@ function synopsisPlain(html) {
 }
 
 const Home = () => {
+  const navigate = useNavigate();
+  const { loginOpen, openChapter, handleLoginSuccess, closeLogin } = useChapterAccess();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [bannerManga, setBannerManga] = useState([]);
   const [bannerLoading, setBannerLoading] = useState(true);
@@ -199,6 +204,14 @@ const Home = () => {
     else prevSlide();
   };
 
+  const handleReadLatest = (latest, mangaSlug) => {
+    if (latest?.slug) {
+      openChapter(navigate, latest, true);
+      return;
+    }
+    if (mangaSlug) navigate(`/komik/${mangaSlug}`);
+  };
+
   const handleClosePopupBanner = () => {
     setPopupBannerVisible(false);
 
@@ -299,9 +312,6 @@ const Home = () => {
             ) : (
               bannerManga.map((item, index) => {
                 const latest = item.lastChapters?.[0];
-                const readHref = latest?.slug
-                  ? `/view/${latest.slug}`
-                  : `/komik/${item.slug}`;
                 const synopsis = synopsisPlain(item.synopsis);
                 const genres = Array.isArray(item.genres) ? item.genres : [];
 
@@ -332,13 +342,14 @@ const Home = () => {
                       </h2>
                     </Link>
                     <div className="mt-3 flex justify-center pb-1">
-                      <Link
-                        to={readHref}
+                      <button
+                        type="button"
+                        onClick={() => handleReadLatest(latest, item.slug)}
                         className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-gray-900 shadow-md transition-colors hover:bg-amber-300"
                       >
                         Mulai Baca
                         <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -395,13 +406,14 @@ const Home = () => {
                         )}
 
                         <div className="flex flex-wrap items-center justify-center gap-4 pt-1 md:justify-start">
-                          <Link
-                            to={readHref}
+                          <button
+                            type="button"
+                            onClick={() => handleReadLatest(latest, item.slug)}
                             className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-8 py-3.5 text-base font-bold text-gray-900 shadow-lg transition-all hover:bg-amber-300 hover:shadow-xl"
                           >
                             Mulai Baca
                             <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />
-                          </Link>
+                          </button>
                           {item.total_views != null && (
                             <span className="text-sm text-white/70">
                               <span className="font-semibold text-white/90">
@@ -483,6 +495,22 @@ const Home = () => {
           data-aos="fade-up"
           data-aos-delay="120"
         >
+          <Link
+            to="/premium"
+            className="group flex w-full items-center gap-4 rounded-2xl border border-amber-500/30 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-amber-400/50 hover:bg-slate-800/95 md:p-5"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-inner md:h-14 md:w-14">
+              <Crown className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-white md:text-lg">Premium</p>
+              <p className="text-sm text-slate-400">
+                Tanpa iklan, bonus point, dan fitur eksklusif
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-amber-300" aria-hidden />
+          </Link>
+
           <button
             type="button"
             onClick={() => setSharePopupOpen(true)}
@@ -723,6 +751,12 @@ const Home = () => {
       </div>
 
       <LiveChatWidget />
+
+      <LoginModal
+        open={loginOpen}
+        onClose={closeLogin}
+        onSuccess={() => handleLoginSuccess(navigate)}
+      />
     </div>
   );
 };

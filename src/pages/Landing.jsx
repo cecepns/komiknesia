@@ -7,7 +7,7 @@ const ctaItems = [
   {
     title: "Baca Manga",
     subtitle: "Ribuan judul manga, manhwa & manhua gratis",
-    href: "https://02.komiknesia.asia/",
+    href: "https://03.komiknesia.asia/",
     icon: BookOpen,
     iconWrapClass: "bg-cyan-100 ring-cyan-200",
     iconWrapClassDark: "bg-[#38bdf8] ring-[#38bdf8]",

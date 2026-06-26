@@ -1,0 +1,1 @@
+ALTER TABLE ads ADD COLUMN expired_at DATETIME NULL AFTER title;

@@ -18,6 +18,8 @@ export const saveToHistory = (item) => {
       chapterSlug: item.chapterSlug || null,
       chapterNumber: item.chapterNumber || null,
       chapterTitle: item.chapterTitle || null,
+      chapterCreatedAt: item.chapterCreatedAt || null,
+      isLatestChapter: !!item.isLatestChapter,
       timestamp: Date.now(),
     });
 

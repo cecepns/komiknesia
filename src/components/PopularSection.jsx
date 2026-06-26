@@ -5,6 +5,7 @@ import { ChevronRight, Flame, LayoutGrid, List } from "lucide-react";
 import LazyImage from "./LazyImage";
 import { apiClient, getImageUrl } from "../utils/api";
 import { getChapterTimeAgo } from "../utils/chapterTime";
+import ChapterAccessLink from "./ChapterAccessLink";
 
 /** Sama dengan Content.jsx — filter tidak aktif & CTA sky */
 const contentBtnTrans = "transition-all duration-200";
@@ -248,26 +249,20 @@ const PopularSection = () => {
                         : "flex flex-col gap-1.5 sm:gap-2"
                     }
                   >
-                    {manga.lastChapters.slice(0, 3).map((chapter) => (
-                      <Link
+                    {manga.lastChapters.slice(0, 3).map((chapter, chapterIndex) => (
+                      <ChapterAccessLink
                         key={chapter.slug}
+                        chapter={chapter}
                         to={`/view/${chapter.slug}`}
                         onClick={(e) => e.stopPropagation()}
-                        className={`flex w-full items-center justify-between rounded-lg border-l-2 border-blue-500 bg-gray-100 text-left text-gray-700 transition-colors hover:bg-gray-200 dark:bg-primary-800/70 dark:text-gray-300 dark:hover:bg-primary-700 ${
+                        className={
                           cardLayout === "vertical"
-                            ? "px-2.5 py-2 text-xs"
+                            ? "text-xs"
                             : "px-2 py-1.5 text-[11px] sm:px-2.5 sm:py-2 sm:text-xs"
-                        }`}
-                      >
-                        <span className="font-semibold">
-                          Chapter {chapter.number || "N/A"}
-                        </span>
-                        {getChapterTimeAgo(chapter) && (
-                          <span className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400">
-                            {getChapterTimeAgo(chapter)}
-                          </span>
-                        )}
-                      </Link>
+                        }
+                        label={`Chapter ${chapter.number || "N/A"}`}
+                        meta={getChapterTimeAgo(chapter) || null}
+                      />
                     ))}
                   </div>
                 ) : (

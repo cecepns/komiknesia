@@ -23,6 +23,8 @@ import {
   ListChecks,
   Download,
   Loader2,
+  Crown,
+  Lock,
 } from 'lucide-react';
 import LazyImage from '../components/LazyImage';
 import BottomNavigation from '../components/BottomNavigation';
@@ -44,6 +46,9 @@ import {
 import { toast } from 'react-toastify';
 import discordIcon from '../assets/discord.svg';
 import { downloadChapterZip } from '../utils/downloadChapterZip';
+import LoginModal from '../components/LoginModal';
+import { useChapterAccess } from '../hooks/useChapterAccess';
+import { requiresChapterLogin, isLatestChapterInList } from '../utils/chapterAccess';
 
 import { REACTION_OPTIONS, sumReactionCounts } from '../constants/reactions';
 
@@ -51,6 +56,7 @@ const MangaDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { loginOpen, openChapter, handleLoginSuccess, closeLogin } = useChapterAccess();
   const [manga, setManga] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkChecking, setBookmarkChecking] = useState(false);
@@ -593,18 +599,32 @@ const MangaDetail = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <button
+              type="button"
               onClick={() => navigate('/content')}
               className="p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
+              title="Kembali ke daftar komik"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            
-            <button
-              onClick={() => navigate('/')}
-              className="p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
-            >
-              <Home className="h-5 w-5" />
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="p-2 rounded-lg bg-primary-800 hover:bg-primary-700 transition-colors"
+                title="Beranda"
+              >
+                <Home className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/premium')}
+                className="p-2 rounded-lg bg-amber-600 hover:bg-amber-500 transition-colors"
+                title="Premium"
+              >
+                <Crown className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -656,7 +676,9 @@ const MangaDetail = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      if (chapters.length > 0) navigate(`/view/${chapters[0].slug}`);
+                      if (chapters.length > 0) {
+                        openChapter(navigate, chapters[0], true);
+                      }
                     }}
                     disabled={chapters.length === 0}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3.5 text-base font-semibold text-white shadow-lg transition hover:bg-red-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:px-6 md:py-3"
@@ -858,7 +880,27 @@ const MangaDetail = () => {
           {activeTab === 'chapters' && (
             <div>
               {/* Bagikan komik, Discord, Donasi — di atas daftar chapter */}
-              <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3">
+              <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/premium')}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-amber-500/30 bg-[#111827] p-3.5 text-left shadow-md transition-all hover:border-amber-400/50 hover:bg-slate-800/95 sm:gap-4 sm:p-4"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-inner sm:h-12 sm:w-12">
+                    <Crown className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white sm:text-base">Premium</p>
+                    <p className="text-xs text-slate-400 sm:text-sm">
+                      Tanpa iklan dan fitur eksklusif
+                    </p>
+                  </div>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-amber-300 sm:h-5 sm:w-5"
+                    aria-hidden
+                  />
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setSharePopupOpen(true)}
@@ -956,11 +998,19 @@ const MangaDetail = () => {
 
               {/* List View */}
               <div className="space-y-3">
-                {paginatedChapters.map((chapter) => (
+                {paginatedChapters.map((chapter) => {
+                  const isLatest = isLatestChapterInList(chapters, chapter.slug);
+                  const chapterLocked = requiresChapterLogin(chapter, isAuthenticated);
+
+                  return (
                   <div
                     key={chapter.id}
-                    className="bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between gap-3 p-3 sm:gap-4 sm:p-4"
-                    onClick={() => navigate(`/view/${chapter.slug}`)}
+                    className={`rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between gap-3 p-3 sm:gap-4 sm:p-4 border-l-[3px] ${
+                      chapterLocked
+                        ? 'border-l-amber-500 border border-amber-500/25 bg-[#0b1f3a]/90 hover:bg-[#0a1a30]'
+                        : 'border-l-transparent bg-primary-900'
+                    }`}
+                    onClick={() => openChapter(navigate, chapter, isLatest)}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                       <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-md bg-primary-800 ring-1 ring-primary-700/80 sm:w-16">
@@ -972,8 +1022,11 @@ const MangaDetail = () => {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="mb-1 text-base font-semibold text-gray-100 md:text-lg">
-                          {chapter.title}
+                        <h3 className="mb-1 flex items-center gap-1.5 text-base font-semibold text-gray-100 md:text-lg">
+                          <span className="min-w-0 truncate">{chapter.title}</span>
+                          {chapterLocked ? (
+                            <Lock className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
+                          ) : null}
                         </h3>
                         <p className="text-sm text-gray-400">
                           {formatTimeAgo(chapter.uploadedAt)}
@@ -993,7 +1046,7 @@ const MangaDetail = () => {
 
                     {/* Badges and actions */}
                     <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                      {chapter.isNew && (
+                      {isLatest && (
                         <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
                           UP
                         </div>
@@ -1015,7 +1068,8 @@ const MangaDetail = () => {
                       <Play className="h-6 w-6 text-gray-400 group-hover:text-purple-400 transition-colors duration-300" />
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {filteredChapters.length === 0 && (
@@ -1431,6 +1485,12 @@ const MangaDetail = () => {
 
       <FloatingFixedAd position="top" ads={floatingTopAds} />
       <FloatingFixedAd position="bottom" ads={floatingBottomAds} />
+
+      <LoginModal
+        open={loginOpen}
+        onClose={closeLogin}
+        onSuccess={() => handleLoginSuccess(navigate)}
+      />
       {/* <LiveChatWidget /> */}
     </div>
   );

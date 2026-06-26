@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Moon, Sun, Search, X, User, Menu } from "lucide-react";
+import { Moon, Sun, Search, X, User, Menu, Crown } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
 import Logo from "../assets/logo.png";
 import LazyImage from "./LazyImage";
@@ -141,6 +141,14 @@ const Header = () => {
             </button>
             <button
               type="button"
+              onClick={() => handleNavigate("/premium")}
+              className={`${headerNavLinkClass} gap-1.5`}
+            >
+              <Crown className="h-4 w-4 shrink-0 text-amber-300 fill-amber-400" aria-hidden />
+              Premium
+            </button>
+            <button
+              type="button"
               onClick={() => handleNavigate("/library")}
               className={headerNavLinkClass}
             >
@@ -148,10 +156,10 @@ const Header = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleNavigate("/library?tab=popular&popular=manga")}
+              onClick={() => handleNavigate("/leaderboard")}
               className={headerNavLinkClass}
             >
-              Populer
+              Leaderboard
             </button>
             <button
               type="button"
@@ -167,18 +175,6 @@ const Header = () => {
             >
               Kontak
             </button>
-            {/* <button
-              onClick={() => handleNavigate("/leaderboard")}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
-            >
-              Leaderboard
-            </button> */}
-            {/* <button
-              onClick={() => handleNavigate("/premium")}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
-            >
-              Premium
-            </button> */}
           </nav>
 
           <div className="flex items-center space-x-4">
@@ -393,17 +389,18 @@ const Header = () => {
               </button>
               <button
                 type="button"
+                onClick={() => handleNavigate("/premium")}
+                className={`${mobileNavLinkClass} flex items-center gap-2`}
+              >
+                <Crown className="h-4 w-4 shrink-0 text-amber-300 fill-amber-400" aria-hidden />
+                Premium
+              </button>
+              <button
+                type="button"
                 onClick={() => handleNavigate("/library")}
                 className={mobileNavLinkClass}
               >
                 Library
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/library?tab=popular&popular=manga")}
-                className={mobileNavLinkClass}
-              >
-                Populer
               </button>
               <button
                 type="button"
@@ -419,18 +416,6 @@ const Header = () => {
               >
                 Kontak
               </button>
-              {/* <button
-                onClick={() => handleNavigate("/leaderboard")}
-                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
-              >
-                Leaderboard
-              </button> */}
-              {/* <button
-                onClick={() => handleNavigate("/premium")}
-                className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-800"
-              >
-                Premium
-              </button> */}
               <button
                 type="button"
                 onClick={() => handleNavigate("/akun")}

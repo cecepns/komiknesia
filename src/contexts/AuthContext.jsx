@@ -2,31 +2,64 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../utils/api';
 
 const AuthContext = createContext(null);
+const USER_CACHE_KEY = 'auth_user_cache';
+
+function readCachedUser() {
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(nextUser) {
+  try {
+    if (nextUser) {
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(nextUser));
+    } else {
+      localStorage.removeItem(USER_CACHE_KEY);
+    }
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
     const checkAuth = async () => {
       const token = apiClient.getAuthToken();
       if (!token) {
+        writeCachedUser(null);
         setLoading(false);
         return;
+      }
+
+      const cachedUser = readCachedUser();
+      if (cachedUser) {
+        setUser(cachedUser);
       }
 
       try {
         const response = await apiClient.getMe();
         if (response.status && response.data) {
           setUser(response.data);
+          writeCachedUser(response.data);
         } else {
-          // Invalid token, remove it
           apiClient.logout();
+          writeCachedUser(null);
+          setUser(null);
         }
       } catch (error) {
-        // Token invalid or expired
-        apiClient.logout();
+        const status = error?.status;
+        if (status === 401 || status === 403) {
+          apiClient.logout();
+          writeCachedUser(null);
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -40,6 +73,7 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.login(username, password);
       if (response.status && response.data) {
         setUser(response.data.user);
+        writeCachedUser(response.data.user);
         return { success: true };
       }
       return { success: false, error: response.error || 'Login failed' };
@@ -53,6 +87,7 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.register(formData);
       if (response.status && response.data) {
         setUser(response.data.user);
+        writeCachedUser(response.data.user);
         return { success: true };
       }
       return { success: false, error: response.error || 'Registrasi gagal' };
@@ -66,6 +101,7 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.updateProfile(formData);
       if (response.status && response.data) {
         setUser(response.data);
+        writeCachedUser(response.data);
         return { success: true };
       }
       return { success: false, error: response.error || 'Update gagal' };
@@ -76,6 +112,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     apiClient.logout();
+    writeCachedUser(null);
     setUser(null);
   };
 

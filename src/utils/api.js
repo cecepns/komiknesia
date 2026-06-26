@@ -116,7 +116,9 @@ class APIClient {
       const response = await fetch(url, config);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        const err = new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        err.status = response.status;
+        throw err;
       }
       return await response.json();
     } catch (error) {

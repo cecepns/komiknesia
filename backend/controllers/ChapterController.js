@@ -8,7 +8,6 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const AdmZip = require('adm-zip');
-
 const guessImageExtension = (imagePath, contentType) => {
   if (contentType) {
     if (contentType.includes('png')) return '.png';

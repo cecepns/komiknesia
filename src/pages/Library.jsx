@@ -19,6 +19,7 @@ import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
 import { removeFromHistory, clearHistory } from "../utils/historyManager";
 import { useAuth } from "../contexts/AuthContext";
+import ChapterAccessLink from "../components/ChapterAccessLink";
 
 /** Tombol — selaras Content.jsx (chip + bayangan offset) */
 const contentBtnTrans = "transition-all duration-200";
@@ -843,17 +844,17 @@ const Library = () => {
                             {item.mangaTitle}
                           </h3>
                           {item.chapterSlug ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/view/${item.chapterSlug}`);
+                            <ChapterAccessLink
+                              chapter={{
+                                slug: item.chapterSlug,
+                                created_at: item.chapterCreatedAt,
                               }}
-                              className={`mb-1 ${linkChipBtnClass}`}
-                            >
-                              Lanjut baca: Chapter{" "}
-                              {item.chapterNumber || item.chapterTitle || "terakhir"}
-                            </button>
+                              to={`/view/${item.chapterSlug}`}
+                              onClick={(e) => e.stopPropagation()}
+                              compact
+                              className="mb-1"
+                              label={`Lanjut baca: Chapter ${item.chapterNumber || item.chapterTitle || "terakhir"}`}
+                            />
                           ) : null}
                           <p className="text-xs text-gray-500 dark:text-gray-500">
                             {getTimeAgo(Math.floor(item.timestamp / 1000))}

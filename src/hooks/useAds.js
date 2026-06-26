@@ -57,7 +57,12 @@ export const useAds = (adsType, limit = null, enabled = true) => {
         const allAds = await getAdsWithCache();
         
         // Filter ads by type
-        let filteredAds = allAds.filter(ad => ad.ads_type === adsType);
+        let filteredAds = allAds.filter((ad) => {
+          if (ad.ads_type !== adsType) return false;
+          if (!ad.expired_at) return true;
+          const expiresAt = new Date(ad.expired_at).getTime();
+          return !Number.isFinite(expiresAt) || expiresAt >= Date.now();
+        });
         
         // Apply limit if specified
         if (limit && limit > 0) {

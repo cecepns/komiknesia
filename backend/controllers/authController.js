@@ -91,7 +91,7 @@ const register = async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, username: user.username, role },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({
@@ -170,7 +170,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, username: user.username, role },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({

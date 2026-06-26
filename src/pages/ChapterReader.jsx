@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -40,9 +40,17 @@ import { useAds } from '../hooks/useAds';
 import CommentSection from '../components/CommentSection';
 import { useAuth } from '../contexts/AuthContext';
 import { REACTION_OPTIONS, emptyReactionCounts, sumReactionCounts } from '../constants/reactions';
+import LoginModal from '../components/LoginModal';
+import {
+  requiresChapterLogin,
+  normalizeChapterImage,
+  isChapterAccessLocked,
+  isLatestChapterInList,
+  findChapterInList,
+} from '../utils/chapterAccess';
 
-/** Sementara dimatikan — set `true` untuk menampilkan lagi kontrol auto scroll (premium). */
-const SHOW_AUTO_SCROLL_UI = false;
+/** Kontrol auto scroll — hanya untuk user premium. */
+const SHOW_AUTO_SCROLL_UI = true;
 
 /** Kecepatan auto-scroll dalam px/detik per nilai slider (0 = paling pelan). */
 const AUTO_SCROLL_PX_PER_SEC = [6, 12, 22, 38, 58, 85, 115, 155, 200];
@@ -63,7 +71,9 @@ const ChapterReader = () => {
   const autoScrollTimerRef = useRef(null);
   const autoScrollAccumRef = useRef(0);
   const topRef = useRef(null);
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [pendingChapterSlug, setPendingChapterSlug] = useState(null);
   const isPremiumUser = !!user?.membership_active;
   const discordInviteUrl = 'https://discord.gg/3tGVDZCF3a';
   const donateUrl = 'https://saweria.co/KomikNesia';
@@ -129,91 +139,94 @@ const ChapterReader = () => {
     }
   };
 
-  // Fetch chapter content (includes all data we need)
-  useEffect(() => {
-    const fetchChapterData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Use our API endpoint which checks database first, then falls back to WestManga
-        const token = apiClient.getAuthToken();
-        const response = await fetch(`${API_BASE_URL}/chapters/slug/${chapterSlug}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        
-        if (!response.ok) {
-          throw new Error('Chapter tidak ditemukan');
-        }
-        
-        const result = await response.json();
-        
-        if (result.status && result.data) {
-          setChapterData(result.data);
-          
-          // Extract manga slug from API response (assuming it exists in content.slug or derive from data)
-          const extractedMangaSlug = result.data.content?.slug || result.data.content?.id;
-          setMangaSlug(extractedMangaSlug);
-          
-          // Increment view counter for this manga
-          if (extractedMangaSlug) {
-            try {
-              await fetch(`${API_BASE_URL}/comic/${extractedMangaSlug}/view`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              });
-            } catch (viewError) {
-              // Silently fail - view counter is not critical
-              console.warn('Failed to increment view counter:', viewError);
-            }
-          }
-          
-          // Set current chapter index from chapters list
-          if (result.data.chapters && result.data.chapters.length > 0) {
-            const index = result.data.chapters.findIndex(ch => ch.slug === chapterSlug);
-            setCurrentChapterIndex(index);
-            
-            // Save to reading history
-            const currentChapter = result.data.chapters[index];
-            if (currentChapter && result.data.content) {
-              saveToHistory({
-                mangaSlug: extractedMangaSlug,
-                mangaTitle: result.data.content.title,
-                cover: result.data.content.cover,
-                chapterSlug: currentChapter.slug,
-                chapterNumber: currentChapter.number || currentChapter.chapter_number || null,
-                chapterTitle: currentChapter.title || null,
-              });
-            }
-          }
-        } else {
-          throw new Error('Data chapter tidak valid');
-        }
-      } catch (err) {
-        console.error('Error fetching chapter:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchChapterData = useCallback(async () => {
+    if (!chapterSlug) return;
 
-    if (chapterSlug) {
-      fetchChapterData();
-      // Scroll to top when chapter changes
-      if (topRef.current) {
-        topRef.current.scrollIntoView({ behavior: 'smooth' });
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = apiClient.getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/chapters/slug/${chapterSlug}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!response.ok) {
+        throw new Error('Chapter tidak ditemukan');
       }
+
+      const result = await response.json();
+
+      if (result.status && result.data) {
+        const chapters = result.data.chapters || [];
+        const index = chapters.findIndex((ch) => ch.slug === chapterSlug);
+        const currentChapter = index >= 0 ? chapters[index] : null;
+        const isLoggedIn = isAuthenticated || !!token;
+        const locked = isChapterAccessLocked(chapters, chapterSlug, isLoggedIn);
+
+        setChapterData({
+          ...result.data,
+          images: locked ? [] : result.data.images || [],
+        });
+
+        const extractedMangaSlug = result.data.content?.slug || result.data.content?.id;
+        setMangaSlug(extractedMangaSlug);
+        setCurrentChapterIndex(index);
+
+        if (!locked && extractedMangaSlug) {
+          try {
+            await fetch(`${API_BASE_URL}/comic/${extractedMangaSlug}/view`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+          } catch (viewError) {
+            console.warn('Failed to increment view counter:', viewError);
+          }
+        }
+
+        if (!locked && currentChapter && result.data.content) {
+          saveToHistory({
+            mangaSlug: extractedMangaSlug,
+            mangaTitle: result.data.content.title,
+            cover: result.data.content.cover,
+            chapterSlug: currentChapter.slug,
+            chapterNumber: currentChapter.number || currentChapter.chapter_number || null,
+            chapterTitle: currentChapter.title || null,
+            chapterCreatedAt: currentChapter.created_at || null,
+            isLatestChapter: isLatestChapterInList(chapters, chapterSlug),
+          });
+        }
+      } else {
+        throw new Error('Data chapter tidak valid');
+      }
+    } catch (err) {
+      console.error('Error fetching chapter:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  }, [chapterSlug, isAuthenticated]);
+
+  useEffect(() => {
+    if (chapterSlug) {
+      setCurrentChapterIndex(-1);
+      fetchChapterData();
+    }
+  }, [chapterSlug, fetchChapterData]);
+
+  useEffect(() => {
+    if (!chapterSlug) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   }, [chapterSlug]);
 
   const allChapters = chapterData?.chapters || [];
   const mangaData = chapterData?.content || null;
 
   // Fetch ads for manga-detail-top and manga-detail-bottom
-  const { ads: mangaDetailTopAds } = useAds('manga-detail-top', !isPremiumUser);
-  const { ads: mangaDetailBottomAds } = useAds('manga-detail-bottom', !isPremiumUser);
+  const { ads: mangaDetailTopAds } = useAds('manga-detail-top');
+  const { ads: mangaDetailBottomAds } = useAds('manga-detail-bottom');
 
   const handlePrevChapter = () => {
     if (currentChapterIndex < allChapters.length - 1) {
@@ -222,14 +235,28 @@ const ChapterReader = () => {
     }
   };
 
+  const isLoggedIn = isAuthenticated || !!apiClient.getAuthToken();
+
   const handleNextChapter = () => {
     if (currentChapterIndex > 0) {
       const nextChapter = allChapters[currentChapterIndex - 1];
+      if (isChapterAccessLocked(allChapters, nextChapter.slug, isLoggedIn)) {
+        setPendingChapterSlug(nextChapter.slug);
+        setLoginOpen(true);
+        return;
+      }
       navigate(`/view/${nextChapter.slug}`);
     }
   };
 
   const handleChapterSelect = (chapter) => {
+    if (requiresChapterLogin(chapter, isLoggedIn)) {
+      setPendingChapterSlug(chapter.slug);
+      setShowChapterList(false);
+      setLoginOpen(true);
+      return;
+    }
+    setPendingChapterSlug(null);
     navigate(`/view/${chapter.slug}`);
     setShowChapterList(false);
   };
@@ -351,7 +378,16 @@ const ChapterReader = () => {
     };
   }, [isPremiumUser, SHOW_AUTO_SCROLL_UI, autoScrollEnabled]);
 
-  if (loading) {
+  const chapterLocked =
+    !authLoading && isChapterAccessLocked(allChapters, chapterSlug, isLoggedIn);
+
+  useEffect(() => {
+    if (chapterLocked && !loginOpen) {
+      setLoginOpen(true);
+    }
+  }, [chapterLocked, loginOpen]);
+
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-primary-950 flex items-center justify-center">
         <div className="text-center">
@@ -388,7 +424,9 @@ const ChapterReader = () => {
     );
   }
 
-  const currentChapter = allChapters[currentChapterIndex];
+  const currentChapter =
+    findChapterInList(allChapters, chapterSlug) ||
+    (currentChapterIndex >= 0 ? allChapters[currentChapterIndex] : null);
   const chapterNumber = currentChapter?.number || chapterData?.number;
   const mangaTitle = mangaData?.title || chapterData?.title || 'KomikNesia';
   const pageTitle = `${mangaTitle} Chapter ${chapterNumber} Bahasa Indonesia | KomikNesia`;
@@ -572,29 +610,47 @@ const ChapterReader = () => {
             </div>
           )}
 
-          {/* Chapter images: tanpa gap/padding antar panel (min-h besar slice webtoon bikin celah hitam di mobile) */}
+          {chapterLocked ? (
+            <div className="px-3 sm:px-4 py-16 text-center">
+              <p className="mb-2 text-lg font-semibold text-white">Chapter terkunci</p>
+              <p className="mb-6 text-sm text-gray-400">
+                Chapter ini baru rilis kurang dari 2 jam. Login untuk membaca sekarang, atau tunggu hingga 2 jam setelah rilis untuk baca tanpa login.
+              </p>
+              <button
+                type="button"
+                onClick={() => setLoginOpen(true)}
+                className="rounded-xl bg-sky-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-500"
+              >
+                Login untuk melanjutkan
+              </button>
+            </div>
+          ) : (
           <div className="webtoon-pages space-y-0 flex flex-col gap-0 p-0 m-0">
             {chapterData?.images && chapterData.images.length > 0 ? (
-              chapterData.images.map((image, index) => (
+              chapterData.images.map((image, index) => {
+                const { src } = normalizeChapterImage(image);
+                return (
                 <div
                   key={index}
                   className="w-full m-0 p-0 leading-[0] overflow-hidden"
                 >
                   <LazyImage
-                    src={getImageUrl(image)}
+                    src={getImageUrl(src)}
                     alt={`Page ${index + 1}`}
                     className="w-full h-auto block align-bottom m-0 p-0 border-0 outline-none"
                     wrapperClassName="w-full block m-0 p-0 leading-[0] min-h-0"
                     loadingClassName="min-h-[42vh] sm:min-h-[56vh] md:min-h-[64vh]"
                   />
                 </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-center py-12 px-4 text-gray-400 text-sm sm:text-base">
                 Tidak ada gambar tersedia untuk chapter ini
               </div>
             )}
           </div>
+          )}
 
           {/* Bagikan chapter, Discord, Donasi, Lapor error */}
           <div className="px-3 sm:px-4 pt-4 pb-2">
@@ -975,6 +1031,23 @@ const ChapterReader = () => {
           <ArrowDown className="h-5 w-5 group-hover:animate-bounce" />
         </button>
       </div>
+
+      <LoginModal
+        open={loginOpen}
+        onClose={() => {
+          setLoginOpen(false);
+          setPendingChapterSlug(null);
+        }}
+        onSuccess={async () => {
+          setLoginOpen(false);
+          if (pendingChapterSlug) {
+            navigate(`/view/${pendingChapterSlug}`);
+            setPendingChapterSlug(null);
+            return;
+          }
+          await fetchChapterData();
+        }}
+      />
 
       {SHOW_AUTO_SCROLL_UI && isPremiumUser && showResumeAutoPlay && !autoScrollEnabled && (
         <button
