@@ -1,0 +1,76 @@
+.featured-coverflow {
+  height: 278px;
+}
+
+.featured-banner-bg {
+  animation: featured-banner-zoom-in 5.5s ease-out forwards;
+  will-change: transform;
+}
+
+@keyframes featured-banner-zoom-in {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .featured-banner-bg {
+    animation: none;
+    transform: scale(1.05);
+  }
+}
+
+.featured-coverflow .swiper-slide {
+  width: 62%;
+  max-width: 190px;
+  height: auto;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  opacity: 0.5;
+}
+
+.featured-coverflow .swiper-slide-active {
+  opacity: 1;
+}
+
+.featured-coverflow .swiper-slide-active .featured-coverflow-card img {
+  box-shadow:
+    0 0 0 3px #c61737,
+    0 0 20px rgb(198 23 55 / 0.4),
+    0 16px 32px rgb(0 0 0 / 0.45);
+}
+
+.featured-coverflow .swiper-slide-prev,
+.featured-coverflow .swiper-slide-next {
+  cursor: pointer;
+}
+
+.featured-coverflow .swiper-slide-prev .featured-coverflow-hit,
+.featured-coverflow .swiper-slide-next .featured-coverflow-hit {
+  cursor: pointer;
+}
+
+.featured-coverflow .swiper-slide-active .featured-coverflow-hit {
+  cursor: grab;
+}
+
+.featured-coverflow .swiper-slide-prev .featured-coverflow-card,
+.featured-coverflow .swiper-slide-next .featured-coverflow-card {
+  filter: brightness(0.5);
+  transition: filter 0.25s ease;
+}
+
+.featured-coverflow .swiper-slide-prev .featured-coverflow-hit:active .featured-coverflow-card,
+.featured-coverflow .swiper-slide-next .featured-coverflow-hit:active .featured-coverflow-card {
+  filter: brightness(0.7);
+}
+
+.featured-fade .swiper-slide {
+  height: 100%;
+}
+
+.featured-fade .swiper-wrapper {
+  height: 100%;
+}

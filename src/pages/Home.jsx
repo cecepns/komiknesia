@@ -1,9 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ArrowRight,
   X,
   Share2,
   ExternalLink,
@@ -11,10 +8,13 @@ import {
   Smartphone,
   Heart,
   Crown,
+  ChevronRight,
 } from "lucide-react";
 import ProjectSection from "../components/ProjectSection";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
+import FeaturedBanner from "../components/FeaturedBanner";
+import "../styles/featured-banner.css";
 import { Link, useNavigate } from "react-router-dom";
 import {
   WhatsappShareButton,
@@ -29,24 +29,15 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
-import { apiClient, getImageUrl } from "../utils/api";
+import { apiClient } from "../utils/api";
 import discordIcon from "../assets/discord.svg";
 import LiveChatWidget from "../components/LiveChatWidget";
 import LoginModal from "../components/LoginModal";
 import { useChapterAccess } from "../hooks/useChapterAccess";
 
-const BANNER_DOTS_MAX = 8;
-
-function synopsisPlain(html) {
-  if (!html || typeof html !== "string") return "";
-  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-  return text;
-}
-
 const Home = () => {
   const navigate = useNavigate();
   const { loginOpen, openChapter, handleLoginSuccess, closeLogin } = useChapterAccess();
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [bannerManga, setBannerManga] = useState([]);
   const [bannerLoading, setBannerLoading] = useState(true);
   const [popupBannerVisible, setPopupBannerVisible] = useState(false);
@@ -76,14 +67,6 @@ const Home = () => {
   useEffect(() => {
     fetchBannerManga();
   }, []);
-
-  useEffect(() => {
-    setCurrentSlide((prev) => {
-      const n = bannerManga.length;
-      if (n === 0) return 0;
-      return prev < n ? prev : n - 1;
-    });
-  }, [bannerManga.length]);
 
   const fetchBannerManga = async () => {
     try {
@@ -147,62 +130,6 @@ const Home = () => {
       setPopupBannerVisible(true);
     }
   }, [popupSettingsReady, homePopupIntervalMinutes]);
-
-  useEffect(() => {
-    if (bannerManga.length > 0) {
-      const timer = setInterval(() => {
-        setCurrentSlide((prev) => (prev + 1) % bannerManga.length);
-      }, 5000); // Auto-slide every 5 seconds
-
-      return () => clearInterval(timer);
-    }
-  }, [bannerManga.length]);
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % bannerManga.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide(
-      (prev) => (prev - 1 + bannerManga.length) % bannerManga.length
-    );
-  };
-
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
-  };
-
-  const bannerDotIndices = useMemo(() => {
-    const n = bannerManga.length;
-    if (n === 0) return [];
-    if (n <= BANNER_DOTS_MAX) {
-      return Array.from({ length: n }, (_, i) => i);
-    }
-    const start = Math.min(
-      Math.max(0, currentSlide - Math.floor(BANNER_DOTS_MAX / 2)),
-      n - BANNER_DOTS_MAX,
-    );
-    return Array.from({ length: BANNER_DOTS_MAX }, (_, i) => start + i);
-  }, [bannerManga.length, currentSlide]);
-
-  /** Swipe horizontal di mobile — slide non-aktif pakai pointer-events-none agar tidak menutupi area sentuh */
-  const bannerTouchRef = useRef(null);
-  const onBannerTouchStart = (e) => {
-    if (bannerManga.length < 2) return;
-    const t = e.touches[0];
-    bannerTouchRef.current = { x: t.clientX, y: t.clientY };
-  };
-  const onBannerTouchEnd = (e) => {
-    if (!bannerTouchRef.current || bannerManga.length < 2) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - bannerTouchRef.current.x;
-    const dy = t.clientY - bannerTouchRef.current.y;
-    bannerTouchRef.current = null;
-    const minSwipe = 52;
-    if (Math.abs(dx) < minSwipe || Math.abs(dx) < Math.abs(dy) * 0.85) return;
-    if (dx < 0) nextSlide();
-    else prevSlide();
-  };
 
   const handleReadLatest = (latest, mangaSlug) => {
     if (latest?.slug) {
@@ -271,223 +198,17 @@ const Home = () => {
    
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Featured Slider - Popular Daily */}
+        {/* Featured Slider */}
         <div
-          className="mb-12 relative"
+          className="mb-12"
           data-aos="fade-up"
           data-aos-delay="100"
         >
-          <div
-            className="relative h-[500px] md:h-[500px] rounded-2xl overflow-hidden touch-pan-y"
-            onTouchStart={onBannerTouchStart}
-            onTouchEnd={onBannerTouchEnd}
-          >
-            {bannerLoading ? (
-              <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 animate-pulse">
-                <div className="h-full w-full bg-gray-300 dark:bg-gray-700 md:hidden" />
-                <div className="hidden h-full w-full md:flex md:flex-row">
-                  <div className="w-full md:w-1/2 h-full p-8 flex flex-col justify-end md:justify-center space-y-4">
-                    <div className="h-8 md:h-12 w-3/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
-                    <div className="flex gap-3">
-                      <div className="h-6 w-24 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-                      <div className="h-6 w-20 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-4 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
-                      <div className="h-4 w-5/6 bg-gray-300 dark:bg-gray-700 rounded"></div>
-                    </div>
-                    <div className="hidden md:block h-10 w-40 bg-gray-300 dark:bg-gray-700 rounded-lg mt-2"></div>
-                  </div>
-                  <div className="hidden md:block w-1/2 h-full p-8">
-                    <div className="h-full w-64 max-w-full mx-auto bg-gray-300 dark:bg-gray-700 rounded-2xl"></div>
-                  </div>
-                </div>
-              </div>
-            ) : bannerManga.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                <p className="text-gray-500 dark:text-gray-400">
-                  Tidak ada banner tersedia
-                </p>
-              </div>
-            ) : (
-              bannerManga.map((item, index) => {
-                const latest = item.lastChapters?.[0];
-                const synopsis = synopsisPlain(item.synopsis);
-                const genres = Array.isArray(item.genres) ? item.genres : [];
-
-                return (
-              <div
-                key={item.id || index}
-                className={`absolute inset-0 transition-all duration-700 ease-in-out ${
-                  index === currentSlide
-                    ? "z-[2] opacity-100 translate-x-0 pointer-events-auto"
-                    : "z-0 opacity-0 translate-x-full pointer-events-none"
-                }`}
-              >
-                {/* Mobile: gambar full height + judul & CTA overlay (tanpa panel hitam bawah) */}
-                <div className="absolute inset-0 md:hidden">
-                  <img
-                    src={getImageUrl(item.cover)}
-                    alt={item.title}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                  <div
-                    className="absolute -bottom-24 inset-0 bg-gradient-to-t from-black via-black/10 to-transparent"
-                    aria-hidden
-                  />
-                  <div className="relative z-[1] flex h-full flex-col justify-end px-4 pb-6 pt-20 text-center">
-                    <Link to={`/komik/${item.slug}`}>
-                      <h2 className="text-lg font-bold leading-snug text-white drop-shadow-md line-clamp-2 transition-colors hover:text-amber-100">
-                        {item.title}
-                      </h2>
-                    </Link>
-                    <div className="mt-3 flex justify-center pb-1">
-                      <button
-                        type="button"
-                        onClick={() => handleReadLatest(latest, item.slug)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-gray-900 shadow-md transition-colors hover:bg-amber-300"
-                      >
-                        Mulai Baca
-                        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Desktop: blurred cover + dark overlay */}
-                <div className="hidden md:block absolute inset-0 overflow-hidden">
-                  <img
-                    src={getImageUrl(item.cover)}
-                    alt=""
-                    className="absolute inset-0 h-full w-full scale-110 object-cover blur-3xl"
-                    aria-hidden
-                  />
-                  <div className="absolute inset-0 bg-black/75" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-transparent" />
-                </div>
-
-                {/* Desktop: judul, sinopsis, genre, CTA + cover */}
-                <div className="relative hidden h-full md:flex md:items-center">
-                  <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 md:pb-0">
-                    <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12 lg:gap-16">
-                      <div className="z-[1] space-y-4 text-center text-white md:space-y-6 md:text-left">
-                        {latest?.number != null && (
-                          <p className="text-sm font-bold uppercase tracking-wide text-white/90 md:text-base">
-                            Chapter: {latest.number}
-                          </p>
-                        )}
-                        <Link to={`/komik/${item.slug}`}>
-                          <h2 className="text-2xl font-bold leading-tight line-clamp-2 cursor-pointer transition-colors hover:text-white/90 md:text-4xl lg:text-5xl">
-                            {item.title}
-                          </h2>
-                        </Link>
-
-                        {synopsis ? (
-                          <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/85 line-clamp-3 md:mx-0 md:text-base md:line-clamp-4">
-                            {synopsis}
-                          </p>
-                        ) : (
-                          <p className="mx-auto max-w-xl text-sm text-white/70 md:mx-0 md:text-base">
-                            {item.author ? `Oleh ${item.author}` : "\u00a0"}
-                          </p>
-                        )}
-
-                        {genres.length > 0 && (
-                          <div className="flex flex-wrap justify-center gap-2 md:justify-start">
-                            {genres.slice(0, 8).map((g) => (
-                              <span
-                                key={g.id ?? g.slug ?? g.name}
-                                className="rounded-full border border-white/50 bg-white/5 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm md:text-sm"
-                              >
-                                {g.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap items-center justify-center gap-4 pt-1 md:justify-start">
-                          <button
-                            type="button"
-                            onClick={() => handleReadLatest(latest, item.slug)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-8 py-3.5 text-base font-bold text-gray-900 shadow-lg transition-all hover:bg-amber-300 hover:shadow-xl"
-                          >
-                            Mulai Baca
-                            <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />
-                          </button>
-                          {item.total_views != null && (
-                            <span className="text-sm text-white/70">
-                              <span className="font-semibold text-white/90">
-                                {Number(item.total_views).toLocaleString()}
-                              </span>{" "}
-                              tayangan
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="relative z-[1] flex justify-center lg:justify-end">
-                        <Link
-                          to={`/komik/${item.slug}`}
-                          className="group relative block"
-                          aria-label={item.title}
-                        >
-                          <div className="absolute -inset-3 rounded-3xl bg-white/10 blur-2xl transition-opacity group-hover:opacity-90" />
-                          <img
-                            src={getImageUrl(item.cover)}
-                            alt={item.title}
-                            className="relative h-[22rem] w-[14rem] rounded-xl object-cover shadow-2xl ring-1 ring-white/10 transition-transform duration-300 sm:h-[24rem] sm:w-[15rem] md:h-[26rem] md:w-64 md:-rotate-[4deg] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] group-hover:md:-rotate-[2deg]"
-                          />
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-                );
-              })
-            )}
-
-            {/* Navigation Arrows - Hidden on Mobile */}
-            <button
-              onClick={prevSlide}
-              className="hidden md:flex absolute left-4 top-1/2 z-20 -translate-y-1/2 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-3 rounded-full transition-all"
-              aria-label="Previous slide"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-
-            <button
-              onClick={nextSlide}
-              className="hidden md:flex absolute right-4 top-1/2 z-20 -translate-y-1/2 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-3 rounded-full transition-all"
-              aria-label="Next slide"
-            >
-              <ChevronRight className="h-6 w-6" />
-            </button>
-          </div>
-
-          {/* Dots di luar kartu banner (bawah rounded) — tidak menimpa judul/CTA */}
-          {!bannerLoading && bannerManga.length > 1 && (
-            <div
-              className="mt-4 flex justify-center gap-2.5"
-              role="tablist"
-              aria-label="Pilih slide banner"
-            >
-              {bannerDotIndices.map((slideIdx) => (
-                <button
-                  key={slideIdx}
-                  type="button"
-                  onClick={() => goToSlide(slideIdx)}
-                  className={`transition-all rounded-full ${
-                    slideIdx === currentSlide
-                      ? "h-3 w-8 bg-sky-600 dark:bg-white"
-                      : "h-3 w-3 bg-slate-400/90 hover:bg-slate-500 dark:bg-white/45 dark:hover:bg-white/70"
-                  }`}
-                  aria-label={`Ke slide ${slideIdx + 1}`}
-                  aria-current={slideIdx === currentSlide ? "true" : undefined}
-                />
-              ))}
-            </div>
-          )}
+          <FeaturedBanner
+            items={bannerManga}
+            loading={bannerLoading}
+            onReadLatest={handleReadLatest}
+          />
         </div>
 
         <div
