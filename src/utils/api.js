@@ -865,6 +865,14 @@ class APIClient {
     return this.request(`/featured-items${queryString ? `?${queryString}` : ''}`);
   }
 
+  searchFeaturedManga(query, limit = 50) {
+    const params = new URLSearchParams({
+      q: query,
+      limit: String(limit),
+    });
+    return this.request(`/featured-items/search?${params}`);
+  }
+
   createFeaturedItem(data) {
     return this.request('/featured-items', {
       method: 'POST',

@@ -137,7 +137,7 @@ class FeaturedWestmangaController extends Controller
      * array of featured items (bukan object berlapis).
      *
      * Mapping:
-     * - type=banner            → data.mirror_update (slice 5)
+     * - type=banner            → data.mirror_update (semua item)
      * - type=popular_daily     → data.popular.daily
      * - type=popular_weekly    → data.popular.weekly
      * - type=popular_monthly   → data.popular.monthly
@@ -168,7 +168,7 @@ class FeaturedWestmangaController extends Controller
 
             if ($type === 'banner') {
                 $list = $data['mirror_update'] ?? [];
-                $source = array_slice(is_array($list) ? $list : [], 0, 5);
+                $source = is_array($list) ? $list : [];
             } elseif ($type === 'popular_daily') {
                 $source = $data['popular']['daily'] ?? [];
             } elseif ($type === 'popular_weekly') {

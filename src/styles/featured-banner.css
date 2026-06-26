@@ -1,3 +1,17 @@
+.featured-banner-dots {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+}
+
+.featured-banner-dots::-webkit-scrollbar {
+  height: 4px;
+}
+
+.featured-banner-dots::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgb(148 163 184 / 0.5);
+}
+
 .featured-coverflow {
   height: 278px;
 }

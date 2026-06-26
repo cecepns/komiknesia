@@ -3,6 +3,67 @@ const { createShortLivedCache } = require('../utils/shortLivedCache');
 
 const featuredListCache = createShortLivedCache({ ttlMs: 30 * 1000, maxKeys: 48 });
 
+function normalizeSearchQuery(input) {
+  if (!input || typeof input !== 'string') return '';
+  return input
+    .replace(/[\u2018\u2019\u201A\u201B\u0060\u00B4]/g, "'")
+    .replace(/[\u201C\u201D\u201E]/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function looseSearchTerm(input) {
+  return normalizeSearchQuery(input)
+    .replace(/[''`´]/g, '')
+    .replace(/[-–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildMangaSearchFilter(search) {
+  const normalized = normalizeSearchQuery(search);
+  if (!normalized) return { sql: '', params: [] };
+
+  const likeNormalized = `%${normalized}%`;
+  const loose = looseSearchTerm(normalized);
+  const likeLoose = loose ? `%${loose}%` : null;
+  const likeSlugLoose = loose ? `%${loose.replace(/\s+/g, '-')}%` : null;
+
+  const params = [likeNormalized, likeNormalized, likeNormalized];
+  let sql =
+    ' AND (' +
+    'm.title LIKE ? OR m.alternative_name LIKE ? OR m.slug LIKE ?';
+
+  if (likeLoose && likeSlugLoose) {
+    sql +=
+      " OR REPLACE(m.title, CHAR(39), '') LIKE ?" +
+      " OR REPLACE(m.alternative_name, CHAR(39), '') LIKE ?" +
+      " OR REPLACE(m.slug, '-', ' ') LIKE ?" +
+      ' OR m.slug LIKE ?';
+    params.push(likeLoose, likeLoose, likeLoose, likeSlugLoose);
+  }
+
+  sql += ')';
+  return { sql, params };
+}
+
+async function searchMangaForFeatured(query, limit = 50) {
+  const q = normalizeSearchQuery(query);
+  if (!q) return [];
+
+  const perPage = Math.min(Math.max(parseInt(String(limit), 10) || 50, 1), 100);
+  const searchFilter = buildMangaSearchFilter(q);
+
+  let sql =
+    'SELECT m.*, m.thumbnail as cover FROM manga m WHERE 1=1' +
+    searchFilter.sql +
+    ' ORDER BY m.updated_at DESC LIMIT ?';
+  const params = [...searchFilter.params, perPage];
+
+  const [rows] = await db.execute(sql, params);
+  return rows || [];
+}
+
 async function fetchFeaturedPayload(req) {
   const { type, active } = req.query;
 
@@ -130,6 +191,17 @@ async function fetchFeaturedPayload(req) {
   }));
 }
 
+const searchManga = async (req, res) => {
+  try {
+    const { q = '', limit = 50 } = req.query;
+    const manga = await searchMangaForFeatured(q, limit);
+    res.json({ manga, total: manga.length });
+  } catch (error) {
+    console.error('Error searching manga for featured:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 const index = async (req, res) => {
   try {
     const { type, active } = req.query;
@@ -158,6 +230,13 @@ const store = async (req, res) => {
     }
 
     let [mangaCheck] = await db.execute('SELECT id FROM manga WHERE id = ?', [manga_id]);
+
+    if (mangaCheck.length === 0) {
+      [mangaCheck] = await db.execute('SELECT id FROM manga WHERE westmanga_id = ?', [manga_id]);
+      if (mangaCheck.length > 0) {
+        manga_id = mangaCheck[0].id;
+      }
+    }
 
     if (mangaCheck.length === 0 && westmanga_id) {
       [mangaCheck] = await db.execute('SELECT id FROM manga WHERE westmanga_id = ?', [westmanga_id]);
@@ -266,6 +345,7 @@ const destroy = async (req, res) => {
 
 module.exports = {
   index,
+  searchManga,
   store,
   update,
   destroy,

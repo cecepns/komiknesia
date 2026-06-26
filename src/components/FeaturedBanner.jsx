@@ -370,13 +370,17 @@ const FeaturedBanner = ({ items = [], loading = false, onReadLatest }) => {
         </div>
 
         {items.length > 1 && (
-          <div className="mt-4 flex justify-center gap-2.5" role="tablist" aria-label="Pilih slide banner">
+          <div
+            className="featured-banner-dots mt-4 flex max-w-full justify-center gap-2.5 overflow-x-auto px-4 pb-1"
+            role="tablist"
+            aria-label="Pilih slide banner"
+          >
             {items.map((item, index) => (
               <button
                 key={item.id ?? item.slug ?? index}
                 type="button"
                 onClick={() => desktopSwiperRef.current?.slideToLoop(index)}
-                className={`rounded-full transition-all ${
+                className={`shrink-0 rounded-full transition-all ${
                   index === desktopIndex
                     ? "h-3 w-8 bg-sky-600 dark:bg-white"
                     : "h-3 w-3 bg-slate-400/90 hover:bg-slate-500 dark:bg-white/45 dark:hover:bg-white/70"

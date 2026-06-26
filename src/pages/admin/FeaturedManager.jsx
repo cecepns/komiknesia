@@ -9,8 +9,8 @@ const FeaturedManager = () => {
   const [selectedType, setSelectedType] = useState('banner');
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  // Search results list for manga (from /contents endpoint)
-  const [searchResults, setSearchResults] = useState(null); // will hold an array of manga objects
+  // Search results from /featured-items/search
+  const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedManga, setSelectedManga] = useState(null);
@@ -53,19 +53,9 @@ const FeaturedManager = () => {
 
     setSearching(true);
     try {
-      // Use /contents API so the result is consistent with Content page
-      const response = await apiClient.getContents({
-        q: searchQuery.trim(),
-        page: 1,
-        per_page: 40,
-        project: 'false'
-      });
-
-      if (response?.status && Array.isArray(response.data)) {
-        setSearchResults(response.data);
-      } else {
-        setSearchResults([]);
-      }
+      const q = searchQuery.trim();
+      const response = await apiClient.searchFeaturedManga(q, 50);
+      setSearchResults(Array.isArray(response?.manga) ? response.manga : []);
     } catch (error) {
       console.error('Error searching manga:', error);
       setSearchResults([]);
@@ -93,29 +83,19 @@ const FeaturedManager = () => {
     }
 
     try {
-      // Include westmanga_id and slug if the selected manga is from WestManga
       const createData = {
         ...newItem,
         featured_type: selectedType,
-        display_order: newItem.display_order ?? 0
+        display_order: newItem.display_order ?? 0,
       };
-      
-      // Check if selected manga is from WestManga using available flags
-      // Prefer explicit westmanga_id if provided by API
-      const isWestManga = selectedManga && (selectedManga.westmanga_id || selectedManga.is_local === false || !selectedManga.is_input_manual);
 
-      // If selected manga is from WestManga, include westmanga_id and slug to help backend find/create the local manga
-      if (isWestManga) {
-        createData.westmanga_id = selectedManga.westmanga_id || selectedManga.id;
-        // Always include slug for auto-sync if manga not found in database
-        if (selectedManga.slug) {
-          createData.slug = selectedManga.slug;
-        }
-      } else if (selectedManga && selectedManga.slug) {
-        // Even for local manga, include slug as fallback (though it should already exist)
+      if (selectedManga?.slug) {
         createData.slug = selectedManga.slug;
       }
-      
+      if (selectedManga?.westmanga_id) {
+        createData.westmanga_id = selectedManga.westmanga_id;
+      }
+
       await apiClient.createFeaturedItem(createData);
       setNewItem({
         manga_id: null,
@@ -181,8 +161,10 @@ const FeaturedManager = () => {
     setSyncingChapters(prev => ({ ...prev, [manga.slug]: true }));
     
     try {
-      const result = await apiClient.syncChaptersBySlug(manga.slug);
-      alert(`Sync berhasil!\n\nSynced: ${result.synced}\nUpdated: ${result.updated}\nErrors: ${result.errors}\nTotal: ${result.total}`);
+      const result = await apiClient.syncIkiruManga(manga.slug, { mode: 'delta' });
+      alert(
+        `Sync berhasil!\n\nAction: ${result.action || 'updated'}\nChapters inserted: ${result.chaptersInserted ?? 0}\nChapters skipped: ${result.chaptersSkipped ?? 0}`
+      );
       // Refresh the list to show updated data
       fetchFeaturedItems();
     } catch (error) {
@@ -290,6 +272,12 @@ const FeaturedManager = () => {
             </div>
           </form>
 
+          {Array.isArray(searchResults) && searchResults.length === 0 && !searching && searchQuery.trim() && (
+            <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+              Tidak ada hasil untuk &quot;{searchQuery.trim()}&quot;. Coba kata kunci lain atau tanpa tanda petik.
+            </p>
+          )}
+
           {/* Search Results */}
           {Array.isArray(searchResults) && searchResults.length > 0 && (
             <div className="mb-4 max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -313,7 +301,7 @@ const FeaturedManager = () => {
                     key={manga.id}
                     onClick={() => handleSelectManga(manga)}
                     className={`cursor-pointer border-2 rounded-lg p-2 transition-all ${
-                      newItem.manga_id === manga.id
+                      selectedManga?.slug === manga.slug
                         ? 'border-primary-500 bg-primary-50 dark:bg-primary-900'
                         : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
                     }`}
