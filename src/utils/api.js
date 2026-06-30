@@ -11,6 +11,9 @@ export const API_BASE_URL_WITHOUT_API = 'https://api-be.komiknesia.my.id/';
 /** Origin for static files (no trailing slash). Same host as API, path /uploads is served by backend. */
 const STATIC_ORIGIN = API_BASE_URL_WITHOUT_API.replace(/\/+$/, '');
 
+/** CDN Ikiru — butuh header access-code; browser langsung ke host ini dapat promo-ikiru.webp */
+const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id']);
+
 /**
  * Map legacy /uploads-komiknesia/... to public /uploads/... (Express serves disk folder at /uploads).
  * @param {string} pathname - URL pathname starting with /
@@ -20,6 +23,25 @@ function normalizeUploadsPathname(pathname) {
     return '/uploads/' + pathname.slice('/uploads-komiknesia/'.length);
   }
   return pathname;
+}
+
+function isIkiruCdnUrl(url) {
+  try {
+    const u = new URL(url);
+    return IKIRU_CDN_HOSTS.has(u.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+/** Route Ikiru CDN URLs through backend image-proxy (access-code + referer). */
+export function toProxiedImageUrlIfNeeded(imagePath) {
+  if (!imagePath || typeof imagePath !== 'string') return imagePath;
+  const trimmed = imagePath.trim();
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return imagePath;
+  if (trimmed.includes('/api/image-proxy?')) return trimmed;
+  if (!isIkiruCdnUrl(trimmed)) return imagePath;
+  return `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(trimmed)}`;
 }
 
 /**
@@ -35,6 +57,9 @@ export const getImageUrl = (imagePath) => {
   if (path.startsWith('http://') || path.startsWith('https://')) {
     try {
       const u = new URL(path);
+      const proxied = toProxiedImageUrlIfNeeded(u.toString());
+      if (proxied !== u.toString()) return proxied;
+
       const next = normalizeUploadsPathname(u.pathname);
       if (next !== u.pathname) {
         u.pathname = next;
@@ -43,7 +68,7 @@ export const getImageUrl = (imagePath) => {
     } catch {
       /* ignore */
     }
-    return path;
+    return toProxiedImageUrlIfNeeded(path) || path;
   }
 
   if (path.startsWith('uploads/')) {

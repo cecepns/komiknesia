@@ -201,7 +201,7 @@ const showBySlug = async (req, res) => {
             alternative_name: null,
             author: chapter.manga_author || 'Unknown',
             sinopsis: chapter.manga_sinopsis || null,
-            cover: chapter.manga_cover || null,
+            cover: toProxiedImagePathIfNeeded(chapter.manga_cover || null, req),
             content_type: chapter.content_type || 'comic',
             country_id: chapter.country_id || null,
             color: !!chapter.color,
@@ -463,7 +463,12 @@ const listImages = async (req, res) => {
       [chapterId]
     );
 
-    res.json(images);
+    res.json(
+      images.map((img) => ({
+        ...img,
+        image_path: toProxiedImagePathIfNeeded(img.image_path, req),
+      }))
+    );
   } catch (error) {
     console.error('Error fetching chapter images:', error);
     res.status(500).json({ error: 'Internal server error' });

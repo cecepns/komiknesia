@@ -39,6 +39,7 @@ const { toProxiedImagePathIfNeeded } = require('./utils/ikiruCdnImage');
 const { CHAPTER_RELEASED_WHERE, isScheduledReleaseInFuture } = require('./utils/chapterRelease');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const PORT = 3001;
 
@@ -284,7 +285,7 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
             alternative_name: null,
             author: chapter.manga_author || 'Unknown',
             sinopsis: chapter.manga_sinopsis || null,
-            cover: chapter.manga_cover || null,
+            cover: toProxiedImagePathIfNeeded(chapter.manga_cover || null, req),
             content_type: chapter.content_type || 'comic',
             country_id: chapter.country_id || null,
             color: chapter.color ? true : false,
