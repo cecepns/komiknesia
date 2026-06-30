@@ -4,6 +4,11 @@ const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/cl
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const {
+  isIkiruCdnUrl,
+  getIkiruCdnFetchHeaders,
+  isPromoIkiruResponse,
+} = require('./ikiruCdnImage');
 
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://is3.cloudhost.id';
 const S3_REGION = process.env.S3_REGION || 'auto';
@@ -66,14 +71,22 @@ async function uploadFileToS3(key, filePath, contentType) {
 }
 
 async function uploadUrlToS3(key, url, contentType) {
+  const defaultHeaders = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  };
   const resp = await axios.get(url, {
     responseType: 'arraybuffer',
     timeout: 30000,
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    },
+    maxRedirects: 5,
+    headers: isIkiruCdnUrl(url) ? getIkiruCdnFetchHeaders() : defaultHeaders,
   });
+
+  const finalUrl = resp.request?.res?.responseUrl || url;
+  if (isPromoIkiruResponse(finalUrl)) {
+    throw new Error('Ikiru CDN returned promo image (access-code/referer rejected)');
+  }
+
   const ct = contentType || resp.headers?.['content-type'] || 'application/octet-stream';
   return uploadBufferToS3(key, Buffer.from(resp.data), ct);
 }

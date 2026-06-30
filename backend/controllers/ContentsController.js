@@ -1,7 +1,14 @@
 const db = require('../db');
+const {
+  CHAPTER_RELEASED_WHERE,
+  CHAPTER_ACTIVITY_SUBQUERY,
+} = require('../utils/chapterRelease');
 
 function mapLastChapterRow(row) {
-  const createdTs = parseInt(row.created_at_timestamp, 10) || 0;
+  const createdTs =
+    parseInt(row.release_at_timestamp, 10) ||
+    parseInt(row.created_at_timestamp, 10) ||
+    0;
   const updatedRaw = row.updated_at_timestamp;
   const updatedTs =
     updatedRaw != null && updatedRaw !== '' ? parseInt(updatedRaw, 10) : null;
@@ -174,11 +181,7 @@ async function fetchLocalManga(filters) {
   const fromClause =
     ' FROM manga m' +
     (usesChapterActivitySort
-      ? ' LEFT JOIN (' +
-        '   SELECT manga_id, MAX(created_at) AS last_chapter_activity_at' +
-        '   FROM chapters' +
-        '   GROUP BY manga_id' +
-        ' ) lc ON lc.manga_id = m.id'
+      ? ` LEFT JOIN (${CHAPTER_ACTIVITY_SUBQUERY}) lc ON lc.manga_id = m.id`
       : '') +
     (genreIds.length > 0 ? ' INNER JOIN manga_genres mg ON m.id = mg.manga_id' : '') +
     popularJoin;
@@ -303,10 +306,13 @@ async function fetchLocalManga(filters) {
           c.slug,
           c.created_at,
           c.updated_at,
+          c.scheduled_release_at,
+          UNIX_TIMESTAMP(COALESCE(c.scheduled_release_at, c.created_at)) AS release_at_timestamp,
           UNIX_TIMESTAMP(c.created_at) AS created_at_timestamp,
           UNIX_TIMESTAMP(c.updated_at) AS updated_at_timestamp
         FROM chapters c
         WHERE c.manga_id IN (${chapterPlaceholders})
+          AND ${CHAPTER_RELEASED_WHERE}
         ORDER BY c.manga_id ASC, CAST(c.chapter_number AS UNSIGNED) DESC, c.created_at DESC
       `,
       mangaIds

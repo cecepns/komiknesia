@@ -2,6 +2,11 @@
 export const CHAPTER_LOCK_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 export function getChapterReleaseMs(chapter) {
+  const scheduled = chapter?.scheduled_release_at?.time;
+  if (scheduled != null && scheduled !== '') {
+    const n = Number(scheduled);
+    if (Number.isFinite(n) && n > 0) return n < 1e12 ? n * 1000 : n;
+  }
   const raw = chapter?.created_at?.time ?? chapter?.uploadedAt;
   if (raw == null || raw === '') return null;
   const n = Number(raw);

@@ -12,6 +12,7 @@ class ImageProxyController extends Controller
         'cdn1.softkomik.online',
         'cover.softdevices.my.id',
         'psy1.komik.im',
+        'cdn.itachi.my.id',
     ];
 
     public function proxy(Request $request)
@@ -48,6 +49,69 @@ class ImageProxyController extends Controller
                     'error' => 'URL host not allowed for proxy',
                     'allowed' => $this->allowedHosts,
                 ], 403);
+            }
+
+            // Ikiru CDN: butuh access-code + referer agar tidak di-redirect ke promo-ikiru.webp
+            if ($host === 'cdn.itachi.my.id') {
+                $ikiruOrigin = rtrim(getenv('IKIRU_ORIGIN') ?: 'https://04.ikiru.wtf', '/');
+                $accessCode = getenv('IKIRU_CDN_ACCESS_CODE') ?: 'NYQLFxYsnOy+/zwnNWmNTUN5';
+
+                $headers = [
+                    'accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                    'accept-encoding' => 'gzip, deflate, br, zstd',
+                    'accept-language' => 'id,en;q=0.9',
+                    'access-code' => $accessCode,
+                    'cache-control' => 'no-cache',
+                    'pragma' => 'no-cache',
+                    'referer' => $ikiruOrigin . '/',
+                    'sec-fetch-dest' => 'image',
+                    'sec-fetch-mode' => 'no-cors',
+                    'sec-fetch-site' => 'cross-site',
+                    'user-agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+                ];
+
+                $ch = curl_init($targetUrl);
+                if ($ch === false) {
+                    return response()->json(['error' => 'Failed to initialize cURL'], 500);
+                }
+
+                $headerLines = [];
+                foreach ($headers as $k => $v) {
+                    $headerLines[] = $k . ': ' . $v;
+                }
+
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_TIMEOUT => 15,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_HTTPHEADER => $headerLines,
+                ]);
+
+                $body = curl_exec($ch);
+                $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+
+                if ($body === false || $status >= 400 || str_contains(strtolower((string) $effectiveUrl), 'promo-ikiru')) {
+                    $err = curl_error($ch);
+                    curl_close($ch);
+                    Log::warning('Ikiru CDN image proxy upstream error', ['status' => $status, 'error' => $err]);
+                    return response()->json(['error' => 'Upstream error'], $status > 0 ? $status : 502);
+                }
+
+                curl_close($ch);
+
+                $contentType = 'image/jpeg';
+                if (str_ends_with(strtolower($parsed['path'] ?? ''), '.webp')) {
+                    $contentType = 'image/webp';
+                } elseif (str_ends_with(strtolower($parsed['path'] ?? ''), '.png')) {
+                    $contentType = 'image/png';
+                }
+
+                return response($body, 200, [
+                    'Content-Type' => $contentType,
+                    'Cache-Control' => 'public, max-age=3600',
+                ]);
             }
 
             // Softkomik CDN: gunakan header khusus (access-code, referer, dll) untuk menghindari blokir Cloudflare,

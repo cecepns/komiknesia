@@ -12,6 +12,7 @@ import Akun from "./pages/Akun";
 import Leaderboard from "./pages/Leaderboard";
 import Premium from "./pages/Premium";
 import ProfileUser from "./pages/ProfileUser";
+import Jadwal from "./pages/Jadwal";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
@@ -24,8 +25,7 @@ import "react-toastify/dist/ReactToastify.css";
 function AppContent() {
   const location = useLocation();
   const { user } = useAuth();
-  
-  // Don't show AdPopup on admin and login routes
+
   const shouldShowAdPopup =
     !location.pathname.startsWith('/admin') &&
     location.pathname !== '/login' &&
@@ -35,15 +35,15 @@ function AppContent() {
     <>
       <ScrollToTop />
       <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/admin/*"
-            element={
-              <ProtectedRoute requireAdmin>
-                <Admin />
-              </ProtectedRoute>
-            }
-          />
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute requireAdmin>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/view/:chapterSlug" element={<ChapterReader />} />
         <Route path="/komik/:slug" element={<MangaDetail />} />
         <Route path="/profile/:username" element={<ProfileUser />} />
@@ -53,6 +53,17 @@ function AppContent() {
             <>
               <Layout>
                 <Library />
+              </Layout>
+              <BottomNavigation />
+            </>
+          }
+        />
+        <Route
+          path="/jadwal"
+          element={
+            <>
+              <Layout>
+                <Jadwal />
               </Layout>
               <BottomNavigation />
             </>
@@ -69,12 +80,6 @@ function AppContent() {
             </>
           }
         />
-        {/* <Route path="/daftar-komik" element={
-          <>
-            <ComingSoon title="Daftar Komik" />
-            <BottomNavigation />
-          </>
-        } /> */}
         <Route
           path="/akun"
           element={
@@ -128,7 +133,6 @@ function AppContent() {
           }
         />
       </Routes>
-      {/* AdPopup rendered once for all routes except admin and login */}
       {shouldShowAdPopup && <AdPopup />}
       <MbuhRedirectScript />
       <ToastContainer position="top-right" autoClose={2500} theme="colored" />

@@ -1,4 +1,5 @@
 const db = require('../db');
+const { CHAPTER_RELEASED_WHERE } = require('../utils/chapterRelease');
 const { createShortLivedCache } = require('../utils/shortLivedCache');
 
 const featuredListCache = createShortLivedCache({ ttlMs: 30 * 1000, maxKeys: 48 });
@@ -154,9 +155,11 @@ async function fetchFeaturedPayload(req) {
           c.title,
           c.slug,
           c.created_at,
+          UNIX_TIMESTAMP(COALESCE(c.scheduled_release_at, c.created_at)) AS release_at_timestamp,
           UNIX_TIMESTAMP(c.created_at) AS created_at_timestamp
         FROM chapters c
         WHERE c.manga_id IN (${idPlaceholders})
+          AND ${CHAPTER_RELEASED_WHERE}
         ORDER BY c.manga_id ASC, CAST(c.chapter_number AS UNSIGNED) DESC, c.created_at DESC
       `,
         mangaIds
@@ -174,7 +177,7 @@ async function fetchFeaturedPayload(req) {
           title: row.title,
           slug: row.slug,
           created_at: {
-            time: parseInt(row.created_at_timestamp, 10),
+            time: parseInt(row.release_at_timestamp || row.created_at_timestamp, 10),
           },
         });
         return acc;

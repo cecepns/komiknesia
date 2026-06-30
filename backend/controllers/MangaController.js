@@ -3,6 +3,7 @@ const { generateSlug } = require('../utils/slug');
 const { deleteFile } = require('../utils/files');
 const { uploadFileToS3 } = require('../utils/s3Upload');
 const { deleteUrlFromS3 } = require('../utils/s3Upload');
+const { parseScheduledReleaseAt } = require('../utils/chapterRelease');
 const fs = require('fs');
 const path = require('path');
 
@@ -144,8 +145,11 @@ const listChapters = async (req, res) => {
 const createChapter = async (req, res) => {
   try {
     const { mangaId } = req.params;
-    const { title, chapter_number } = req.body;
+    const { title, chapter_number, scheduled_release_at, release_mode } = req.body;
     const cover = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const wantsScheduled = release_mode === 'scheduled';
+    const parsedSchedule = wantsScheduled ? parseScheduledReleaseAt(scheduled_release_at) : null;
 
     const [mangaRows] = await db.execute('SELECT slug FROM manga WHERE id = ?', [mangaId]);
     if (mangaRows.length === 0) {
@@ -156,8 +160,8 @@ const createChapter = async (req, res) => {
     const chapterSlug = `${mangaSlug}-chapter-${chapter_number}`;
 
     const [result] = await db.execute(
-      'INSERT INTO chapters (manga_id, title, chapter_number, slug, cover) VALUES (?, ?, ?, ?, ?)',
-      [mangaId, title, chapter_number, chapterSlug, cover]
+      'INSERT INTO chapters (manga_id, title, chapter_number, slug, cover, scheduled_release_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [mangaId, title, chapter_number, chapterSlug, cover, parsedSchedule]
     );
 
     res.status(201).json({ id: result.insertId, message: 'Chapter created successfully' });

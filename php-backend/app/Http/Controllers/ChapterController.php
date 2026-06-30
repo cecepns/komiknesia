@@ -70,6 +70,7 @@ class ChapterController extends Controller
                 'cdn1.softkomik.online',
                 'cover.softdevices.my.id',
                 'psy1.komik.im',
+                'cdn.itachi.my.id',
             ];
 
             $parsedTrimmed = parse_url($trimmed) ?: [];

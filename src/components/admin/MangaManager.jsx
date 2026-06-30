@@ -54,6 +54,8 @@ const MangaManager = () => {
   const [chapterFormData, setChapterFormData] = useState({
     title: "",
     chapter_number: "",
+    release_mode: "immediate",
+    scheduled_release_at: "",
   });
   const [chapterCoverFile, setChapterCoverFile] = useState(null);
   const [showImageUpload, setShowImageUpload] = useState(false);
@@ -334,6 +336,25 @@ const MangaManager = () => {
     await fetchChapters(manga.id);
   };
 
+  const toDatetimeLocalValue = (value) => {
+    if (!value) return "";
+    return String(value).replace(" ", "T").slice(0, 16);
+  };
+
+  const isFutureScheduled = (chapter) => {
+    if (!chapter?.scheduled_release_at) return false;
+    const d = new Date(String(chapter.scheduled_release_at).replace(" ", "T"));
+    return !Number.isNaN(d.getTime()) && d.getTime() > Date.now();
+  };
+
+  const defaultScheduleDatetime = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setMinutes(0, 0, 0);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+  };
+
   const handleChapterSubmit = async (e) => {
     e.preventDefault();
     if (!selectedMangaForChapters) return;
@@ -341,6 +362,10 @@ const MangaManager = () => {
     const submitData = new FormData();
     submitData.append("title", chapterFormData.title);
     submitData.append("chapter_number", chapterFormData.chapter_number);
+    submitData.append("release_mode", chapterFormData.release_mode);
+    if (chapterFormData.release_mode === "scheduled" && chapterFormData.scheduled_release_at) {
+      submitData.append("scheduled_release_at", chapterFormData.scheduled_release_at);
+    }
     if (chapterCoverFile) {
       submitData.append("cover", chapterCoverFile);
     }
@@ -354,7 +379,12 @@ const MangaManager = () => {
 
       setShowChapterForm(false);
       setEditingChapter(null);
-      setChapterFormData({ title: "", chapter_number: "" });
+      setChapterFormData({
+        title: "",
+        chapter_number: "",
+        release_mode: "immediate",
+        scheduled_release_at: "",
+      });
       setChapterCoverFile(null);
       await fetchChapters(selectedMangaForChapters.id);
     } catch (error) {
@@ -365,9 +395,13 @@ const MangaManager = () => {
 
   const handleEditChapter = (chapter) => {
     setEditingChapter(chapter);
+    const scheduled = toDatetimeLocalValue(chapter.scheduled_release_at);
+    const hasSchedule = isFutureScheduled(chapter);
     setChapterFormData({
       title: chapter.title,
       chapter_number: chapter.chapter_number,
+      release_mode: hasSchedule ? "scheduled" : "immediate",
+      scheduled_release_at: hasSchedule ? scheduled : defaultScheduleDatetime(),
     });
     setShowChapterForm(true);
   };
@@ -971,7 +1005,12 @@ const MangaManager = () => {
                     <button
                       onClick={() => {
                         setEditingChapter(null);
-                        setChapterFormData({ title: "", chapter_number: "" });
+                        setChapterFormData({
+                          title: "",
+                          chapter_number: "",
+                          release_mode: "immediate",
+                          scheduled_release_at: defaultScheduleDatetime(),
+                        });
                         setChapterCoverFile(null);
                         setShowChapterForm(true);
                       }}
@@ -1002,6 +1041,11 @@ const MangaManager = () => {
                               <p className="text-sm text-gray-600 dark:text-gray-400">
                                 Chapter {chapter.chapter_number} •{" "}
                                 {chapter.image_count || 0} halaman
+                                {isFutureScheduled(chapter) ? (
+                                  <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                                    Jadwal: {toDatetimeLocalValue(chapter.scheduled_release_at).replace("T", " ")}
+                                  </span>
+                                ) : null}
                               </p>
                             </div>
                             <div className="flex space-x-2">
@@ -1189,6 +1233,82 @@ const MangaManager = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Metode Rilis
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-300 p-3 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="release_mode"
+                        value="immediate"
+                        checked={chapterFormData.release_mode === "immediate"}
+                        onChange={() =>
+                          setChapterFormData((prev) => ({
+                            ...prev,
+                            release_mode: "immediate",
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Rilis langsung
+                        </span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                          Langsung muncul di Terbaru & Project
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-300 p-3 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="release_mode"
+                        value="scheduled"
+                        checked={chapterFormData.release_mode === "scheduled"}
+                        onChange={() =>
+                          setChapterFormData((prev) => ({
+                            ...prev,
+                            release_mode: "scheduled",
+                            scheduled_release_at:
+                              prev.scheduled_release_at || defaultScheduleDatetime(),
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Timer jadwal
+                        </span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                          Hanya di Jadwal sampai jam tayang
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {chapterFormData.release_mode === "scheduled" ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Waktu Rilis (WIB)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={chapterFormData.scheduled_release_at}
+                      onChange={(e) =>
+                        setChapterFormData((prev) => ({
+                          ...prev,
+                          scheduled_release_at: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      required
+                    />
+                  </div>
+                ) : null}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Cover Chapter (Opsional)
                   </label>
                   <input
@@ -1208,7 +1328,12 @@ const MangaManager = () => {
                     onClick={() => {
                       setShowChapterForm(false);
                       setEditingChapter(null);
-                      setChapterFormData({ title: "", chapter_number: "" });
+                      setChapterFormData({
+                        title: "",
+                        chapter_number: "",
+                        release_mode: "immediate",
+                        scheduled_release_at: "",
+                      });
                       setChapterCoverFile(null);
                     }}
                     className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"

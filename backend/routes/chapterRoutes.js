@@ -3,6 +3,10 @@ const router = require('express').Router();
 const { authenticateToken, optionalAuthenticate } = require('../middlewares/auth');
 const { upload } = require('../middlewares/upload');
 const ChapterController = require('../controllers/ChapterController');
+const ChapterScheduleController = require('../controllers/ChapterScheduleController');
+
+// Jadwal rilis mingguan (harus sebelum /:chapterId agar tidak bentrok)
+router.get('/schedule', ChapterScheduleController.getSchedule);
 
 // Detail chapter by slug
 // Mounted at /api/chapters → full path: /api/chapters/slug/:slug

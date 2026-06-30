@@ -487,6 +487,13 @@ class APIClient {
     return this.request(`/manga/${mangaId}/chapters`);
   }
 
+  getChapterSchedule(weekOffset = 0) {
+    const params = new URLSearchParams();
+    if (weekOffset) params.set('week', String(weekOffset));
+    const qs = params.toString();
+    return this.request(`/chapters/schedule${qs ? `?${qs}` : ''}`);
+  }
+
   createChapter(mangaId, formData) {
     return this.request(`/manga/${mangaId}/chapters`, {
       method: 'POST',

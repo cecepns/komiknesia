@@ -4,6 +4,17 @@ const { upload } = require('../middlewares/upload'); // used in routes, not here
 const { deleteFile, resolveLocalUploadPath } = require('../utils/files');
 const { uploadFileToS3 } = require('../utils/s3Upload');
 const { deleteUrlFromS3 } = require('../utils/s3Upload');
+const {
+  isIkiruCdnUrl,
+  getIkiruCdnFetchHeaders,
+  isPromoIkiruResponse,
+  toProxiedImagePathIfNeeded,
+} = require('../utils/ikiruCdnImage');
+const {
+  CHAPTER_RELEASED_WHERE,
+  parseScheduledReleaseAt,
+  isScheduledReleaseInFuture,
+} = require('../utils/chapterRelease');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -53,7 +64,20 @@ const loadImageZipEntry = async (imagePath, index) => {
       timeout: 45000,
       maxRedirects: 5,
       validateStatus: (status) => status >= 200 && status < 300,
+      headers: isIkiruCdnUrl(absoluteUrl)
+        ? getIkiruCdnFetchHeaders()
+        : {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          },
     });
+
+    const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
+    if (isPromoIkiruResponse(finalUrl)) {
+      console.warn(`Skipped promo image for zip (${absoluteUrl})`);
+      return null;
+    }
+
     const ext = guessImageExtension(absoluteUrl, response.headers['content-type']);
     return {
       name: `${pageName}${ext}`,
@@ -77,6 +101,7 @@ const showBySlug = async (req, res) => {
         c.title,
         c.slug,
         c.manga_id,
+        c.scheduled_release_at,
         m.is_input_manual,
         m.slug as manga_slug,
         m.title as manga_title,
@@ -103,6 +128,13 @@ const showBySlug = async (req, res) => {
 
     if (chapters.length > 0) {
       const chapter = chapters[0];
+
+      if (isScheduledReleaseInFuture(chapter.scheduled_release_at)) {
+        return res.status(404).json({
+          status: false,
+          error: 'Chapter belum dirilis',
+        });
+      }
 
       try {
         await db.execute(
@@ -135,6 +167,8 @@ const showBySlug = async (req, res) => {
             c.title,
             c.slug,
             c.created_at,
+            c.scheduled_release_at,
+            UNIX_TIMESTAMP(COALESCE(c.scheduled_release_at, c.created_at)) as release_at_timestamp,
             UNIX_TIMESTAMP(c.created_at) as created_at_timestamp,
             COALESCE(c.views, 0) AS views,
             (
@@ -142,6 +176,7 @@ const showBySlug = async (req, res) => {
             ) AS reaction_count
           FROM chapters c
           WHERE c.manga_id = ?
+            AND ${CHAPTER_RELEASED_WHERE}
           ORDER BY CAST(c.chapter_number AS UNSIGNED) DESC, c.chapter_number DESC
         `,
           [chapter.manga_id]
@@ -158,7 +193,7 @@ const showBySlug = async (req, res) => {
         );
 
         const responseData = {
-          images: images.map((img) => img.image_path),
+          images: images.map((img) => toProxiedImagePathIfNeeded(img.image_path, req)),
           content: {
             id: chapter.manga_id,
             title: chapter.manga_title,
@@ -189,7 +224,7 @@ const showBySlug = async (req, res) => {
             views: Number(ch.views) || 0,
             reaction_count: Number(ch.reaction_count) || 0,
             created_at: {
-              time: parseInt(ch.created_at_timestamp, 10),
+              time: parseInt(ch.release_at_timestamp || ch.created_at_timestamp, 10),
               formatted: new Date(ch.created_at).toLocaleString('id-ID'),
             },
           })),
@@ -320,7 +355,7 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, chapter_number } = req.body;
+    const { title, chapter_number, scheduled_release_at, release_mode } = req.body;
 
     const [chapterRows] = await db.execute('SELECT manga_id FROM chapters WHERE id = ?', [id]);
     if (chapterRows.length === 0) {
@@ -339,6 +374,11 @@ const update = async (req, res) => {
 
     let query = 'UPDATE chapters SET title = ?, chapter_number = ?, slug = ?';
     const params = [title, chapter_number, chapterSlug];
+
+    const wantsScheduled = release_mode === 'scheduled';
+    const parsedSchedule = wantsScheduled ? parseScheduledReleaseAt(scheduled_release_at) : null;
+    query += ', scheduled_release_at = ?';
+    params.push(parsedSchedule);
 
     if (req.file) {
       const ext = path.extname(req.file.originalname || req.file.filename || '') || '.webp';
@@ -631,6 +671,7 @@ const downloadBySlug = async (req, res) => {
         c.chapter_number as number,
         c.title,
         c.slug,
+        c.scheduled_release_at,
         m.is_input_manual,
         m.slug as manga_slug,
         m.title as manga_title
@@ -646,6 +687,9 @@ const downloadBySlug = async (req, res) => {
     }
 
     const chapter = chapters[0];
+    if (isScheduledReleaseInFuture(chapter.scheduled_release_at)) {
+      return res.status(404).json({ error: 'Chapter belum dirilis' });
+    }
     if (!chapter.is_input_manual) {
       return res.status(400).json({ error: 'Download hanya tersedia untuk komik manual' });
     }

@@ -141,6 +141,13 @@ const Header = () => {
             </button>
             <button
               type="button"
+              onClick={() => handleNavigate("/jadwal")}
+              className={headerNavLinkClass}
+            >
+              Jadwal
+            </button>
+            <button
+              type="button"
               onClick={() => handleNavigate("/premium")}
               className={`${headerNavLinkClass} gap-1.5`}
             >
@@ -166,7 +173,7 @@ const Header = () => {
               onClick={() => handleNavigate("/content")}
               className={headerNavLinkClass}
             >
-              Daftar Komik
+              Genre
             </button>
             <button
               type="button"
@@ -389,6 +396,13 @@ const Header = () => {
               </button>
               <button
                 type="button"
+                onClick={() => handleNavigate("/jadwal")}
+                className={mobileNavLinkClass}
+              >
+                Jadwal
+              </button>
+              <button
+                type="button"
                 onClick={() => handleNavigate("/premium")}
                 className={`${mobileNavLinkClass} flex items-center gap-2`}
               >
@@ -407,7 +421,7 @@ const Header = () => {
                 onClick={() => handleNavigate("/content")}
                 className={mobileNavLinkClass}
               >
-                Daftar Komik
+                Genre
               </button>
               <button
                 type="button"

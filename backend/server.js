@@ -34,6 +34,9 @@ const leaderboardRoutes = require('./routes/leaderboardRoutes');
 const premiumOrderRoutes = require('./routes/premiumOrderRoutes');
 const stickerRoutes = require('./routes/stickerRoutes');
 const liveChatRoutes = require('./routes/liveChatRoutes');
+const imageProxyRoutes = require('./routes/imageProxyRoutes');
+const { toProxiedImagePathIfNeeded } = require('./utils/ikiruCdnImage');
+const { CHAPTER_RELEASED_WHERE, isScheduledReleaseInFuture } = require('./utils/chapterRelease');
 
 const app = express();
 const server = http.createServer(app);
@@ -174,6 +177,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/premium-orders', premiumOrderRoutes);
 app.use('/api/stickers', stickerRoutes);
 app.use('/api/live-chat', liveChatRoutes);
+app.use('/api', imageProxyRoutes);
 app.use('/api/ikiru', ikiruRoutes);
 app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
 app.use('/', sitemapRoutes);
@@ -196,6 +200,7 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
         c.title,
         c.slug,
         c.manga_id,
+        c.scheduled_release_at,
         m.is_input_manual,
         m.slug as manga_slug,
         m.title as manga_title,
@@ -220,6 +225,10 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
     
     if (chapters.length > 0) {
       const chapter = chapters[0];
+
+      if (isScheduledReleaseInFuture(chapter.scheduled_release_at)) {
+        return res.status(404).json({ status: false, error: 'Chapter belum dirilis' });
+      }
       
       // Hanya dukung manga input manual
       if (chapter.is_input_manual) {
@@ -240,9 +249,11 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
             c.title,
             c.slug,
             c.created_at,
+            UNIX_TIMESTAMP(COALESCE(c.scheduled_release_at, c.created_at)) as release_at_timestamp,
             UNIX_TIMESTAMP(c.created_at) as created_at_timestamp
           FROM chapters c
           WHERE c.manga_id = ?
+            AND ${CHAPTER_RELEASED_WHERE}
           ORDER BY CAST(c.chapter_number AS UNSIGNED) DESC, c.chapter_number DESC
         `, [chapter.manga_id]);
         
@@ -259,11 +270,12 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
           images: images.map(img => {
             // Convert relative paths to full URLs if needed
             if (img.image_path && !img.image_path.startsWith('http')) {
-              return img.image_path.startsWith('/uploads/') 
+              const localUrl = img.image_path.startsWith('/uploads/')
                 ? `${req.protocol}://${req.get('host')}${img.image_path}`
                 : img.image_path;
+              return toProxiedImagePathIfNeeded(localUrl, req);
             }
-            return img.image_path;
+            return toProxiedImagePathIfNeeded(img.image_path, req);
           }),
           content: {
             id: chapter.manga_id,
@@ -293,7 +305,7 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
             title: ch.title || `Chapter ${ch.number}`,
             slug: ch.slug,
             created_at: {
-              time: parseInt(ch.created_at_timestamp),
+              time: parseInt(ch.release_at_timestamp || ch.created_at_timestamp, 10),
               formatted: new Date(ch.created_at).toLocaleString('id-ID')
             }
           })),
@@ -394,6 +406,8 @@ const runSqlMigration = async () => {
        ('redirect_script_urls', '["https://mbuh.my.id/siap/1770790072377-komiknesia.js"]')
      ON DUPLICATE KEY UPDATE \`value\` = \`value\``,
     'ALTER TABLE ads ADD COLUMN expired_at DATETIME NULL',
+    'ALTER TABLE chapters ADD COLUMN scheduled_release_at DATETIME NULL AFTER updated_at',
+    'ALTER TABLE chapters ADD INDEX idx_chapters_scheduled_release (scheduled_release_at)',
   ];
 
   for (const statement of statements) {
@@ -401,7 +415,13 @@ const runSqlMigration = async () => {
       await db.execute(statement);
     } catch (error) {
       // Ignore duplicate column when migration already applied.
-      if (error && (error.code === 'ER_DUP_FIELDNAME' || error.errno === 1060)) {
+      if (
+        error &&
+        (error.code === 'ER_DUP_FIELDNAME' ||
+          error.errno === 1060 ||
+          error.code === 'ER_DUP_KEYNAME' ||
+          error.errno === 1061)
+      ) {
         continue;
       }
       throw error;
