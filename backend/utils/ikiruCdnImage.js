@@ -6,6 +6,8 @@
  */
 const { IKIRU_ORIGIN } = require('./ikiruSession');
 
+const { readIkiruCloudflareCookiesSync } = require('./ikiruCloudflareCookiesFile');
+
 const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id']);
 
 const IKIRU_CDN_ACCESS_CODE =
@@ -33,6 +35,7 @@ function isPromoIkiruResponse(url) {
 
 function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN) {
   const ref = String(referer || IKIRU_ORIGIN).replace(/\/+$/, '');
+  const cfCookie = readIkiruCloudflareCookiesSync();
   return {
     'User-Agent': DEFAULT_UA,
     accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
@@ -44,6 +47,7 @@ function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN) {
     'sec-fetch-dest': 'image',
     'sec-fetch-mode': 'no-cors',
     'sec-fetch-site': 'cross-site',
+    ...(cfCookie ? { Cookie: cfCookie } : {}),
   };
 }
 

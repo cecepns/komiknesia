@@ -9,9 +9,11 @@ const {
   clearIkiruCloudflareCookiesFile,
 } = require('../utils/ikiruCloudflareCookiesFile');
 const { uploadUrlToS3 } = require('../utils/s3Upload');
+const { refreshMangaChapterActivity } = require('../utils/chapterRelease');
+const { invalidateContentsCaches } = require('./ContentsController');
 const path = require('path');
 
-const BASE_URL = 'https://04.ikiru.wtf';
+const BASE_URL = 'https://v6.kiryuu.to';
 const SOURCE = 'ikiru';
 const MANGA_PATH_REGEX = /\/manga\/([^/?#]+)/i;
 
@@ -267,7 +269,7 @@ function buildPagedUrl(basePath, page) {
 }
 
 async function scrapeLatestFeed({ page } = {}) {
-  const url = buildPagedUrl('/latest-update/', page);
+  const url = buildPagedUrl('/latest/', page);
   const $ = await fetchHtml(url);
   const mangaMap = new Map();
 
@@ -678,8 +680,8 @@ async function upsertMangaFromIkiru(detail, { saveToS3 = false } = {}) {
       null,
       'ongoing',
       detail.rating != null &&
-      Number.isFinite(Number(detail.rating)) &&
-      Number(detail.rating) > 0
+        Number.isFinite(Number(detail.rating)) &&
+        Number(detail.rating) > 0
         ? Number(detail.rating)
         : null,
       false,
@@ -725,6 +727,11 @@ async function insertChaptersIfMissing(manga, ikiruChapters, { mode }) {
     );
     inserted += 1;
     insertedSlugs.push(localSlug);
+  }
+
+  if (inserted > 0) {
+    await refreshMangaChapterActivity(db, manga.id);
+    invalidateContentsCaches();
   }
 
   return { inserted, skipped, insertedSlugs };
@@ -991,6 +998,8 @@ async function upsertChapterFromIkiru(mangaId, mangaSlug, ch) {
       'UPDATE chapters SET manga_id = ?, title = ?, chapter_number = ? WHERE id = ?',
       [mangaId, chapterTitle, chapterNumber, row.id]
     );
+    await refreshMangaChapterActivity(db, mangaId);
+    invalidateContentsCaches();
     return { chapterId: row.id, created: false, slug: localSlug };
   }
 
@@ -998,6 +1007,9 @@ async function upsertChapterFromIkiru(mangaId, mangaSlug, ch) {
     'INSERT INTO chapters (manga_id, title, chapter_number, slug, cover) VALUES (?, ?, ?, ?, ?)',
     [mangaId, chapterTitle, chapterNumber, localSlug, null]
   );
+
+  await refreshMangaChapterActivity(db, mangaId);
+  invalidateContentsCaches();
 
   return { chapterId: result.insertId, created: true, slug: localSlug };
 }

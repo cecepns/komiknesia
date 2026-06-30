@@ -14,7 +14,9 @@ const {
   CHAPTER_RELEASED_WHERE,
   parseScheduledReleaseAt,
   isScheduledReleaseInFuture,
+  refreshMangaChapterActivity,
 } = require('../utils/chapterRelease');
+const { invalidateContentsCaches } = require('./ContentsController');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -345,6 +347,9 @@ const create = async (req, res) => {
       [mangaId, title, chapter_number, chapterSlug, cover]
     );
 
+    await refreshMangaChapterActivity(db, mangaId);
+    invalidateContentsCaches();
+
     res.status(201).json({ id: result.insertId, message: 'Chapter created successfully' });
   } catch (error) {
     console.error('Error creating chapter:', error);
@@ -395,6 +400,9 @@ const update = async (req, res) => {
     params.push(id);
 
     await db.execute(query, params);
+
+    await refreshMangaChapterActivity(db, chapterRows[0].manga_id);
+    invalidateContentsCaches();
 
     res.json({ message: 'Chapter updated successfully' });
   } catch (error) {

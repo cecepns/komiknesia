@@ -2,7 +2,7 @@
 /* eslint-env node */
 const { ikiruFetchHtml } = require('../utils/ikiruSession');
 
-const BASE_URL = 'https://04.ikiru.wtf';
+const BASE_URL = 'https://v6.kiryuu.to';
 
 function cleanText(text) {
   return text.replace(/\s+/g, ' ').trim();
@@ -283,7 +283,7 @@ async function getProjectUpdates(req, res) {
 
 async function getLatestUpdates(req, res) {
   try {
-    const $ = await fetchHtml(`${BASE_URL}/latest-update/`);
+    const $ = await fetchHtml(`${BASE_URL}/latest/`);
 
     const mangaMap = new Map();
 

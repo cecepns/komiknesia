@@ -5,7 +5,7 @@
 require('dotenv').config();
 const { refreshIkiruCloudflareCookieWithPuppeteer } = require('../utils/ikiruSession');
 
-const targetUrl = String(process.env.IKIRU_CF_TARGET_URL || 'https://03.ikiru.wtf/latest-update/').trim();
+const targetUrl = String(process.env.IKIRU_CF_TARGET_URL || 'https://v6.kiryuu.to/latest/').trim();
 const maxWaitMs = Number(process.env.IKIRU_CF_MAX_WAIT_MS || 180000);
 const headless = String(process.env.IKIRU_CF_HEADLESS || 'true').toLowerCase() !== 'false';
 const debugScreenshot = String(process.env.IKIRU_CF_DEBUG_SCREENSHOT || '').trim();

@@ -1,8 +1,8 @@
 const db = require('../db');
-const { CHAPTER_RELEASED_WHERE } = require('../utils/chapterRelease');
+const { fetchLastChaptersByMangaIds } = require('../utils/chapterRelease');
 const { createShortLivedCache } = require('../utils/shortLivedCache');
 
-const featuredListCache = createShortLivedCache({ ttlMs: 30 * 1000, maxKeys: 48 });
+const featuredListCache = createShortLivedCache({ ttlMs: 5 * 60 * 1000, maxKeys: 48 });
 
 function normalizeSearchQuery(input) {
   if (!input || typeof input !== 'string') return '';
@@ -147,41 +147,7 @@ async function fetchFeaturedPayload(req) {
 
     let lastChapterByMangaId = {};
     try {
-      const [lastChapterRows] = await db.execute(
-        `
-        SELECT
-          c.manga_id,
-          c.chapter_number AS number,
-          c.title,
-          c.slug,
-          c.created_at,
-          UNIX_TIMESTAMP(COALESCE(c.scheduled_release_at, c.created_at)) AS release_at_timestamp,
-          UNIX_TIMESTAMP(c.created_at) AS created_at_timestamp
-        FROM chapters c
-        WHERE c.manga_id IN (${idPlaceholders})
-          AND ${CHAPTER_RELEASED_WHERE}
-        ORDER BY c.manga_id ASC, CAST(c.chapter_number AS UNSIGNED) DESC, c.created_at DESC
-      `,
-        mangaIds
-      );
-
-      lastChapterByMangaId = lastChapterRows.reduce((acc, row) => {
-        if (!acc[row.manga_id]) {
-          acc[row.manga_id] = [];
-        }
-        if (acc[row.manga_id].length >= 3) {
-          return acc;
-        }
-        acc[row.manga_id].push({
-          number: row.number,
-          title: row.title,
-          slug: row.slug,
-          created_at: {
-            time: parseInt(row.release_at_timestamp || row.created_at_timestamp, 10),
-          },
-        });
-        return acc;
-      }, {});
+      lastChapterByMangaId = await fetchLastChaptersByMangaIds(db, mangaIds, 3);
     } catch (err) {
       console.error('Error loading last chapters for featured items:', err);
       lastChapterByMangaId = {};

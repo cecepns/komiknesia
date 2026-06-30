@@ -3,7 +3,8 @@ const { generateSlug } = require('../utils/slug');
 const { deleteFile } = require('../utils/files');
 const { uploadFileToS3 } = require('../utils/s3Upload');
 const { deleteUrlFromS3 } = require('../utils/s3Upload');
-const { parseScheduledReleaseAt } = require('../utils/chapterRelease');
+const { parseScheduledReleaseAt, refreshMangaChapterActivity } = require('../utils/chapterRelease');
+const { invalidateContentsCaches } = require('./ContentsController');
 const fs = require('fs');
 const path = require('path');
 
@@ -163,6 +164,9 @@ const createChapter = async (req, res) => {
       'INSERT INTO chapters (manga_id, title, chapter_number, slug, cover, scheduled_release_at) VALUES (?, ?, ?, ?, ?, ?)',
       [mangaId, title, chapter_number, chapterSlug, cover, parsedSchedule]
     );
+
+    await refreshMangaChapterActivity(db, mangaId);
+    invalidateContentsCaches();
 
     res.status(201).json({ id: result.insertId, message: 'Chapter created successfully' });
   } catch (error) {

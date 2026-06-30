@@ -19,7 +19,7 @@ const {
   COOKIE_FILE,
 } = require('./ikiruCloudflareCookiesFile');
 
-const IKIRU_ORIGIN = String(process.env.IKIRU_ORIGIN || 'https://04.ikiru.wtf').replace(/\/+$/, '');
+const IKIRU_ORIGIN = String(process.env.IKIRU_ORIGIN || 'https://v6.kiryuu.to').replace(/\/+$/, '');
 
 /**
  * Cookie Cloudflare: file backend/data/ikiru-cloudflare-cookies.txt (diset dari admin Ikiru Sync),
@@ -52,9 +52,9 @@ function cloudflareChallengeDetected(html) {
 function cloudflareBlockedError() {
   return new Error(
     'Ikiru membalas halaman Cloudflare (verifikasi bot / "Just a moment"). ' +
-      `Simpan header Cookie untuk ${IKIRU_ORIGIN} lewat Admin → Ikiru Sync (form Cloudflare), atau file backend/data/ikiru-cloudflare-cookies.txt. ` +
-      'Salin dari DevTools → Application → Cookies atau Network (request yang sudah lolos CF); sertakan cf_clearance jika ada. ' +
-      'Cookie umumnya terikat IP server. Alternatif: env IKIRU_CLOUDFLARE_COOKIES.'
+    `Simpan header Cookie untuk ${IKIRU_ORIGIN} lewat Admin → Ikiru Sync (form Cloudflare), atau file backend/data/ikiru-cloudflare-cookies.txt. ` +
+    'Salin dari DevTools → Application → Cookies atau Network (request yang sudah lolos CF); sertakan cf_clearance jika ada. ' +
+    'Cookie umumnya terikat IP server. Alternatif: env IKIRU_CLOUDFLARE_COOKIES.'
   );
 }
 
@@ -109,7 +109,7 @@ async function refreshIkiruCloudflareCookieWithPuppeteer(opts = {}) {
     await page.setViewport({ width: 1365, height: 900 });
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     );
 
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -241,7 +241,7 @@ function ikiruAuthIncompleteError() {
 function ikiruLoginRequiredWithCfError() {
   return new Error(
     'Ikiru scrape/sync membutuhkan login: set IKIRU_AUTH_EMAIL dan IKIRU_AUTH_PASSWORD di environment. ' +
-      'Cookie Cloudflare (admin / file / env) dipakai bersama jar saat login; header Cookie CF saja tidak menggantikan sesi akun.'
+    'Cookie Cloudflare (admin / file / env) dipakai bersama jar saat login; header Cookie CF saja tidak menggantikan sesi akun.'
   );
 }
 
