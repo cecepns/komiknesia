@@ -4,6 +4,7 @@ import { MessageCircle, Send, Smile, X } from "lucide-react";
 import { io } from "socket.io-client";
 import { API_BASE_URL_WITHOUT_API, apiClient, getImageUrl } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
+import { useScrollHide } from "../hooks/useScrollHide";
 import vipProfileBanner from "../assets/gif/banner-vip.gif";
 
 function getInitials(name, username) {
@@ -118,6 +119,7 @@ const LiveChatWidget = () => {
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [stickers, setStickers] = useState([]);
   const [stickersLoading, setStickersLoading] = useState(false);
+  const scrollHidden = useScrollHide(!chatOpen);
   const [stickersError, setStickersError] = useState("");
 
   useEffect(() => {
@@ -267,7 +269,13 @@ const LiveChatWidget = () => {
   };
 
   return (
-    <div className="fixed bottom-20 right-4 md:bottom-5 md:right-5 z-[70]">
+    <div
+      className={`fixed right-4 z-[70] bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:bottom-5 md:right-5 will-change-transform transition-[transform,opacity] duration-300 ease-out ${
+        scrollHidden
+          ? "translate-y-[calc(100%+1.5rem)] opacity-0 pointer-events-none"
+          : "translate-y-0 opacity-100"
+      }`}
+    >
       <div
         className={`absolute bottom-[72px] right-0 w-[min(92vw,380px)] rounded-2xl border border-white/20 bg-gray-950/95 text-white shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-300 ${
           chatOpen

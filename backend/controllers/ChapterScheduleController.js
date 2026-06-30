@@ -1,5 +1,9 @@
 const db = require('../db');
-const { normalizeScheduledForResponse } = require('../utils/chapterRelease');
+const {
+  normalizeScheduledForResponse,
+  getScheduleDayKey,
+  formatDateOnly,
+} = require('../utils/chapterRelease');
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
@@ -86,16 +90,23 @@ const getSchedule = async (req, res) => {
     }
 
     for (const row of rows) {
-      const jsDay = new Date(String(row.scheduled_release_at).replace(' ', 'T')).getDay();
-      const key = DAY_KEYS[jsDay === 0 ? 6 : jsDay - 1];
+      const key = getScheduleDayKey(row.scheduled_release_at);
+      if (!key || !days[key]) {
+        console.warn(
+          'Skip schedule row: could not resolve day bucket',
+          row.id,
+          row.scheduled_release_at
+        );
+        continue;
+      }
       days[key].push(mapScheduleRow(row));
     }
 
     res.json({
       status: true,
       week_offset: weekOffset,
-      week_start: weekStart,
-      week_end: weekEnd,
+      week_start: formatDateOnly(weekStart),
+      week_end: formatDateOnly(weekEnd),
       day_labels: DAY_LABELS_ID,
       days,
       total: rows.length,

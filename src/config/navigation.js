@@ -1,11 +1,10 @@
-import { HomeIcon, CalendarDays, FolderIcon, Trophy, Tags, UserCircle } from 'lucide-react';
+import { HomeIcon, CalendarDays, FolderIcon, Tags, UserCircle } from 'lucide-react';
 
-/** Navigasi utama: Home → Jadwal → Library → Leaderboard → Genre → Akun */
+/** Navigasi utama mobile bottom bar */
 export const mainNavigationItems = [
   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
   { id: 'jadwal', label: 'Jadwal', icon: CalendarDays, path: '/jadwal' },
   { id: 'library', label: 'Library', icon: FolderIcon, path: '/library' },
-  { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, path: '/leaderboard' },
   { id: 'genre', label: 'Genre', icon: Tags, path: '/content' },
   { id: 'account', label: 'Akun', icon: UserCircle, path: '/akun', comingSoon: false },
 ];

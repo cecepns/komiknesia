@@ -109,7 +109,9 @@ const FloatingFixedAd = ({ position, ads }) => {
   return (
     <div
       className={`pointer-events-auto fixed left-1/2 z-[48] flex w-[min(100vw-1rem,728px)] max-w-full -translate-x-1/2 flex-col items-center px-2 ${
-        isTop ? "top-16 md:top-20" : "bottom-14 md:bottom-3"
+        isTop
+          ? "top-14 md:top-20"
+          : "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-3"
       }`}
     >
       {isTop ? (

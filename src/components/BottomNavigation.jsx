@@ -1,57 +1,47 @@
-import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { mainNavigationItems, resolveActiveNavId } from '../config/navigation';
+import { useScrollHide } from '../hooks/useScrollHide';
+
+const BOTTOM_OFFSET = 'calc(1rem + env(safe-area-inset-bottom, 0px))';
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [visible, setVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const hidden = useScrollHide();
 
   const activeTab = resolveActiveNavId(location.pathname);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      if (y < 48) {
-        setVisible(true);
-      } else if (y > lastScrollY + 8) {
-        setVisible(false);
-      } else if (y < lastScrollY - 8) {
-        setVisible(true);
-      }
-      setLastScrollY(y);
-    };
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [lastScrollY]);
 
   const handleNavigation = (item) => {
     if (item.comingSoon) return;
     navigate(item.path);
   };
 
-  return (
+  const nav = (
     <nav
-      className={`md:hidden fixed left-0 right-0 z-50 bg-gray-900 dark:bg-gray-950 py-1.5 transition-transform duration-300 ease-out ${
-        visible ? 'bottom-0 translate-y-0' : 'bottom-0 translate-y-full'
+      aria-label="Navigasi utama"
+      className={`md:hidden fixed inset-x-3 z-50 will-change-transform transition-[transform,opacity] duration-300 ease-out ${
+        hidden
+          ? 'translate-y-[calc(100%+1.5rem)] opacity-0 pointer-events-none'
+          : 'translate-y-0 opacity-100'
       }`}
+      style={{ bottom: BOTTOM_OFFSET }}
     >
-      <div className="overflow-x-auto scrollbar-hide px-1">
-        <div className="flex min-w-max gap-1">
+      <div className="overflow-hidden rounded-2xl border border-gray-700/70 bg-gray-900/95 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-md dark:border-gray-800/90 dark:bg-gray-950/95">
+        <div className="flex w-full gap-0.5 px-1 py-1.5">
           {mainNavigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => handleNavigation(item)}
-                className={`flex min-w-[4.25rem] flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1.5 transition-all duration-200 ${
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border px-0.5 py-1.5 transition-colors duration-200 ${
                   isActive
                     ? 'border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#c61737] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#c61737]'
                     : 'border-transparent text-gray-400 hover:text-gray-300'
-                } ${item.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${item.comingSoon ? 'cursor-not-allowed opacity-50' : ''}`}
                 disabled={item.comingSoon}
               >
                 <Icon
@@ -59,7 +49,7 @@ const BottomNavigation = () => {
                   strokeWidth={isActive ? 2.25 : 2}
                 />
                 <span
-                  className={`max-w-full px-0.5 text-center text-[10px] font-medium leading-tight line-clamp-2 ${
+                  className={`line-clamp-1 w-full text-center text-[10px] font-medium leading-tight ${
                     isActive ? 'font-semibold' : ''
                   }`}
                 >
@@ -72,6 +62,8 @@ const BottomNavigation = () => {
       </div>
     </nav>
   );
+
+  return createPortal(nav, document.body);
 };
 
 export default BottomNavigation;

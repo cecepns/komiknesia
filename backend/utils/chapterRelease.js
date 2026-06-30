@@ -47,9 +47,8 @@ function parseScheduledReleaseAt(raw) {
 }
 
 function isScheduledReleaseInFuture(scheduledAt) {
-  if (!scheduledAt) return false;
-  const d = new Date(String(scheduledAt).replace(' ', 'T'));
-  if (Number.isNaN(d.getTime())) return false;
+  const d = parseScheduledDate(scheduledAt);
+  if (!d) return false;
   return d.getTime() > Date.now();
 }
 
@@ -61,12 +60,66 @@ function normalizeScheduledForResponse(row) {
   if (ts) {
     return { time: ts, formatted: new Date(ts * 1000).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) };
   }
-  const d = new Date(String(row.scheduled_release_at).replace(' ', 'T'));
-  if (Number.isNaN(d.getTime())) return null;
+  const d = parseScheduledDate(row.scheduled_release_at);
+  if (!d) return null;
   return {
     time: Math.floor(d.getTime() / 1000),
     formatted: d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
   };
+}
+
+/** Parse DATETIME dari MySQL (string atau Date object dari driver). */
+function parseScheduledDate(value) {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const s = String(value ?? '').trim();
+  if (!s) return null;
+
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(s)) {
+    const d = new Date(s.replace(' ', 'T'));
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const SCHEDULE_WEEKDAY_TO_KEY = {
+  Mon: 'monday',
+  Tue: 'tuesday',
+  Wed: 'wednesday',
+  Thu: 'thursday',
+  Fri: 'friday',
+  Sat: 'saturday',
+  Sun: 'sunday',
+};
+
+/** Hari jadwal (Senin–Minggu) berdasarkan waktu WIB. */
+function getScheduleDayKey(scheduledAt) {
+  const d = parseScheduledDate(scheduledAt);
+  if (!d) return null;
+
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'short',
+  }).format(d);
+
+  return SCHEDULE_WEEKDAY_TO_KEY[weekday] || null;
+}
+
+function formatDateOnly(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+  const s = String(value ?? '').trim();
+  if (!s) return s;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = parseScheduledDate(s);
+  if (!d) return s;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 module.exports = {
@@ -76,6 +129,9 @@ module.exports = {
   CHAPTER_EFFECTIVE_ACTIVITY_BARE,
   CHAPTER_ACTIVITY_SUBQUERY,
   parseScheduledReleaseAt,
+  parseScheduledDate,
+  getScheduleDayKey,
+  formatDateOnly,
   isScheduledReleaseInFuture,
   normalizeScheduledForResponse,
 };

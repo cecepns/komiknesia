@@ -14,7 +14,6 @@ import Premium from "./pages/Premium";
 import ProfileUser from "./pages/ProfileUser";
 import Jadwal from "./pages/Jadwal";
 import ScrollToTop from "./components/ScrollToTop";
-import BottomNavigation from "./components/BottomNavigation";
 import AdPopup from "./components/AdPopup";
 import MbuhRedirectScript from "./components/MbuhRedirectScript";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -50,78 +49,57 @@ function AppContent() {
         <Route
           path="/library"
           element={
-            <>
-              <Layout>
-                <Library />
-              </Layout>
-              <BottomNavigation />
-            </>
+            <Layout>
+              <Library />
+            </Layout>
           }
         />
         <Route
           path="/jadwal"
           element={
-            <>
-              <Layout>
-                <Jadwal />
-              </Layout>
-              <BottomNavigation />
-            </>
+            <Layout>
+              <Jadwal />
+            </Layout>
           }
         />
         <Route
           path="/content"
           element={
-            <>
-              <Layout>
-                <Content />
-              </Layout>
-              <BottomNavigation />
-            </>
+            <Layout>
+              <Content />
+            </Layout>
           }
         />
         <Route
           path="/akun"
           element={
-            <>
-              <Layout>
-                <Akun />
-              </Layout>
-              <BottomNavigation />
-            </>
+            <Layout>
+              <Akun />
+            </Layout>
           }
         />
         <Route
           path="/leaderboard"
           element={
-            <>
-              <Layout>
-                <Leaderboard />
-              </Layout>
-              <BottomNavigation />
-            </>
+            <Layout>
+              <Leaderboard />
+            </Layout>
           }
         />
         <Route
           path="/premium"
           element={
-            <>
-              <Layout>
-                <Premium />
-              </Layout>
-              <BottomNavigation />
-            </>
+            <Layout>
+              <Premium />
+            </Layout>
           }
         />
         <Route
           path="/contact"
           element={
-            <>
-              <Layout>
-                <Contact />
-              </Layout>
-              <BottomNavigation />
-            </>
+            <Layout>
+              <Contact />
+            </Layout>
           }
         />
         <Route
