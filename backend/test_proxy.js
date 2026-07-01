@@ -12,9 +12,13 @@ function getIkiruCdnFetchHeaders(referer = 'https://v6.kiryuu.to/') {
     'cache-control': 'no-cache',
     'pragma': 'no-cache',
     'referer': referer,
+    'sec-ch-ua': '"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"macOS"',
     'sec-fetch-dest': 'image',
     'sec-fetch-mode': 'no-cors',
     'sec-fetch-site': 'cross-site',
+    'sec-fetch-storage-access': 'active',
   };
 }
 
@@ -78,7 +82,7 @@ async function fetchCdnImage(imageUrl) {
 }
 
 async function run() {
-  const testUrl = 'https://yuucdn.com/uploads/manga-images/1/100000-layers-of-body-refining-i-raise-all-emperor/chapter-391/14.jpg';
+  const testUrl = 'https://yuucdn.com/wp-content/uploads/imgsc/m/mairimashita-iruma-kun/448/1.jpg';
   console.log('Testing:', testUrl);
   try {
     const result = await fetchCdnImage(testUrl);

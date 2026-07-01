@@ -8,6 +8,7 @@ const {
   isIkiruCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
+  IKIRU_CDN_PROXY,
 } = require('./ikiruCdnImage');
 
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://is3.cloudhost.id';
@@ -75,15 +76,26 @@ async function uploadUrlToS3(key, url, contentType) {
     'User-Agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   };
+
+  let httpsAgent = null;
+  const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+  if (proxyUrl && isIkiruCdnUrl(url)) {
+    try {
+      const { HttpsProxyAgent } = require('https-proxy-agent');
+      httpsAgent = new HttpsProxyAgent(proxyUrl);
+    } catch {}
+  }
+
   const resp = await axios.get(url, {
     responseType: 'arraybuffer',
     timeout: 30000,
     maxRedirects: 5,
     headers: isIkiruCdnUrl(url) ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url) : defaultHeaders,
+    ...(httpsAgent ? { httpsAgent } : {})
   });
 
   const finalUrl = resp.request?.res?.responseUrl || url;
-  if (isPromoIkiruResponse(finalUrl)) {
+  if (isPromoIkiruResponse(finalUrl, url)) {
     throw new Error('Ikiru CDN returned promo image (access-code/referer rejected)');
   }
 

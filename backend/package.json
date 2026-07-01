@@ -24,7 +24,8 @@
     "mysql2": "^3.6.5",
     "puppeteer": "^24.41.0",
     "socket.io": "^4.8.3",
-    "tough-cookie": "^5.1.2"
+    "tough-cookie": "^5.1.2",
+    "https-proxy-agent": "^7.0.6"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

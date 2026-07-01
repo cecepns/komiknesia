@@ -1,4 +1,5 @@
 /* global require, __dirname */
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const multer = require('multer');

@@ -5,6 +5,7 @@ const {
   isIkiruCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
+  IKIRU_CDN_PROXY,
 } = require('../utils/ikiruCdnImage');
 
 function checkIkiruDomain(urlStr) {
@@ -45,6 +46,17 @@ async function fetchCdnImage(imageUrl) {
   const MAX_MANUAL_REDIRECTS = 3;
   let currentUrl = imageUrl;
 
+  let httpsAgent = null;
+  const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+  if (proxyUrl) {
+    try {
+      const { HttpsProxyAgent } = require('https-proxy-agent');
+      httpsAgent = new HttpsProxyAgent(proxyUrl);
+    } catch (e) {
+      console.error('Failed to create proxy agent:', e.message);
+    }
+  }
+
   for (let attempt = 0; attempt <= MAX_MANUAL_REDIRECTS; attempt++) {
     let response;
     try {
@@ -54,23 +66,29 @@ async function fetchCdnImage(imageUrl) {
         maxRedirects: 0, // handle redirects manually
         validateStatus: (s) => s < 400 || (s >= 300 && s < 400), // allow 3xx
         headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', currentUrl),
+        ...(httpsAgent ? { httpsAgent } : {})
       });
     } catch (err) {
       // axios throws on 3xx when maxRedirects:0 — extract Location from error
       const status = err.response?.status;
       if (status && status >= 300 && status < 400) {
         const location = err.response.headers?.location || '';
-        if (!location) break;
+        if (!location) {
+          console.warn(`[fetchCdnImage] 3xx redirect missing Location header at: ${currentUrl}`);
+          break;
+        }
         const resolvedLocation = location.startsWith('http')
           ? location
           : new URL(location, currentUrl).href;
         // If redirected to promo or Cloudflare challenge, bail to promo
-        if (isPromoIkiruResponse(resolvedLocation) || !isIkiruCdnUrl(resolvedLocation)) {
+        if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
+          console.warn(`[fetchCdnImage] Redirected to promo or non-whitelisted URL: ${resolvedLocation}`);
           return { isPromo: true };
         }
         currentUrl = resolvedLocation;
         continue;
       }
+      console.warn(`[fetchCdnImage] Axios error fetching ${currentUrl}: ${err.message} (status: ${status})`);
       throw err; // real error, rethrow
     }
 
@@ -79,7 +97,8 @@ async function fetchCdnImage(imageUrl) {
     // Successful response
     if (status >= 200 && status < 300) {
       const finalUrl = response.request?.res?.responseUrl || currentUrl;
-      if (isPromoIkiruResponse(finalUrl)) {
+      if (isPromoIkiruResponse(finalUrl, imageUrl)) {
+        console.warn(`[fetchCdnImage] Final response URL is a promo: ${finalUrl}`);
         return { isPromo: true };
       }
       return { isPromo: false, data: response.data, contentType: response.headers['content-type'] };
@@ -87,18 +106,22 @@ async function fetchCdnImage(imageUrl) {
 
     // 3xx redirect — inspect Location
     const location = response.headers?.location || '';
-    if (!location) break;
+    if (!location) {
+      console.warn(`[fetchCdnImage] 3xx redirect status ${status} missing Location at: ${currentUrl}`);
+      break;
+    }
     const resolvedLocation = location.startsWith('http')
       ? location
       : new URL(location, currentUrl).href;
 
-    if (isPromoIkiruResponse(resolvedLocation) || !isIkiruCdnUrl(resolvedLocation)) {
+    if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
+      console.warn(`[fetchCdnImage] Redirected to promo or non-whitelisted URL (status ${status}): ${resolvedLocation}`);
       return { isPromo: true };
     }
     currentUrl = resolvedLocation;
   }
 
-  // Too many redirects or no valid redirect — fall back to promo
+  console.warn(`[fetchCdnImage] Bailing after max redirects or invalid state for: ${imageUrl}`);
   return { isPromo: true };
 }
 
@@ -130,21 +153,22 @@ async function proxy(req, res) {
 
     // Unauthorized visitor → serve promo image
     if (!isFromIkiru) {
-      targetUrl = 'https://cdn.itachi.my.id/promo-ikiru.webp';
+      targetUrl = 'https://yuucdn.com/promo-kiryuu.png';
     }
 
     const result = await fetchCdnImage(targetUrl);
 
     if (result.isPromo) {
       // Fetch and pipe promo image
-      const promoResult = await fetchCdnImage('https://cdn.itachi.my.id/promo-ikiru.webp');
+      const promoResult = await fetchCdnImage('https://yuucdn.com/promo-kiryuu.png');
       if (!promoResult.isPromo && promoResult.data) {
-        res.set('Content-Type', promoResult.contentType || 'image/webp');
-        res.set('Cache-Control', 'public, max-age=3600');
+        res.set('Content-Type', promoResult.contentType || 'image/png');
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res.send(Buffer.from(promoResult.data));
       }
       // Last resort: redirect to promo
-      return res.redirect('https://cdn.itachi.my.id/promo-ikiru.webp');
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.redirect('https://yuucdn.com/promo-kiryuu.png');
     }
 
     res.set('Content-Type', result.contentType || 'image/jpeg');

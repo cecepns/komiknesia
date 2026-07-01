@@ -9,6 +9,7 @@ const {
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   toProxiedImagePathIfNeeded,
+  IKIRU_CDN_PROXY,
 } = require('../utils/ikiruCdnImage');
 const {
   CHAPTER_RELEASED_WHERE,
@@ -60,6 +61,15 @@ const loadImageZipEntry = async (imagePath, index) => {
 
   if (!absoluteUrl) return null;
 
+  let httpsAgent = null;
+  const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+  if (proxyUrl && isIkiruCdnUrl(absoluteUrl)) {
+    try {
+      const { HttpsProxyAgent } = require('https-proxy-agent');
+      httpsAgent = new HttpsProxyAgent(proxyUrl);
+    } catch {}
+  }
+
   try {
     const response = await axios.get(absoluteUrl, {
       responseType: 'arraybuffer',
@@ -72,10 +82,11 @@ const loadImageZipEntry = async (imagePath, index) => {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           },
+      ...(httpsAgent ? { httpsAgent } : {})
     });
 
     const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
-    if (isPromoIkiruResponse(finalUrl)) {
+    if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
       console.warn(`Skipped promo image for zip (${absoluteUrl})`);
       return null;
     }
