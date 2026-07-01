@@ -418,7 +418,7 @@ function invalidateIkiruSession() {
 
 /**
  * GET HTML dari Ikiru; sesi login (jar) memakai env atau default hardcoded.
- * @param {string} url Absolute URL (e.g. https://04.ikiru.wtf/manga/foo/)
+ * @param {string} url Absolute URL (e.g. v6.kiryuu.to/manga/foo/)
  * @param {{ timeout?: number }} [opts]
  */
 async function ikiruFetchHtml(url, { timeout = 20000 } = {}) {
