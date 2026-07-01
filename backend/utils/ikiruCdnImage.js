@@ -8,7 +8,7 @@ const { IKIRU_ORIGIN } = require('./ikiruSession');
 
 const { readIkiruCloudflareCookiesSync } = require('./ikiruCloudflareCookiesFile');
 
-const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id']);
+const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id', 'yuucdn.com', 'www.yuucdn.com']);
 
 const IKIRU_CDN_ACCESS_CODE =
   process.env.IKIRU_CDN_ACCESS_CODE || 'NYQLFxYsnOy+/zwnNWmNTUN5';
@@ -28,14 +28,26 @@ function isIkiruCdnUrl(url) {
 }
 
 function isPromoIkiruResponse(url) {
-  return String(url || '')
-    .toLowerCase()
-    .includes('promo-ikiru');
+  const lower = String(url || '').toLowerCase();
+  return lower.includes('promo-ikiru') || lower.includes('promo-kiryuu');
 }
 
-function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN) {
+function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN, targetUrl = '') {
   const ref = String(referer || IKIRU_ORIGIN).replace(/\/+$/, '');
-  const cfCookie = readIkiruCloudflareCookiesSync();
+  
+  let host = '';
+  if (targetUrl) {
+    try {
+      const u = new URL(targetUrl);
+      host = u.hostname.toLowerCase();
+    } catch {}
+  }
+
+  // Do not send Cloudflare cookies if the target is yuucdn.com
+  const cfCookie = (host === 'yuucdn.com' || host === 'www.yuucdn.com')
+    ? ''
+    : readIkiruCloudflareCookiesSync();
+
   return {
     'User-Agent': DEFAULT_UA,
     accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',

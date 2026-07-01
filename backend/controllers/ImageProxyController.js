@@ -17,6 +17,8 @@ function checkIkiruDomain(urlStr) {
       host === 'ikiru.wtf' ||
       host.endsWith('.ikiru.wtf') ||
       host.includes('ikiru') ||
+      host.includes('komiknesia') ||
+      host.includes('kiryuu') ||
       host.includes('localhost') ||
       host.includes('127.0.0.1')
     );
@@ -25,6 +27,8 @@ function checkIkiruDomain(urlStr) {
     return (
       lower.includes('ikiru') ||
       lower.includes('06.ikiru.wtf') ||
+      lower.includes('komiknesia') ||
+      lower.includes('kiryuu') ||
       lower.includes('localhost') ||
       lower.includes('127.0.0.1')
     );
@@ -49,7 +53,7 @@ async function fetchCdnImage(imageUrl) {
         timeout: 15000,
         maxRedirects: 0, // handle redirects manually
         validateStatus: (s) => s < 400 || (s >= 300 && s < 400), // allow 3xx
-        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/'),
+        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', currentUrl),
       });
     } catch (err) {
       // axios throws on 3xx when maxRedirects:0 — extract Location from error
@@ -122,7 +126,7 @@ async function proxy(req, res) {
 
     const referer = req.headers.referer || req.headers.referrer || '';
     const origin = req.headers.origin || '';
-    const isFromIkiru = checkIkiruDomain(referer) || checkIkiruDomain(origin);
+    const isFromIkiru = !referer || checkIkiruDomain(referer) || checkIkiruDomain(origin);
 
     // Unauthorized visitor → serve promo image
     if (!isFromIkiru) {

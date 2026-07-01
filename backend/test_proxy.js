@@ -21,12 +21,14 @@ function getIkiruCdnFetchHeaders(referer = 'https://v6.kiryuu.to/') {
 function isIkiruCdnUrl(url) {
   try {
     const u = new URL(url);
-    return u.hostname === 'cdn.itachi.my.id';
+    const host = u.hostname.toLowerCase();
+    return host === 'cdn.itachi.my.id' || host === 'yuucdn.com' || host === 'www.yuucdn.com';
   } catch { return false; }
 }
 
 function isPromoIkiruResponse(url) {
-  return String(url || '').toLowerCase().includes('promo-ikiru');
+  const lower = String(url || '').toLowerCase();
+  return lower.includes('promo-ikiru') || lower.includes('promo-kiryuu');
 }
 
 async function fetchCdnImage(imageUrl) {
@@ -76,7 +78,7 @@ async function fetchCdnImage(imageUrl) {
 }
 
 async function run() {
-  const testUrl = 'https://cdn.itachi.my.id/wp-content/uploads/images/t/the-cannon-fodder-concubines-daughter-just-wants-to-survive-by-being-adorable/chapter-3/1.webp';
+  const testUrl = 'https://yuucdn.com/uploads/manga-images/1/100000-layers-of-body-refining-i-raise-all-emperor/chapter-391/14.jpg';
   console.log('Testing:', testUrl);
   try {
     const result = await fetchCdnImage(testUrl);

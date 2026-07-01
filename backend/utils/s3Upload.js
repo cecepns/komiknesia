@@ -79,7 +79,7 @@ async function uploadUrlToS3(key, url, contentType) {
     responseType: 'arraybuffer',
     timeout: 30000,
     maxRedirects: 5,
-    headers: isIkiruCdnUrl(url) ? getIkiruCdnFetchHeaders() : defaultHeaders,
+    headers: isIkiruCdnUrl(url) ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url) : defaultHeaders,
   });
 
   const finalUrl = resp.request?.res?.responseUrl || url;
