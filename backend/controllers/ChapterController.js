@@ -61,9 +61,13 @@ const loadImageZipEntry = async (imagePath, index) => {
 
   if (!absoluteUrl) return null;
 
+  const isIkiru = isIkiruCdnUrl(absoluteUrl);
+  const isYuucdn = absoluteUrl && (absoluteUrl.includes('yuucdn.com') || absoluteUrl.includes('www.yuucdn.com'));
+  const useProxy = isIkiru && !isYuucdn;
+
   let httpsAgent = null;
   const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
-  if (proxyUrl && isIkiruCdnUrl(absoluteUrl)) {
+  if (proxyUrl && useProxy) {
     try {
       const { HttpsProxyAgent } = require('https-proxy-agent');
       httpsAgent = new HttpsProxyAgent(proxyUrl);
@@ -76,7 +80,7 @@ const loadImageZipEntry = async (imagePath, index) => {
       timeout: 45000,
       maxRedirects: 5,
       validateStatus: (status) => status >= 200 && status < 300,
-      headers: isIkiruCdnUrl(absoluteUrl)
+      headers: useProxy
         ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', absoluteUrl)
         : {
             'User-Agent':

@@ -77,9 +77,13 @@ async function uploadUrlToS3(key, url, contentType) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   };
 
+  const isIkiru = isIkiruCdnUrl(url);
+  const isYuucdn = url && (url.includes('yuucdn.com') || url.includes('www.yuucdn.com'));
+  const useProxy = isIkiru && !isYuucdn;
+
   let httpsAgent = null;
   const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
-  if (proxyUrl && isIkiruCdnUrl(url)) {
+  if (proxyUrl && useProxy) {
     try {
       const { HttpsProxyAgent } = require('https-proxy-agent');
       httpsAgent = new HttpsProxyAgent(proxyUrl);
@@ -90,7 +94,7 @@ async function uploadUrlToS3(key, url, contentType) {
     responseType: 'arraybuffer',
     timeout: 30000,
     maxRedirects: 5,
-    headers: isIkiruCdnUrl(url) ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url) : defaultHeaders,
+    headers: useProxy ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url) : defaultHeaders,
     ...(httpsAgent ? { httpsAgent } : {})
   });
 
