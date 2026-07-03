@@ -470,6 +470,8 @@ const destroy = async (req, res) => {
     }
 
     await db.execute('DELETE FROM chapters WHERE id = ?', [id]);
+    await refreshMangaChapterActivity(db, chapter.manga_id);
+    invalidateContentsCaches();
     res.json({ message: 'Chapter deleted successfully' });
   } catch (error) {
     console.error('Error deleting chapter:', error);

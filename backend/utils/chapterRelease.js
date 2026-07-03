@@ -229,6 +229,33 @@ async function fetchLastChaptersByMangaIds(db, mangaIds, limit = 3) {
   return acc;
 }
 
+async function checkAndReleaseScheduledChapters(db) {
+  if (!(await isActivityColumnReady(db))) return false;
+  try {
+    const [rows] = await db.execute(
+      `
+      SELECT DISTINCT c.manga_id
+      FROM chapters c
+      JOIN manga m ON c.manga_id = m.id
+      WHERE c.scheduled_release_at IS NOT NULL
+        AND c.scheduled_release_at <= NOW()
+        AND c.scheduled_release_at >= DATE_SUB(NOW(), INTERVAL 3 DAY)
+        AND (m.last_chapter_activity_at IS NULL OR m.last_chapter_activity_at < c.scheduled_release_at)
+    `
+    );
+
+    if (rows.length > 0) {
+      for (const row of rows) {
+        await refreshMangaChapterActivity(db, row.manga_id);
+      }
+      return true;
+    }
+  } catch (err) {
+    console.error('checkAndReleaseScheduledChapters failed:', err.message);
+  }
+  return false;
+}
+
 module.exports = {
   CHAPTER_RELEASED_WHERE,
   CHAPTER_RELEASED_WHERE_BARE,
@@ -245,4 +272,5 @@ module.exports = {
   fetchLastChaptersByMangaIds,
   mapLastChapterRow,
   isActivityColumnReady,
+  checkAndReleaseScheduledChapters,
 };

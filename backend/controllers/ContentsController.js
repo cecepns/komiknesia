@@ -3,6 +3,7 @@ const { createShortLivedCache } = require('../utils/shortLivedCache');
 const {
   fetchLastChaptersByMangaIds,
   isActivityColumnReady,
+  checkAndReleaseScheduledChapters,
 } = require('../utils/chapterRelease');
 
 const contentsListCache = createShortLivedCache({ ttlMs: 60 * 1000, maxKeys: 96 });
@@ -356,8 +357,19 @@ const genres = async (req, res) => {
   }
 };
 
+let lastScheduledCheckTime = 0;
+
 const list = async (req, res) => {
   try {
+    const now = Date.now();
+    if (now - lastScheduledCheckTime > 30000) {
+      lastScheduledCheckTime = now;
+      const updated = await checkAndReleaseScheduledChapters(db);
+      if (updated) {
+        invalidateContentsCaches();
+      }
+    }
+
     const cacheKey = buildContentsListCacheKey(req.query);
     const payload = await contentsListCache.wrap(cacheKey, async () => {
       const {
