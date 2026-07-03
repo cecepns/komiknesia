@@ -147,37 +147,47 @@ async function proxy(req, res) {
       return res.status(403).json({ error: 'URL host not allowed for proxy' });
     }
 
-    // Special redirection for yuucdn.com since it does not require proxying
-    try {
-      const parsedHost = new URL(targetUrl).hostname.toLowerCase();
-      if (parsedHost === 'yuucdn.com' || parsedHost === 'www.yuucdn.com') {
-        res.set('Cache-Control', 'public, max-age=86400');
-        return res.redirect(targetUrl);
-      }
-    } catch {}
+
 
     const referer = req.headers.referer || req.headers.referrer || '';
     const origin = req.headers.origin || '';
     const isFromIkiru = !referer || checkIkiruDomain(referer) || checkIkiruDomain(origin);
 
-    // Unauthorized visitor → serve promo image
+    const fallbackUrl = 'https://is3.cloudhost.id/data.komikneisa/komiknesia/manga/komiknesia-update-/thumbnail-1780155400085.png';
+
+    // Unauthorized visitor → serve fallback image
     if (!isFromIkiru) {
-      targetUrl = 'https://yuucdn.com/promo-kiryuu.png';
+      try {
+        const fallbackResponse = await axios.get(fallbackUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000,
+        });
+        res.set('Content-Type', fallbackResponse.headers['content-type'] || 'image/png');
+        res.set('Cache-Control', 'public, max-age=86400');
+        return res.send(Buffer.from(fallbackResponse.data));
+      } catch (fallbackErr) {
+        console.warn('Failed to fetch fallback image for unauthorized visitor:', fallbackErr.message);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.redirect(fallbackUrl);
+      }
     }
 
     const result = await fetchCdnImage(targetUrl);
 
     if (result.isPromo) {
-      // Fetch and pipe promo image
-      const promoResult = await fetchCdnImage('https://yuucdn.com/promo-kiryuu.png');
-      if (!promoResult.isPromo && promoResult.data) {
-        res.set('Content-Type', promoResult.contentType || 'image/png');
+      try {
+        const fallbackResponse = await axios.get(fallbackUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000,
+        });
+        res.set('Content-Type', fallbackResponse.headers['content-type'] || 'image/png');
+        res.set('Cache-Control', 'public, max-age=86400');
+        return res.send(Buffer.from(fallbackResponse.data));
+      } catch (fallbackErr) {
+        console.warn('Failed to fetch fallback image:', fallbackErr.message);
         res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-        return res.send(Buffer.from(promoResult.data));
+        return res.redirect(fallbackUrl);
       }
-      // Last resort: redirect to promo
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      return res.redirect('https://yuucdn.com/promo-kiryuu.png');
     }
 
     res.set('Content-Type', result.contentType || 'image/jpeg');

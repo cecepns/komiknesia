@@ -78,8 +78,7 @@ async function uploadUrlToS3(key, url, contentType) {
   };
 
   const isIkiru = isIkiruCdnUrl(url);
-  const isYuucdn = url && (url.includes('yuucdn.com') || url.includes('www.yuucdn.com'));
-  const useProxy = isIkiru && !isYuucdn;
+  const useProxy = isIkiru;
 
   let httpsAgent = null;
   const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';

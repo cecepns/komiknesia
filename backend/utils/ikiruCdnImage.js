@@ -13,7 +13,8 @@ const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id', 'yuucdn.com', 'www.yuucdn.c
 const IKIRU_CDN_ACCESS_CODE =
   process.env.IKIRU_CDN_ACCESS_CODE || 'NYQLFxYsnOy+/zwnNWmNTUN5';
 
-const IKIRU_CDN_PROXY = 'http://jlqhqvqf-rotate:2q5jwr526cph@p.webshare.io:80';
+const IKIRU_CDN_PROXY =
+  process.env.IKIRU_CDN_PROXY || 'http://tkqgjbei:lsw1yerf4r8q@31.59.20.176:6754';
 
 const DEFAULT_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36';

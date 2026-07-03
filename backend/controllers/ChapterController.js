@@ -62,8 +62,7 @@ const loadImageZipEntry = async (imagePath, index) => {
   if (!absoluteUrl) return null;
 
   const isIkiru = isIkiruCdnUrl(absoluteUrl);
-  const isYuucdn = absoluteUrl && (absoluteUrl.includes('yuucdn.com') || absoluteUrl.includes('www.yuucdn.com'));
-  const useProxy = isIkiru && !isYuucdn;
+  const useProxy = isIkiru;
 
   let httpsAgent = null;
   const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';

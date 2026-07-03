@@ -12,7 +12,7 @@ export const API_BASE_URL_WITHOUT_API = 'https://api-be.komiknesia.my.id/';
 const STATIC_ORIGIN = API_BASE_URL_WITHOUT_API.replace(/\/+$/, '');
 
 /** CDN Ikiru — butuh header access-code; browser langsung ke host ini dapat promo-ikiru.webp */
-const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id']);
+const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id', 'yuucdn.com', 'www.yuucdn.com']);
 
 /**
  * Map legacy /uploads-komiknesia/... to public /uploads/... (Express serves disk folder at /uploads).
