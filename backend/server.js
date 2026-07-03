@@ -52,7 +52,8 @@ const allowedOrigins = [
   'https://komiknesia.net',
   'https://www.komiknesia.asia',
   'https://02.komiknesia.asia',
-  'https://www.02.komiknesia.asia' // pastikan versi www juga ada
+  'https://www.02.komiknesia.asia', // pastikan versi www juga ada
+  'https://id.komiknesia.net'
 ];
 
 app.use(cors({

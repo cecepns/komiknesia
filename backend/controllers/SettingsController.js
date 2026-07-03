@@ -12,7 +12,7 @@ const sanitizeScriptUrls = (value) => {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => (typeof item === 'string' ? item.trim() : ''))
-    .filter((url) => /^https?:\/\//i.test(url));
+    .filter(Boolean);
 };
 
 const parseAllowedInt = (raw, allowed, fallback) => {

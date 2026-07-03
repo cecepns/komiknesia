@@ -1,6 +1,6 @@
 const db = require('../db');
 
-const DEFAULT_SITE_URL = 'https://02.komiknesia.asia';
+const DEFAULT_SITE_URL = 'https://id.komiknesia.net';
 const DEFAULT_API_URL = 'https://api-be.komiknesia.my.id';
 
 const normalizeUrl = (url, fallback) => {
@@ -14,7 +14,7 @@ const getEnv = (key) => {
   return env[key];
 };
 
-const SITEMAP_SITE_URL = 'https://02.komiknesia.asia';
+const SITEMAP_SITE_URL = 'https://id.komiknesia.net';
 
 const getSiteUrl = () => {
   return normalizeUrl(SITEMAP_SITE_URL, DEFAULT_SITE_URL);

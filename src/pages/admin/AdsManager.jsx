@@ -622,7 +622,7 @@ const AdsManager = () => {
               {(settings.redirect_script_urls || []).map((url, index) => (
                 <div key={`redirect-script-${index}`} className="flex items-center gap-2">
                   <input
-                    type="url"
+                    type="text"
                     value={url}
                     onChange={(e) => updateRedirectScriptUrl(index, e.target.value)}
                     placeholder="https://example.com/script.js"
