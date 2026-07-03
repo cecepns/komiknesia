@@ -41,13 +41,13 @@ function isPromoIkiruResponse(url, originalUrl = '') {
 
 function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN, targetUrl = '') {
   const ref = String(referer || IKIRU_ORIGIN).replace(/\/+$/, '');
-  
+
   let host = '';
   if (targetUrl) {
     try {
       const u = new URL(targetUrl);
       host = u.hostname.toLowerCase();
-    } catch {}
+    } catch { }
   }
 
   // Do not send Cloudflare cookies if the target is yuucdn.com

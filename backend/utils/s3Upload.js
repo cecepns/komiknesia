@@ -86,7 +86,7 @@ async function uploadUrlToS3(key, url, contentType) {
     try {
       const { HttpsProxyAgent } = require('https-proxy-agent');
       httpsAgent = new HttpsProxyAgent(proxyUrl);
-    } catch {}
+    } catch { }
   }
 
   const resp = await axios.get(url, {

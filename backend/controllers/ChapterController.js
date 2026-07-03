@@ -70,7 +70,7 @@ const loadImageZipEntry = async (imagePath, index) => {
     try {
       const { HttpsProxyAgent } = require('https-proxy-agent');
       httpsAgent = new HttpsProxyAgent(proxyUrl);
-    } catch {}
+    } catch { }
   }
 
   try {
@@ -82,9 +82,9 @@ const loadImageZipEntry = async (imagePath, index) => {
       headers: useProxy
         ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', absoluteUrl)
         : {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          },
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
       ...(httpsAgent ? { httpsAgent } : {})
     });
 
@@ -345,7 +345,7 @@ const create = async (req, res) => {
       cover = await uploadFileToS3(key, req.file.path, req.file.mimetype);
       try {
         fs.unlinkSync(req.file.path);
-      } catch {}
+      } catch { }
     }
 
     const [mangaRows] = await db.execute('SELECT slug FROM manga WHERE id = ?', [mangaId]);
@@ -407,7 +407,7 @@ const update = async (req, res) => {
       params.push(url);
       try {
         fs.unlinkSync(req.file.path);
-      } catch {}
+      } catch { }
     }
 
     query += ' WHERE id = ?';
@@ -521,7 +521,7 @@ const uploadImages = async (req, res) => {
       const url = await uploadFileToS3(key, file.path, file.mimetype);
       try {
         fs.unlinkSync(file.path);
-      } catch {}
+      } catch { }
       return db.execute(
         'INSERT INTO chapter_images (chapter_id, image_path, page_number) VALUES (?, ?, ?)',
         [chapterId, url, startPageNumber + index]
@@ -675,7 +675,7 @@ const reorderImages = async (req, res) => {
     if (connection) {
       try {
         await connection.rollback();
-      } catch {}
+      } catch { }
     }
     console.error('Error reordering chapter images:', error);
     res.status(500).json({
