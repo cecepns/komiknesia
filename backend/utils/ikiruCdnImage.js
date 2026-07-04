@@ -14,7 +14,7 @@ const IKIRU_CDN_ACCESS_CODE =
   process.env.IKIRU_CDN_ACCESS_CODE || 'NYQLFxYsnOy+/zwnNWmNTUN5';
 
 const IKIRU_CDN_PROXY =
-  process.env.IKIRU_CDN_PROXY || 'http://tkqgjbei:lsw1yerf4r8q@31.59.20.176:6754';
+  process.env.IKIRU_CDN_PROXY || 'http://jlqhqvqf:2q5jwr526cph@45.43.70.75:6362';
 
 const DEFAULT_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36';
