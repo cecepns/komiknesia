@@ -17,7 +17,7 @@ const S3_REGION = process.env.S3_REGION || 'auto';
 const S3_BUCKET = process.env.S3_BUCKET || 'komiknesia';
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'c004de4fd715fb374dbab19443a9c57d';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'a428f2b13fa3de370549acc643736cf60a2b8c250b67ec286ead25ad51ff0273';
-const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || '';
+const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || 'https://pub-d73aa928fbfb420d978c85ef29b78158.r2.dev';
 
 let s3Client = null;
 if (S3_BUCKET && S3_ACCESS_KEY && S3_SECRET_KEY) {
