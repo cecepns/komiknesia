@@ -976,6 +976,37 @@ class APIClient {
     const queryString = queryParams.toString();
     return this.request(`/contents${queryString ? `?${queryString}` : ''}`);
   }
+
+  // R2 Manga Migration
+  getMigrationManga(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.status) queryParams.append('status', params.status);
+    const queryString = queryParams.toString();
+    return this.request(`/admin/migration/manga${queryString ? `?${queryString}` : ''}`);
+  }
+
+  startMigration(mangaIds) {
+    return this.request('/admin/migration/start', {
+      method: 'POST',
+      body: JSON.stringify({ mangaIds }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  getMigrationStatus(taskId) {
+    return this.request(`/admin/migration/status/${taskId}`);
+  }
+
+  abortMigration(taskId) {
+    return this.request(`/admin/migration/abort/${taskId}`, {
+      method: 'POST',
+    });
+  }
 }
 
 export const apiClient = new APIClient();

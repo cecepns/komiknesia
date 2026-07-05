@@ -36,6 +36,7 @@ const premiumOrderRoutes = require('./routes/premiumOrderRoutes');
 const stickerRoutes = require('./routes/stickerRoutes');
 const liveChatRoutes = require('./routes/liveChatRoutes');
 const imageProxyRoutes = require('./routes/imageProxyRoutes');
+const migrationRoutes = require('./routes/migrationRoutes');
 const { toProxiedImagePathIfNeeded } = require('./utils/ikiruCdnImage');
 const { CHAPTER_RELEASED_WHERE, isScheduledReleaseInFuture } = require('./utils/chapterRelease');
 
@@ -183,6 +184,7 @@ app.use('/api/live-chat', liveChatRoutes);
 app.use('/api', imageProxyRoutes);
 app.use('/api/ikiru', ikiruRoutes);
 app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
+app.use('/api/admin/migration', migrationRoutes);
 app.use('/', sitemapRoutes);
 
 

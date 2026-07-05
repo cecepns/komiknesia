@@ -12,18 +12,19 @@ const {
   IKIRU_CDN_PROXY,
 } = require('./ikiruCdnImage');
 
-const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://is3.cloudhost.id';
+const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://33cbe0d28cbe34b858c352c662d477d6.r2.cloudflarestorage.com';
 const S3_REGION = process.env.S3_REGION || 'auto';
-const S3_BUCKET = process.env.S3_BUCKET || 'data.komikneisa';
+const S3_BUCKET = process.env.S3_BUCKET || 'komiknesia';
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '6VVTGTBLJWBOCA41Z9IT';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'GqwJ0GNPAArraf1vZmhRYDDGyDaXO7kNH8YEwhpo';
+const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || '';
 
 let s3Client = null;
 if (S3_BUCKET && S3_ACCESS_KEY && S3_SECRET_KEY) {
   s3Client = new S3Client({
     region: S3_REGION,
     endpoint: S3_ENDPOINT,
-    forcePathStyle: true,
+    forcePathStyle: !S3_ENDPOINT.includes('r2.cloudflarestorage.com'),
     credentials: {
       accessKeyId: S3_ACCESS_KEY,
       secretAccessKey: S3_SECRET_KEY,
@@ -46,6 +47,9 @@ async function uploadBufferToS3(key, buffer, contentType = 'image/webp') {
 
   await s3Client.send(command);
 
+  if (S3_PUBLIC_URL) {
+    return `${S3_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
+  }
   return `${S3_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
 }
 
@@ -164,6 +168,16 @@ function tryParseS3KeyFromUrl(url) {
   // Virtual-hosted-style URL: https://<bucket>.endpoint/<key>
   if (parsed.hostname === S3_BUCKET || parsed.hostname.startsWith(`${S3_BUCKET}.`)) {
     return parts.join('/');
+  }
+
+  // S3_PUBLIC_URL match
+  if (S3_PUBLIC_URL) {
+    try {
+      const parsedPublic = new URL(S3_PUBLIC_URL);
+      if (parsed.hostname === parsedPublic.hostname) {
+        return pathname;
+      }
+    } catch {}
   }
 
   // Fallback for CDN/custom domains that still include /<bucket>/<key> in path
