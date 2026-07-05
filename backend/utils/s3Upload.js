@@ -15,8 +15,8 @@ const {
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://33cbe0d28cbe34b858c352c662d477d6.r2.cloudflarestorage.com';
 const S3_REGION = process.env.S3_REGION || 'auto';
 const S3_BUCKET = process.env.S3_BUCKET || 'komiknesia';
-const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '6VVTGTBLJWBOCA41Z9IT';
-const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'GqwJ0GNPAArraf1vZmhRYDDGyDaXO7kNH8YEwhpo';
+const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'c004de4fd715fb374dbab19443a9c57d';
+const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'a428f2b13fa3de370549acc643736cf60a2b8c250b67ec286ead25ad51ff0273';
 const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || '';
 
 let s3Client = null;
