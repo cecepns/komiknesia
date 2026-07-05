@@ -214,7 +214,7 @@ const Jadwal = () => {
                   Jadwal Rilis
                 </h1>
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Chapter terjadwal muncul di sini sampai jam tayang, lalu masuk Terbaru & Project.
+                  Daftar chapter terjadwal untuk minggu ini, minggu depan, dan seterusnya.
                 </p>
               </div>
 
@@ -222,7 +222,8 @@ const Jadwal = () => {
                 <button
                   type="button"
                   onClick={() => setWeekOffset((w) => w - 1)}
-                  className="rounded-xl border border-gray-200 p-2 hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/10"
+                  disabled={weekOffset <= 0}
+                  className="rounded-xl border border-gray-200 p-2 hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                   aria-label="Minggu sebelumnya"
                 >
                   <ChevronLeft className="h-5 w-5" />

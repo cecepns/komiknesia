@@ -60,6 +60,23 @@ const getSchedule = async (req, res) => {
     const weekStart = metaRows[0]?.week_start;
     const weekEnd = metaRows[0]?.week_end;
 
+    const days = {};
+    for (const key of DAY_KEYS) {
+      days[key] = [];
+    }
+
+    if (weekOffset < 0) {
+      return res.json({
+        status: true,
+        week_offset: weekOffset,
+        week_start: formatDateOnly(weekStart),
+        week_end: formatDateOnly(weekEnd),
+        day_labels: DAY_LABELS_ID,
+        days,
+        total: 0,
+      });
+    }
+
     const [rows] = await db.execute(
       `
       SELECT
@@ -77,17 +94,11 @@ const getSchedule = async (req, res) => {
       FROM chapters c
       INNER JOIN manga m ON m.id = c.manga_id
       WHERE c.scheduled_release_at IS NOT NULL
-        AND c.scheduled_release_at > NOW()
         AND DATE(c.scheduled_release_at) BETWEEN ? AND ?
       ORDER BY c.scheduled_release_at ASC
     `,
       [weekStart, weekEnd]
     );
-
-    const days = {};
-    for (const key of DAY_KEYS) {
-      days[key] = [];
-    }
 
     for (const row of rows) {
       const key = getScheduleDayKey(row.scheduled_release_at);
