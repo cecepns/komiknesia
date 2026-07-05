@@ -51,7 +51,7 @@ function FeaturedBannerSkeleton() {
 
 function MobileCoverSlide({ item, isActive, onActivate }) {
   const content = (
-    <div className="featured-coverflow-card relative mx-auto w-full max-w-[190px]">
+    <div className="featured-coverflow-card relative mx-auto w-full max-w-[230px]">
       <img
         src={getImageUrl(item.cover)}
         alt={item.title}
@@ -131,78 +131,78 @@ function DesktopFeaturedSlide({ item, onReadLatest }) {
   return (
     <div className="relative flex h-full w-full items-center">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12 lg:gap-16">
-            <div className="z-[1] space-y-4 text-center text-white md:space-y-6 md:text-left">
-              {latest?.number != null && (
-                <p className="text-sm font-bold uppercase tracking-wide text-white/90 md:text-base">
-                  Chapter: {latest.number}
-                </p>
-              )}
-              <Link to={`/komik/${item.slug}`}>
-                <h2 className="text-2xl font-bold leading-tight line-clamp-2 cursor-pointer transition-colors hover:text-white/90 md:text-4xl lg:text-5xl">
-                  {item.title}
-                </h2>
-              </Link>
+        <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12 lg:gap-16">
+          <div className="z-[1] space-y-4 text-center text-white md:space-y-6 md:text-left">
+            {latest?.number != null && (
+              <p className="text-sm font-bold uppercase tracking-wide text-white/90 md:text-base">
+                Chapter: {latest.number}
+              </p>
+            )}
+            <Link to={`/komik/${item.slug}`}>
+              <h2 className="text-2xl font-bold leading-tight line-clamp-2 cursor-pointer transition-colors hover:text-white/90 md:text-4xl lg:text-5xl">
+                {item.title}
+              </h2>
+            </Link>
 
-              {synopsis ? (
-                <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/85 line-clamp-3 md:mx-0 md:text-base md:line-clamp-4">
-                  {synopsis}
-                </p>
-              ) : (
-                <p className="mx-auto max-w-xl text-sm text-white/70 md:mx-0 md:text-base">
-                  {item.author ? `Oleh ${item.author}` : "\u00a0"}
-                </p>
-              )}
+            {synopsis ? (
+              <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/85 line-clamp-3 md:mx-0 md:text-base md:line-clamp-4">
+                {synopsis}
+              </p>
+            ) : (
+              <p className="mx-auto max-w-xl text-sm text-white/70 md:mx-0 md:text-base">
+                {item.author ? `Oleh ${item.author}` : "\u00a0"}
+              </p>
+            )}
 
-              {genres.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-2 md:justify-start">
-                  {genres.slice(0, 8).map((g) => (
-                    <span
-                      key={g.id ?? g.slug ?? g.name}
-                      className="rounded-full border border-white/50 bg-white/5 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm md:text-sm"
-                    >
-                      {g.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center justify-center gap-4 pt-1 md:justify-start">
-                <button
-                  type="button"
-                  onClick={() => onReadLatest(latest, item.slug)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-8 py-3.5 text-base font-bold text-gray-900 shadow-lg transition-all hover:bg-amber-300 hover:shadow-xl"
-                >
-                  Mulai Baca
-                  <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />
-                </button>
-                {item.total_views != null && (
-                  <span className="text-sm text-white/70">
-                    <span className="font-semibold text-white/90">
-                      {Number(item.total_views).toLocaleString()}
-                    </span>{" "}
-                    tayangan
+            {genres.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-2 md:justify-start">
+                {genres.slice(0, 8).map((g) => (
+                  <span
+                    key={g.id ?? g.slug ?? g.name}
+                    className="rounded-full border border-white/50 bg-white/5 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm md:text-sm"
+                  >
+                    {g.name}
                   </span>
-                )}
+                ))}
               </div>
-            </div>
+            )}
 
-            <div className="relative z-[1] flex justify-center lg:justify-end">
-              <Link
-                to={`/komik/${item.slug}`}
-                className="group relative block"
-                aria-label={item.title}
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-1 md:justify-start">
+              <button
+                type="button"
+                onClick={() => onReadLatest(latest, item.slug)}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-8 py-3.5 text-base font-bold text-gray-900 shadow-lg transition-all hover:bg-amber-300 hover:shadow-xl"
               >
-                <div className="absolute -inset-3 rounded-3xl bg-white/10 blur-2xl transition-opacity group-hover:opacity-90" />
-                <img
-                  src={getImageUrl(item.cover)}
-                  alt={item.title}
-                  className="relative h-[22rem] w-[14rem] rounded-xl object-cover shadow-2xl ring-1 ring-white/10 transition-transform duration-300 sm:h-[24rem] sm:w-[15rem] md:h-[26rem] md:w-64 md:-rotate-[4deg] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] group-hover:md:-rotate-[2deg]"
-                />
-              </Link>
+                Mulai Baca
+                <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />
+              </button>
+              {item.total_views != null && (
+                <span className="text-sm text-white/70">
+                  <span className="font-semibold text-white/90">
+                    {Number(item.total_views).toLocaleString()}
+                  </span>{" "}
+                  tayangan
+                </span>
+              )}
             </div>
           </div>
+
+          <div className="relative z-[1] flex justify-center lg:justify-end">
+            <Link
+              to={`/komik/${item.slug}`}
+              className="group relative block"
+              aria-label={item.title}
+            >
+              <div className="absolute -inset-3 rounded-3xl bg-white/10 blur-2xl transition-opacity group-hover:opacity-90" />
+              <img
+                src={getImageUrl(item.cover)}
+                alt={item.title}
+                className="relative h-[22rem] w-[14rem] rounded-xl object-cover shadow-2xl ring-1 ring-white/10 transition-transform duration-300 sm:h-[24rem] sm:w-[15rem] md:h-[26rem] md:w-64 md:-rotate-[4deg] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] group-hover:md:-rotate-[2deg]"
+              />
+            </Link>
+          </div>
         </div>
+      </div>
     </div>
   );
 }
@@ -380,11 +380,10 @@ const FeaturedBanner = ({ items = [], loading = false, onReadLatest }) => {
                 key={item.id ?? item.slug ?? index}
                 type="button"
                 onClick={() => desktopSwiperRef.current?.slideToLoop(index)}
-                className={`shrink-0 rounded-full transition-all ${
-                  index === desktopIndex
+                className={`shrink-0 rounded-full transition-all ${index === desktopIndex
                     ? "h-3 w-8 bg-sky-600 dark:bg-white"
                     : "h-3 w-3 bg-slate-400/90 hover:bg-slate-500 dark:bg-white/45 dark:hover:bg-white/70"
-                }`}
+                  }`}
                 aria-label={`Ke slide ${index + 1}`}
                 aria-current={index === desktopIndex ? "true" : undefined}
               />

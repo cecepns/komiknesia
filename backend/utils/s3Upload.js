@@ -6,6 +6,7 @@ const path = require('path');
 const axios = require('axios');
 const {
   isIkiruCdnUrl,
+  isYuuCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   IKIRU_CDN_PROXY,
@@ -78,24 +79,50 @@ async function uploadUrlToS3(key, url, contentType) {
   };
 
   const isIkiru = isIkiruCdnUrl(url);
-  const useProxy = isIkiru;
+  const isYuu = isIkiru && isYuuCdnUrl(url);
 
-  let httpsAgent = null;
-  const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
-  if (proxyUrl && useProxy) {
+  let resp;
+  let directFailedOrPromo = false;
+
+  // Try direct fetch first for Yuu CDN to save bandwidth
+  if (isIkiru && isYuu) {
     try {
-      const { HttpsProxyAgent } = require('https-proxy-agent');
-      httpsAgent = new HttpsProxyAgent(proxyUrl);
-    } catch { }
+      resp = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        maxRedirects: 5,
+        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url),
+      });
+
+      const finalUrl = resp.request?.res?.responseUrl || url;
+      if (isPromoIkiruResponse(finalUrl, url)) {
+        directFailedOrPromo = true;
+      }
+    } catch (err) {
+      directFailedOrPromo = true;
+    }
   }
 
-  const resp = await axios.get(url, {
-    responseType: 'arraybuffer',
-    timeout: 30000,
-    maxRedirects: 5,
-    headers: useProxy ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url) : defaultHeaders,
-    ...(httpsAgent ? { httpsAgent } : {})
-  });
+  // Fallback to proxy if direct failed/redirected, or if it is non-Yuu Ikiru, or if it is non-Ikiru
+  if (!resp || directFailedOrPromo) {
+    const useProxyNow = isIkiru;
+    let httpsAgent = null;
+    const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+    if (proxyUrl && useProxyNow) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        httpsAgent = new HttpsProxyAgent(proxyUrl);
+      } catch { }
+    }
+
+    resp = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+      maxRedirects: 5,
+      headers: useProxyNow ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url) : defaultHeaders,
+      ...(httpsAgent ? { httpsAgent } : {})
+    });
+  }
 
   const finalUrl = resp.request?.res?.responseUrl || url;
   if (isPromoIkiruResponse(finalUrl, url)) {

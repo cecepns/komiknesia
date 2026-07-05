@@ -13,7 +13,7 @@
 }
 
 .featured-coverflow {
-  height: 278px;
+  height: 355px;
 }
 
 .featured-banner-bg {
@@ -38,8 +38,8 @@
 }
 
 .featured-coverflow .swiper-slide {
-  width: 62%;
-  max-width: 190px;
+  width: 70%;
+  max-width: 230px;
   height: auto;
   transition: opacity 0.35s ease, transform 0.35s ease;
   opacity: 0.5;

@@ -3,6 +3,7 @@
 const axios = require('axios');
 const {
   isIkiruCdnUrl,
+  isYuuCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   IKIRU_CDN_PROXY,
@@ -42,20 +43,9 @@ function checkIkiruDomain(urlStr) {
  * If CDN redirects to promo or Cloudflare challenge, we fall back
  * to serving the promo image directly.
  */
-async function fetchCdnImage(imageUrl) {
+async function fetchCdnImageHelper(imageUrl, httpsAgent) {
   const MAX_MANUAL_REDIRECTS = 3;
   let currentUrl = imageUrl;
-
-  let httpsAgent = null;
-  const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
-  if (proxyUrl) {
-    try {
-      const { HttpsProxyAgent } = require('https-proxy-agent');
-      httpsAgent = new HttpsProxyAgent(proxyUrl);
-    } catch (e) {
-      console.error('Failed to create proxy agent:', e.message);
-    }
-  }
 
   for (let attempt = 0; attempt <= MAX_MANUAL_REDIRECTS; attempt++) {
     let response;
@@ -74,7 +64,7 @@ async function fetchCdnImage(imageUrl) {
       if (status && status >= 300 && status < 400) {
         const location = err.response.headers?.location || '';
         if (!location) {
-          console.warn(`[fetchCdnImage] 3xx redirect missing Location header at: ${currentUrl}`);
+          console.warn(`[fetchCdnImageHelper] 3xx redirect missing Location header at: ${currentUrl}`);
           break;
         }
         const resolvedLocation = location.startsWith('http')
@@ -82,13 +72,13 @@ async function fetchCdnImage(imageUrl) {
           : new URL(location, currentUrl).href;
         // If redirected to promo or Cloudflare challenge, bail to promo
         if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
-          console.warn(`[fetchCdnImage] Redirected to promo or non-whitelisted URL: ${resolvedLocation}`);
+          console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL: ${resolvedLocation}`);
           return { isPromo: true };
         }
         currentUrl = resolvedLocation;
         continue;
       }
-      console.warn(`[fetchCdnImage] Axios error fetching ${currentUrl}: ${err.message} (status: ${status})`);
+      console.warn(`[fetchCdnImageHelper] Axios error fetching ${currentUrl}: ${err.message} (status: ${status})`);
       throw err; // real error, rethrow
     }
 
@@ -98,7 +88,7 @@ async function fetchCdnImage(imageUrl) {
     if (status >= 200 && status < 300) {
       const finalUrl = response.request?.res?.responseUrl || currentUrl;
       if (isPromoIkiruResponse(finalUrl, imageUrl)) {
-        console.warn(`[fetchCdnImage] Final response URL is a promo: ${finalUrl}`);
+        console.warn(`[fetchCdnImageHelper] Final response URL is a promo: ${finalUrl}`);
         return { isPromo: true };
       }
       return { isPromo: false, data: response.data, contentType: response.headers['content-type'] };
@@ -107,7 +97,7 @@ async function fetchCdnImage(imageUrl) {
     // 3xx redirect — inspect Location
     const location = response.headers?.location || '';
     if (!location) {
-      console.warn(`[fetchCdnImage] 3xx redirect status ${status} missing Location at: ${currentUrl}`);
+      console.warn(`[fetchCdnImageHelper] 3xx redirect status ${status} missing Location at: ${currentUrl}`);
       break;
     }
     const resolvedLocation = location.startsWith('http')
@@ -115,14 +105,43 @@ async function fetchCdnImage(imageUrl) {
       : new URL(location, currentUrl).href;
 
     if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
-      console.warn(`[fetchCdnImage] Redirected to promo or non-whitelisted URL (status ${status}): ${resolvedLocation}`);
+      console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL (status ${status}): ${resolvedLocation}`);
       return { isPromo: true };
     }
     currentUrl = resolvedLocation;
   }
 
-  console.warn(`[fetchCdnImage] Bailing after max redirects or invalid state for: ${imageUrl}`);
+  console.warn(`[fetchCdnImageHelper] Bailing after max redirects or invalid state for: ${imageUrl}`);
   return { isPromo: true };
+}
+
+async function fetchCdnImage(imageUrl) {
+  // If it's a Yuu CDN URL, try to fetch it without proxy first.
+  const isYuu = isYuuCdnUrl(imageUrl);
+  if (isYuu) {
+    try {
+      const result = await fetchCdnImageHelper(imageUrl, null);
+      if (result && !result.isPromo) {
+        return result;
+      }
+    } catch (err) {
+      console.warn(`[fetchCdnImage] Direct fetch failed for Yuu CDN URL: ${imageUrl}, falling back to proxy. Error: ${err.message}`);
+    }
+  }
+
+  // Otherwise (or if direct failed/redirected), fetch with proxy agent if proxy exists.
+  let httpsAgent = null;
+  const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+  if (proxyUrl) {
+    try {
+      const { HttpsProxyAgent } = require('https-proxy-agent');
+      httpsAgent = new HttpsProxyAgent(proxyUrl);
+    } catch (e) {
+      console.error('Failed to create proxy agent:', e.message);
+    }
+  }
+
+  return fetchCdnImageHelper(imageUrl, httpsAgent);
 }
 
 async function proxy(req, res) {

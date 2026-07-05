@@ -6,6 +6,7 @@ const { uploadFileToS3 } = require('../utils/s3Upload');
 const { deleteUrlFromS3 } = require('../utils/s3Upload');
 const {
   isIkiruCdnUrl,
+  isYuuCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   toProxiedImagePathIfNeeded,
@@ -62,47 +63,74 @@ const loadImageZipEntry = async (imagePath, index) => {
   if (!absoluteUrl) return null;
 
   const isIkiru = isIkiruCdnUrl(absoluteUrl);
-  const useProxy = isIkiru;
+  const isYuu = isIkiru && isYuuCdnUrl(absoluteUrl);
 
-  let httpsAgent = null;
-  const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
-  if (proxyUrl && useProxy) {
+  let response;
+  let directFailedOrPromo = false;
+
+  // Try direct fetch first for Yuu CDN to save bandwidth
+  if (isIkiru && isYuu) {
     try {
-      const { HttpsProxyAgent } = require('https-proxy-agent');
-      httpsAgent = new HttpsProxyAgent(proxyUrl);
-    } catch { }
+      response = await axios.get(absoluteUrl, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        maxRedirects: 5,
+        validateStatus: (status) => status >= 200 && status < 300,
+        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', absoluteUrl),
+      });
+
+      const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
+      if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
+        directFailedOrPromo = true;
+      }
+    } catch (err) {
+      directFailedOrPromo = true;
+    }
   }
 
-  try {
-    const response = await axios.get(absoluteUrl, {
-      responseType: 'arraybuffer',
-      timeout: 45000,
-      maxRedirects: 5,
-      validateStatus: (status) => status >= 200 && status < 300,
-      headers: useProxy
-        ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', absoluteUrl)
-        : {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        },
-      ...(httpsAgent ? { httpsAgent } : {})
-    });
-
-    const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
-    if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
-      console.warn(`Skipped promo image for zip (${absoluteUrl})`);
-      return null;
+  // Fallback to proxy if direct failed/redirected, or if it is non-Yuu Ikiru, or if it is non-Ikiru
+  if (!response || directFailedOrPromo) {
+    const useProxyNow = isIkiru;
+    let httpsAgent = null;
+    const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+    if (proxyUrl && useProxyNow) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        httpsAgent = new HttpsProxyAgent(proxyUrl);
+      } catch { }
     }
 
-    const ext = guessImageExtension(absoluteUrl, response.headers['content-type']);
-    return {
-      name: `${pageName}${ext}`,
-      buffer: Buffer.from(response.data),
-    };
-  } catch (err) {
-    console.warn(`Failed fetching image for zip (${absoluteUrl}):`, err.message);
+    try {
+      response = await axios.get(absoluteUrl, {
+        responseType: 'arraybuffer',
+        timeout: 45000,
+        maxRedirects: 5,
+        validateStatus: (status) => status >= 200 && status < 300,
+        headers: useProxyNow
+          ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', absoluteUrl)
+          : {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          },
+        ...(httpsAgent ? { httpsAgent } : {})
+      });
+    } catch (err) {
+      console.warn(`Failed fetching image for zip (${absoluteUrl}):`, err.message);
+      return null;
+    }
+  }
+
+  const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
+  if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
+    console.warn(`Skipped promo image for zip (${absoluteUrl})`);
     return null;
   }
+
+  const ext = guessImageExtension(absoluteUrl, response.headers['content-type']);
+  return {
+    name: `${pageName}${ext}`,
+    buffer: Buffer.from(response.data),
+  };
 };
 
 const showBySlug = async (req, res) => {

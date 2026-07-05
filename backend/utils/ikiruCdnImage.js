@@ -30,6 +30,18 @@ function isIkiruCdnUrl(url) {
   }
 }
 
+function isYuuCdnUrl(url) {
+  if (!url) return false;
+  try {
+    const href = String(url).trim().startsWith('//') ? `https:${url}` : String(url).trim();
+    const u = new URL(href);
+    const host = u.hostname.toLowerCase();
+    return host === 'yuucdn.com' || host === 'www.yuucdn.com';
+  } catch {
+    return false;
+  }
+}
+
 function isPromoIkiruResponse(url, originalUrl = '') {
   const lower = String(url || '').toLowerCase();
   const originalLower = String(originalUrl || '').toLowerCase();
@@ -91,6 +103,7 @@ function toProxiedImagePathIfNeeded(imagePath, req) {
 module.exports = {
   IKIRU_CDN_HOSTS,
   isIkiruCdnUrl,
+  isYuuCdnUrl,
   isPromoIkiruResponse,
   getIkiruCdnFetchHeaders,
   toProxiedImagePathIfNeeded,

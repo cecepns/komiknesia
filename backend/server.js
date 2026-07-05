@@ -411,6 +411,7 @@ const runSqlMigration = async () => {
     'ALTER TABLE ads ADD COLUMN expired_at DATETIME NULL',
     'ALTER TABLE chapters ADD COLUMN scheduled_release_at DATETIME NULL AFTER updated_at',
     'ALTER TABLE chapters ADD INDEX idx_chapters_scheduled_release (scheduled_release_at)',
+    'ALTER TABLE settings MODIFY COLUMN `value` TEXT NULL',
   ];
 
   for (const statement of statements) {
