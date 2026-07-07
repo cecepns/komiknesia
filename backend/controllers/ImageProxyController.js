@@ -7,6 +7,7 @@ const {
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   IKIRU_CDN_PROXY,
+  YUUCDN_PROXY,
 } = require('../utils/ikiruCdnImage');
 
 function checkIkiruDomain(urlStr) {
@@ -116,20 +117,28 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
 }
 
 async function fetchCdnImage(imageUrl) {
-  // If it's a Yuu CDN URL, try to fetch it without proxy first.
   const isYuu = isYuuCdnUrl(imageUrl);
+
+  // For Yuu CDN, use the rotating residential proxy (bypasses Cloudflare bot protection).
+  // yuucdn.com redirects direct/datacenter requests to promo, so we skip the direct attempt.
   if (isYuu) {
-    try {
-      const result = await fetchCdnImageHelper(imageUrl, null);
-      if (result && !result.isPromo) {
-        return result;
+    const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+    let yuuAgent = null;
+    if (yuuProxyUrl) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        yuuAgent = new HttpsProxyAgent(yuuProxyUrl);
+        console.log(`[fetchCdnImage] Using residential proxy for Yuu CDN: ${imageUrl}`);
+      } catch (e) {
+        console.error('[fetchCdnImage] Failed to create Yuu proxy agent:', e.message);
       }
-    } catch (err) {
-      console.warn(`[fetchCdnImage] Direct fetch failed for Yuu CDN URL: ${imageUrl}, falling back to proxy. Error: ${err.message}`);
+    } else {
+      console.warn('[fetchCdnImage] No proxy configured for Yuu CDN — direct fetch likely to be blocked.');
     }
+    return fetchCdnImageHelper(imageUrl, yuuAgent);
   }
 
-  // Otherwise (or if direct failed/redirected), fetch with proxy agent if proxy exists.
+  // For other Ikiru CDN hosts, fetch with the standard proxy agent if configured.
   let httpsAgent = null;
   const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
   if (proxyUrl) {
@@ -166,13 +175,8 @@ async function proxy(req, res) {
       return res.status(403).json({ error: 'URL host not allowed for proxy' });
     }
 
-    // Special redirection for yuucdn.com since it does not require proxying or they closed/disabled proxying
-    try {
-      if (isYuuCdnUrl(targetUrl)) {
-        res.set('Cache-Control', 'public, max-age=86400');
-        return res.redirect(targetUrl);
-      }
-    } catch {}
+    // yuucdn.com images are proxied through a rotating residential proxy to bypass Cloudflare.
+    // Do NOT redirect directly — that would expose the client to yuucdn.com's promo redirect.
 
     const referer = req.headers.referer || req.headers.referrer || '';
     const origin = req.headers.origin || '';
