@@ -68,8 +68,30 @@ const loadImageZipEntry = async (imagePath, index) => {
   let response;
   let directFailedOrPromo = false;
 
-  // Try direct fetch first for Yuu CDN to save bandwidth
-  if (isIkiru && isYuu) {
+  // For YuuCDN: try a plain direct fetch first (no Ikiru headers, no proxy)
+  // since yuucdn.com has closed/disabled proxy restrictions
+  if (isYuu) {
+    try {
+      response = await axios.get(absoluteUrl, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        maxRedirects: 5,
+        validateStatus: (status) => status >= 200 && status < 300,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
+      });
+
+      const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
+      if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
+        directFailedOrPromo = true;
+        response = null;
+      }
+    } catch (err) {
+      directFailedOrPromo = true;
+    }
+  } else if (isIkiru) {
+    // Non-YuuCDN Ikiru: try direct with Ikiru headers first
     try {
       response = await axios.get(absoluteUrl, {
         responseType: 'arraybuffer',
@@ -82,15 +104,16 @@ const loadImageZipEntry = async (imagePath, index) => {
       const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
       if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
         directFailedOrPromo = true;
+        response = null;
       }
     } catch (err) {
       directFailedOrPromo = true;
     }
   }
 
-  // Fallback to proxy if direct failed/redirected, or if it is non-Yuu Ikiru, or if it is non-Ikiru
+  // Fallback to proxy if direct failed/redirected for Ikiru CDN (non-YuuCDN only)
   if (!response || directFailedOrPromo) {
-    const useProxyNow = isIkiru;
+    const useProxyNow = isIkiru && !isYuu;
     let httpsAgent = null;
     const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
     if (proxyUrl && useProxyNow) {
@@ -119,6 +142,7 @@ const loadImageZipEntry = async (imagePath, index) => {
       return null;
     }
   }
+
 
   const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
   if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {

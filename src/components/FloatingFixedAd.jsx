@@ -53,16 +53,39 @@ const FloatingFixedAd = ({ position, ads }) => {
 
   if (activeAds.length === 0) return null;
 
+  const handleDismissAll = (e) => {
+    e.stopPropagation();
+    const activeIds = activeAds.map((ad, index) => getAdId(ad, index));
+    setDismissedIds((prev) => [...prev, ...activeIds]);
+  };
+
   const isTop = position === "top";
+
+  const closeBtn = (
+    <button
+      type="button"
+      onClick={handleDismissAll}
+      className={`relative z-[2] bg-red-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-red-800/60 transition-colors hover:bg-red-500 ${
+        isTop
+          ? "mt-[-1px] rounded-b-md rounded-t-none"
+          : "mb-[-1px] rounded-t-md rounded-b-none"
+      }`}
+      aria-label="Tutup iklan"
+    >
+      X Close
+    </button>
+  );
 
   return (
     <div
-      className={`pointer-events-auto fixed left-1/2 z-[48] flex w-[min(100vw-1rem,728px)] max-w-full -translate-x-1/2 flex-col gap-3 items-center px-2 ${
+      className={`pointer-events-auto fixed left-1/2 z-[48] flex w-[min(100vw-1rem,728px)] max-w-full -translate-x-1/2 flex-col gap-2 items-center px-2 ${
         isTop
           ? "top-14 md:top-20"
           : "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-3"
       }`}
     >
+      {!isTop && closeBtn}
+
       {activeAds.map((ad, index) => {
         const adId = getAdId(ad, index);
         const openLink = () => {
@@ -71,26 +94,9 @@ const FloatingFixedAd = ({ position, ads }) => {
           }
         };
 
-        const closeBtn = (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDismissedIds((prev) => [...prev, adId]);
-            }}
-            className={`relative z-[2] bg-red-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-red-800/60 transition-colors hover:bg-red-500 ${
-              isTop
-                ? "mt-[-1px] rounded-b-md rounded-t-none"
-                : "mb-[-1px] rounded-t-md rounded-b-none"
-            }`}
-            aria-label="Tutup iklan"
-          >
-            X Close
-          </button>
-        );
-
-        const adPanel = (
+        return (
           <div
+            key={adId}
             role={ad.link_url ? "button" : undefined}
             tabIndex={ad.link_url ? 0 : undefined}
             onClick={ad.link_url ? openLink : undefined}
@@ -104,9 +110,9 @@ const FloatingFixedAd = ({ position, ads }) => {
                   }
                 : undefined
             }
-            className={`w-full overflow-hidden bg-slate-900/40 shadow-2xl ring-1 ring-white/20 dark:bg-black/50 ${
-              isTop ? "rounded-t-xl rounded-b-none" : "rounded-b-xl rounded-t-none"
-            } ${ad.link_url ? "cursor-pointer" : ""}`}
+            className={`w-full overflow-hidden bg-slate-900/40 shadow-2xl ring-1 ring-white/20 dark:bg-black/50 rounded-xl ${
+              ad.link_url ? "cursor-pointer" : ""
+            }`}
           >
             <LazyImage
               src={getImageUrl(ad.image)}
@@ -117,23 +123,9 @@ const FloatingFixedAd = ({ position, ads }) => {
             />
           </div>
         );
-
-        return (
-          <div key={adId} className="w-full flex flex-col items-center">
-            {isTop ? (
-              <>
-                {adPanel}
-                {closeBtn}
-              </>
-            ) : (
-              <>
-                {closeBtn}
-                {adPanel}
-              </>
-            )}
-          </div>
-        );
       })}
+
+      {isTop && closeBtn}
     </div>
   );
 };

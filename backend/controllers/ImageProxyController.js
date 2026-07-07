@@ -166,7 +166,13 @@ async function proxy(req, res) {
       return res.status(403).json({ error: 'URL host not allowed for proxy' });
     }
 
-
+    // Special redirection for yuucdn.com since it does not require proxying or they closed/disabled proxying
+    try {
+      if (isYuuCdnUrl(targetUrl)) {
+        res.set('Cache-Control', 'public, max-age=86400');
+        return res.redirect(targetUrl);
+      }
+    } catch {}
 
     const referer = req.headers.referer || req.headers.referrer || '';
     const origin = req.headers.origin || '';

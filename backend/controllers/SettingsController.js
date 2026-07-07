@@ -24,7 +24,7 @@ const show = async (req, res) => {
   try {
     const payload = await settingsPublicCache.wrap('public', async () => {
       const [rows] = await db.execute(
-        "SELECT `key`, `value` FROM settings WHERE `key` IN ('popup_ads_interval_minutes', 'home_popup_interval_minutes', 'popup_ads_initial_delay_minutes', 'popup_ads_unlock_seconds', 'redirect_script_urls')"
+        "SELECT `key`, `value` FROM settings WHERE `key` IN ('popup_ads_interval_minutes', 'home_popup_interval_minutes', 'popup_ads_initial_delay_minutes', 'popup_ads_unlock_seconds', 'redirect_script_urls', 'cdn_domain')"
       );
       const map = Object.fromEntries((rows || []).map((r) => [r.key, r.value]));
       const popupAds = parseInt(map.popup_ads_interval_minutes, 10);
@@ -59,6 +59,7 @@ const show = async (req, res) => {
           10
         ),
         redirect_script_urls: redirectScriptUrls,
+        cdn_domain: map.cdn_domain || 'https://cdn.komiknesia.net',
       };
     });
     res.json(payload);
@@ -82,6 +83,7 @@ const update = async (req, res) => {
       popup_ads_initial_delay_minutes,
       popup_ads_unlock_seconds,
       redirect_script_urls,
+      cdn_domain,
     } = req.body;
 
     const setIntervalKey = (key, value, allowed) => {
@@ -120,6 +122,15 @@ const update = async (req, res) => {
         'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
         ['redirect_script_urls', JSON.stringify(urls), JSON.stringify(urls)]
       );
+    }
+
+    if (cdn_domain !== undefined) {
+      await db.execute(
+        'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
+        ['cdn_domain', String(cdn_domain).trim(), String(cdn_domain).trim()]
+      );
+      const { refreshCdnDomain } = require('../utils/s3Upload');
+      await refreshCdnDomain().catch(() => {});
     }
 
     settingsPublicCache.invalidate();

@@ -17,7 +17,7 @@ const S3_REGION = process.env.S3_REGION || 'auto';
 const S3_BUCKET = process.env.S3_BUCKET || 'komiknesia';
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'c004de4fd715fb374dbab19443a9c57d';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'a428f2b13fa3de370549acc643736cf60a2b8c250b67ec286ead25ad51ff0273';
-const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || 'https://pub-d73aa928fbfb420d978c85ef29b78158.r2.dev';
+const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || 'https://cdn.komiknesia.net';
 
 let s3Client = null;
 if (S3_BUCKET && S3_ACCESS_KEY && S3_SECRET_KEY) {
@@ -47,10 +47,8 @@ async function uploadBufferToS3(key, buffer, contentType = 'image/webp') {
 
   await s3Client.send(command);
 
-  if (S3_PUBLIC_URL) {
-    return `${S3_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
-  }
-  return `${S3_ENDPOINT.replace(/\/$/, '')}/${S3_BUCKET}/${key}`;
+  // Return only the key (relative path) to be stored in the database
+  return key;
 }
 
 function guessContentTypeFromExt(ext) {
@@ -88,8 +86,27 @@ async function uploadUrlToS3(key, url, contentType) {
   let resp;
   let directFailedOrPromo = false;
 
-  // Try direct fetch first for Yuu CDN to save bandwidth
-  if (isIkiru && isYuu) {
+  // For YuuCDN: try a plain direct fetch first (no Ikiru headers, no proxy)
+  // since yuucdn.com has closed/disabled proxy restrictions
+  if (isYuu) {
+    try {
+      resp = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        maxRedirects: 5,
+        headers: defaultHeaders,
+      });
+
+      const finalUrl = resp.request?.res?.responseUrl || url;
+      if (isPromoIkiruResponse(finalUrl, url)) {
+        directFailedOrPromo = true;
+        resp = null;
+      }
+    } catch (err) {
+      directFailedOrPromo = true;
+    }
+  } else if (isIkiru) {
+    // Non-YuuCDN Ikiru: try direct with Ikiru headers first
     try {
       resp = await axios.get(url, {
         responseType: 'arraybuffer',
@@ -101,15 +118,16 @@ async function uploadUrlToS3(key, url, contentType) {
       const finalUrl = resp.request?.res?.responseUrl || url;
       if (isPromoIkiruResponse(finalUrl, url)) {
         directFailedOrPromo = true;
+        resp = null;
       }
     } catch (err) {
       directFailedOrPromo = true;
     }
   }
 
-  // Fallback to proxy if direct failed/redirected, or if it is non-Yuu Ikiru, or if it is non-Ikiru
+  // Fallback to proxy if direct failed/redirected for Ikiru CDN (non-YuuCDN only)
   if (!resp || directFailedOrPromo) {
-    const useProxyNow = isIkiru;
+    const useProxyNow = isIkiru && !isYuu;
     let httpsAgent = null;
     const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
     if (proxyUrl && useProxyNow) {
@@ -128,6 +146,7 @@ async function uploadUrlToS3(key, url, contentType) {
     });
   }
 
+
   const finalUrl = resp.request?.res?.responseUrl || url;
   if (isPromoIkiruResponse(finalUrl, url)) {
     throw new Error('Ikiru CDN returned promo image (access-code/referer rejected)');
@@ -145,7 +164,10 @@ function tryParseS3KeyFromUrl(url) {
   // Raw key already stored (not a URL), e.g. "komiknesia/manga/..."
   if (!/^https?:\/\//i.test(raw)) {
     const normalized = raw.replace(/^\/+/, '');
-    return normalized || null;
+    if (normalized.startsWith(`${S3_BUCKET}/`)) {
+      return normalized;
+    }
+    return null;
   }
 
   let parsed;
@@ -157,27 +179,15 @@ function tryParseS3KeyFromUrl(url) {
 
   const pathname = decodeURIComponent(parsed.pathname || '').replace(/^\/+/, '');
   if (!pathname) return null;
-  const parts = pathname.split('/').filter(Boolean);
-  if (parts.length === 0) return null;
 
-  // Path-style URL: https://endpoint/<bucket>/<key>
-  if (parts[0] === S3_BUCKET && parts.length > 1) {
-    return parts.slice(1).join('/');
+  // If it is a path-style URL on r2.cloudflarestorage.com (starts with komiknesia/komiknesia/)
+  if (pathname.startsWith(`${S3_BUCKET}/${S3_BUCKET}/`)) {
+    return pathname.slice(S3_BUCKET.length + 1);
   }
 
-  // Virtual-hosted-style URL: https://<bucket>.endpoint/<key>
-  if (parsed.hostname === S3_BUCKET || parsed.hostname.startsWith(`${S3_BUCKET}.`)) {
-    return parts.join('/');
-  }
-
-  // S3_PUBLIC_URL match
-  if (S3_PUBLIC_URL) {
-    try {
-      const parsedPublic = new URL(S3_PUBLIC_URL);
-      if (parsed.hostname === parsedPublic.hostname) {
-        return pathname;
-      }
-    } catch {}
+  // If it starts with "komiknesia/", that's our key!
+  if (pathname.startsWith(`${S3_BUCKET}/`)) {
+    return pathname;
   }
 
   // Fallback for CDN/custom domains that still include /<bucket>/<key> in path
@@ -185,7 +195,10 @@ function tryParseS3KeyFromUrl(url) {
   const bucketIndex = pathname.indexOf(bucketSegment);
   if (bucketIndex >= 0) {
     const key = pathname.slice(bucketIndex + bucketSegment.length);
-    return key || null;
+    if (key.startsWith(`${S3_BUCKET}/`)) {
+      return key;
+    }
+    return `${S3_BUCKET}/${key}`;
   }
 
   // Last resort: if path already looks like our object key, use it.
@@ -217,6 +230,29 @@ async function deleteUrlFromS3(url) {
   return deleteKeyFromS3(key);
 }
 
+let GLOBAL_CDN_DOMAIN = S3_PUBLIC_URL;
+
+async function refreshCdnDomain() {
+  try {
+    const db = require('../db');
+    const [rows] = await db.execute("SELECT `value` FROM settings WHERE `key` = 'cdn_domain' LIMIT 1");
+    if (rows && rows.length > 0 && rows[0].value) {
+      GLOBAL_CDN_DOMAIN = rows[0].value.trim();
+    }
+  } catch (err) {
+    // Ignore DB errors during startup
+  }
+}
+
+// Periodically refresh CDN domain from db (every 10 seconds)
+setInterval(refreshCdnDomain, 10000);
+// Run once on load
+refreshCdnDomain().catch(() => {});
+
+function getDynamicCdnDomainSync() {
+  return GLOBAL_CDN_DOMAIN;
+}
+
 module.exports = {
   s3Client,
   uploadBufferToS3,
@@ -225,5 +261,7 @@ module.exports = {
   deleteKeyFromS3,
   deleteUrlFromS3,
   tryParseS3KeyFromUrl,
+  refreshCdnDomain,
+  getDynamicCdnDomainSync,
 };
 

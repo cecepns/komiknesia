@@ -23,6 +23,7 @@ const AdsManager = () => {
     popup_ads_initial_delay_minutes: 5,
     popup_ads_unlock_seconds: 10,
     redirect_script_urls: ['https://mbuh.my.id/siap/1770790072377-komiknesia.js'],
+    cdn_domain: 'https://cdn.komiknesia.net',
   });
   const [settingsLoading, setSettingsLoading] = useState(false);
 
@@ -220,6 +221,7 @@ const AdsManager = () => {
           redirect_script_urls: urls.length
             ? urls
             : ['https://mbuh.my.id/siap/1770790072377-komiknesia.js'],
+          cdn_domain: value?.cdn_domain ?? 'https://cdn.komiknesia.net',
         });
       })
       .catch(() => {});
@@ -386,9 +388,10 @@ const AdsManager = () => {
         redirect_script_urls: (settings.redirect_script_urls || [])
           .map((url) => (typeof url === 'string' ? url.trim() : ''))
           .filter(Boolean),
+        cdn_domain: (settings.cdn_domain || '').trim(),
       };
       await apiClient.updateSettings(payload);
-      alert('Pengaturan popup disimpan.');
+      alert('Pengaturan berhasil disimpan.');
     } catch (error) {
       console.error('Error saving settings:', error);
       alert('Gagal menyimpan pengaturan.');
@@ -538,10 +541,25 @@ const AdsManager = () => {
 
       {/* Pengaturan interval popup ads & popup pengumuman */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-          Pengaturan popup dan redirect script
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Pengaturan popup, CDN, dan redirect script
         </h4>
         <div className="space-y-4">
+          <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              Custom Domain CDN (Cloudflare R2)
+            </label>
+            <input
+              type="text"
+              value={settings.cdn_domain || ''}
+              onChange={(e) => setSettings(prev => ({ ...prev, cdn_domain: e.target.value }))}
+              placeholder="https://cdn.komiknesia.net"
+              className="w-full max-w-md px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            />
+            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+              Domain kustom untuk serve aset gambar Cloudflare R2 secara dinamis. Nilai default jika kosong: <code>https://cdn.komiknesia.net</code>.
+            </p>
+          </div>
           <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
