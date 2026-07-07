@@ -16,6 +16,11 @@ const IKIRU_CDN_ACCESS_CODE =
 const IKIRU_CDN_PROXY =
   process.env.IKIRU_CDN_PROXY || 'http://jlqhqvqf:2q5jwr526cph@45.43.70.75:6362';
 
+// Rotating residential proxy — used for YuuCDN which blocks datacenter IPs.
+// Residential IPs bypass Cloudflare bot protection on yuucdn.com.
+const YUUCDN_PROXY =
+  process.env.YUUCDN_PROXY || process.env.IKIRU_CDN_PROXY || 'http://jlqhqvqf-rotate:2q5jwr526cph@p.webshare.io:80';
+
 const DEFAULT_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36';
 
@@ -108,4 +113,5 @@ module.exports = {
   getIkiruCdnFetchHeaders,
   toProxiedImagePathIfNeeded,
   IKIRU_CDN_PROXY,
+  YUUCDN_PROXY,
 };

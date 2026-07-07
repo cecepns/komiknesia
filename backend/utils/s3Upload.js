@@ -10,6 +10,7 @@ const {
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   IKIRU_CDN_PROXY,
+  YUUCDN_PROXY,
 } = require('./ikiruCdnImage');
 
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://33cbe0d28cbe34b858c352c662d477d6.r2.cloudflarestorage.com';
@@ -138,13 +139,16 @@ async function uploadUrlToS3(key, url, contentType) {
   }
 
   // Fallback: use proxy agent.
-  // For YuuCDN: use proxy agent (residential IP) when direct fetch failed/blocked.
-  // For non-YuuCDN Ikiru: use proxy + Ikiru headers when direct failed.
+  // For YuuCDN: use ROTATING RESIDENTIAL proxy (yuucdn.com blocks datacenter IPs via Cloudflare).
+  // For non-YuuCDN Ikiru: use datacenter proxy + Ikiru headers.
   // For non-Ikiru: plain fetch without proxy.
   if (!resp || directFailedOrPromo) {
     const useProxyNow = isIkiru || isYuu;
     let httpsAgent = null;
-    const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+    // YuuCDN needs residential proxy; other Ikiru CDN uses datacenter proxy
+    const proxyUrl = isYuu
+      ? (YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '')
+      : (IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '');
     if (proxyUrl && useProxyNow) {
       try {
         const { HttpsProxyAgent } = require('https-proxy-agent');
