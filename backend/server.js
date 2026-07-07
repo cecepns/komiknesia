@@ -39,6 +39,7 @@ const imageProxyRoutes = require('./routes/imageProxyRoutes');
 const migrationRoutes = require('./routes/migrationRoutes');
 const { toProxiedImagePathIfNeeded } = require('./utils/ikiruCdnImage');
 const { CHAPTER_RELEASED_WHERE, isScheduledReleaseInFuture } = require('./utils/chapterRelease');
+const { validateApiOrigin } = require('./middlewares/validateApiOrigin');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -209,17 +210,17 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);
-app.use('/api/contents', contentsRoutes);
+app.use('/api/contents', validateApiOrigin(), contentsRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/readlists', readlistRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/chapter-reactions', chapterReactionRoutes);
-app.use('/api/manga', mangaRoutes);
-app.use('/api/chapters', chapterRoutes);
-app.use('/api/comic', comicRoutes);
+app.use('/api/manga', validateApiOrigin(), mangaRoutes);
+app.use('/api/chapters', validateApiOrigin(), chapterRoutes);
+app.use('/api/comic', validateApiOrigin(), comicRoutes);
 app.use('/api/ads', adsRoutes);
-app.use('/api/featured-items', featuredItemsRoutes);
+app.use('/api/featured-items', validateApiOrigin(), featuredItemsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/contact-info', contactInfoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
