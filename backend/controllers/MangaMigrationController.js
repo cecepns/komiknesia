@@ -223,12 +223,14 @@ async function runMigrationWorker(mangaIds, taskId) {
             try {
               const ext = getExtensionFromUrl(img.image_path);
               const s3Key = `komiknesia/chapters/${chapter.id}/pages/${img.page_number}-${Date.now()}${ext}`;
+              log(`  Migrasi page ${img.page_number}: ${img.image_path.slice(0, 80)}...`);
               const newUrl = await uploadUrlToS3(s3Key, img.image_path);
 
               await db.execute('UPDATE chapter_images SET image_path = ? WHERE id = ?', [newUrl, img.id]);
               task.processedImages++;
             } catch (err) {
-              logError(`Gagal migrasi gambar chapter page ${img.page_number} (ID: ${chapter.id})`, err);
+              const statusCode = err.response?.status || '';
+              logError(`Gagal migrasi gambar chapter page ${img.page_number} (ID: ${chapter.id}) [${statusCode}] url=${img.image_path.slice(0, 100)}`, err);
             }
           }
         }
