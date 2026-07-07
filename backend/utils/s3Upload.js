@@ -80,25 +80,37 @@ async function uploadUrlToS3(key, url, contentType) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   };
 
-  const isIkiru = isIkiruCdnUrl(url);
-  const isYuu = isIkiru && isYuuCdnUrl(url);
+  // Unwrap image-proxy URLs to get the real source URL.
+  // DB often stores image_path as the proxy URL:
+  //   https://api-be.komiknesia.my.id/api/image-proxy?url=https%3A%2F%2Fyuucdn.com%2F...
+  let fetchUrl = url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/api/image-proxy' && parsed.searchParams.has('url')) {
+      fetchUrl = decodeURIComponent(parsed.searchParams.get('url'));
+    }
+  } catch { }
+
+  const isIkiru = isIkiruCdnUrl(fetchUrl);
+  const isYuu = isYuuCdnUrl(fetchUrl);
 
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: try a plain direct fetch first (no Ikiru headers, no proxy)
-  // since yuucdn.com has closed/disabled proxy restrictions
+  // For YuuCDN: try plain direct fetch first (no Ikiru headers, no proxy).
+  // VPS datacenter IPs may be blocked by Cloudflare on yuucdn.com,
+  // so we fall back to the residential proxy agent if direct fetch fails.
   if (isYuu) {
     try {
-      resp = await axios.get(url, {
+      resp = await axios.get(fetchUrl, {
         responseType: 'arraybuffer',
         timeout: 15000,
         maxRedirects: 5,
         headers: defaultHeaders,
       });
 
-      const finalUrl = resp.request?.res?.responseUrl || url;
-      if (isPromoIkiruResponse(finalUrl, url)) {
+      const finalUrl = resp.request?.res?.responseUrl || fetchUrl;
+      if (isPromoIkiruResponse(finalUrl, fetchUrl)) {
         directFailedOrPromo = true;
         resp = null;
       }
@@ -108,15 +120,15 @@ async function uploadUrlToS3(key, url, contentType) {
   } else if (isIkiru) {
     // Non-YuuCDN Ikiru: try direct with Ikiru headers first
     try {
-      resp = await axios.get(url, {
+      resp = await axios.get(fetchUrl, {
         responseType: 'arraybuffer',
         timeout: 15000,
         maxRedirects: 5,
-        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url),
+        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl),
       });
 
-      const finalUrl = resp.request?.res?.responseUrl || url;
-      if (isPromoIkiruResponse(finalUrl, url)) {
+      const finalUrl = resp.request?.res?.responseUrl || fetchUrl;
+      if (isPromoIkiruResponse(finalUrl, fetchUrl)) {
         directFailedOrPromo = true;
         resp = null;
       }
@@ -125,9 +137,12 @@ async function uploadUrlToS3(key, url, contentType) {
     }
   }
 
-  // Fallback to proxy if direct failed/redirected for Ikiru CDN (non-YuuCDN only)
+  // Fallback: use proxy agent.
+  // For YuuCDN: use proxy agent (residential IP) when direct fetch failed/blocked.
+  // For non-YuuCDN Ikiru: use proxy + Ikiru headers when direct failed.
+  // For non-Ikiru: plain fetch without proxy.
   if (!resp || directFailedOrPromo) {
-    const useProxyNow = isIkiru && !isYuu;
+    const useProxyNow = isIkiru || isYuu;
     let httpsAgent = null;
     const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
     if (proxyUrl && useProxyNow) {
@@ -137,18 +152,19 @@ async function uploadUrlToS3(key, url, contentType) {
       } catch { }
     }
 
-    resp = await axios.get(url, {
+    resp = await axios.get(fetchUrl, {
       responseType: 'arraybuffer',
       timeout: 30000,
       maxRedirects: 5,
-      headers: useProxyNow ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', url) : defaultHeaders,
+      // For YuuCDN via proxy: use plain headers (no Ikiru access-code needed)
+      headers: (isIkiru && !isYuu) ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl) : defaultHeaders,
       ...(httpsAgent ? { httpsAgent } : {})
     });
   }
 
 
-  const finalUrl = resp.request?.res?.responseUrl || url;
-  if (isPromoIkiruResponse(finalUrl, url)) {
+  const finalUrl = resp.request?.res?.responseUrl || fetchUrl;
+  if (isPromoIkiruResponse(finalUrl, fetchUrl)) {
     throw new Error('Ikiru CDN returned promo image (access-code/referer rejected)');
   }
 
