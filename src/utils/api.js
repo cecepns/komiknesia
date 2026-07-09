@@ -1010,3 +1010,38 @@ class APIClient {
 }
 
 export const apiClient = new APIClient();
+
+export function safeParseDate(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  
+  const s = String(value).trim();
+  if (!s) return null;
+
+  // Handles "YYYY-MM-DD HH:mm:ss" -> replace space with 'T'
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(s)) {
+    const d = new Date(s.replace(' ', 'T'));
+    if (!isNaN(d.getTime())) return d;
+  }
+  
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+export function formatToLocaleString(value, isDateOnly = false) {
+  const d = safeParseDate(value);
+  if (!d) return '-';
+  return isDateOnly ? d.toLocaleDateString('id-ID') : d.toLocaleString('id-ID');
+}
+
+export function formatToInputString(value) {
+  const d = safeParseDate(value);
+  if (!d) return '';
+  try {
+    return d.toISOString().slice(0, 16);
+  } catch {
+    return '';
+  }
+}

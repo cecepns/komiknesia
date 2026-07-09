@@ -166,6 +166,10 @@ const { tryParseS3KeyFromUrl, getDynamicCdnDomainSync } = require('./utils/s3Upl
 function transformUrls(obj, cdnUrl) {
   if (obj === null || obj === undefined) return obj;
   
+  if (obj instanceof Date) {
+    return obj;
+  }
+  
   if (typeof obj === 'string') {
     if (obj.startsWith('/uploads/')) {
       return obj;

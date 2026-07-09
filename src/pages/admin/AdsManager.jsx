@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, X, PencilIcon, Image as ImageIcon } from 'lucide-react';
-import { apiClient, getImageUrl } from '../../utils/api';
+import { apiClient, getImageUrl, formatToInputString, formatToLocaleString } from '../../utils/api';
 
 const AdsManager = () => {
   const [ads, setAds] = useState([]);
@@ -421,7 +421,7 @@ const AdsManager = () => {
       imagePreview: getImageUrl(ad.image),
       image_alt: ad.image_alt ?? '',
       title: ad.title ?? '',
-      expired_at: ad.expired_at ? new Date(ad.expired_at).toISOString().slice(0, 16) : '',
+      expired_at: formatToInputString(ad.expired_at),
     });
   };
 
@@ -977,15 +977,13 @@ const AdsManager = () => {
                         />
                       ) : (
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {ad.expired_at
-                            ? new Date(ad.expired_at).toLocaleString('id-ID')
-                            : '-'}
+                          {formatToLocaleString(ad.expired_at)}
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {ad.created_at ? new Date(ad.created_at).toLocaleDateString('id-ID') : '-'}
+                        {formatToLocaleString(ad.created_at, true)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Pencil, Trash2, Loader2, X } from 'lucide-react';
-import { apiClient } from '../../utils/api';
+import { apiClient, formatToInputString, formatToLocaleString } from '../../utils/api';
 
 const initialForm = {
   username: '',
@@ -77,9 +77,7 @@ export default function UserManager() {
       password: '',
       points: Number(user.points || 0),
       is_membership: !!user.is_membership,
-      membership_expires_at: user.membership_expires_at
-        ? new Date(user.membership_expires_at).toISOString().slice(0, 16)
-        : '',
+      membership_expires_at: formatToInputString(user.membership_expires_at),
       role: user.role === 'admin' ? 'admin' : 'user',
     });
     setShowForm(true);
@@ -222,7 +220,7 @@ export default function UserManager() {
                         <div>
                           <span className="inline-flex px-2 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">Aktif</span>
                           <div className="text-xs text-gray-500 mt-1">
-                            Sampai: {user.membership_expires_at ? new Date(user.membership_expires_at).toLocaleString('id-ID') : 'Tidak ada batas'}
+                            Sampai: {user.membership_expires_at ? formatToLocaleString(user.membership_expires_at) : 'Tidak ada batas'}
                           </div>
                         </div>
                       ) : (
