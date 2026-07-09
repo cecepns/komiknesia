@@ -1,0 +1,7 @@
+name = "yuucdn-proxy"
+main = "src/index.js"
+compatibility_date = "2024-03-01"
+
+[vars]
+ACCESS_CODE = "NYQLFxYsnOy+/zwnNWmNTUN5"
+REFERER = "https://v6.kiryuu.to/"

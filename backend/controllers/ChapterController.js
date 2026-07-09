@@ -9,6 +9,7 @@ const {
   isYuuCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
+  isYuuCdnPromoResponse,
   toProxiedImagePathIfNeeded,
   IKIRU_CDN_PROXY,
 } = require('../utils/ikiruCdnImage');
@@ -83,7 +84,7 @@ const loadImageZipEntry = async (imagePath, index) => {
       });
 
       const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
-      if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
+      if (isYuuCdnPromoResponse(finalUrl, absoluteUrl)) {
         directFailedOrPromo = true;
         response = null;
       }
@@ -145,7 +146,10 @@ const loadImageZipEntry = async (imagePath, index) => {
 
 
   const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
-  if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
+  const isPromo = isYuu
+    ? isYuuCdnPromoResponse(finalUrl, absoluteUrl)
+    : isPromoIkiruResponse(finalUrl, absoluteUrl);
+  if (isPromo) {
     console.warn(`Skipped promo image for zip (${absoluteUrl})`);
     return null;
   }

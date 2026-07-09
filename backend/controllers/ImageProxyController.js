@@ -6,6 +6,7 @@ const {
   isYuuCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
+  isYuuCdnPromoResponse,
   IKIRU_CDN_PROXY,
   YUUCDN_PROXY,
 } = require('../utils/ikiruCdnImage');
@@ -47,6 +48,7 @@ function checkIkiruDomain(urlStr) {
 async function fetchCdnImageHelper(imageUrl, httpsAgent) {
   const MAX_MANUAL_REDIRECTS = 3;
   let currentUrl = imageUrl;
+  const isYuu = isYuuCdnUrl(imageUrl);
 
   for (let attempt = 0; attempt <= MAX_MANUAL_REDIRECTS; attempt++) {
     let response;
@@ -71,10 +73,18 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
         const resolvedLocation = location.startsWith('http')
           ? location
           : new URL(location, currentUrl).href;
+        
         // If redirected to promo or Cloudflare challenge, bail to promo
-        if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
-          console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL: ${resolvedLocation}`);
-          return { isPromo: true };
+        if (isYuu) {
+          if (isYuuCdnPromoResponse(resolvedLocation, imageUrl)) {
+            console.warn(`[fetchCdnImageHelper] YuuCDN redirect is promo/different: ${resolvedLocation}`);
+            return { isPromo: true, isYuuPromo: true };
+          }
+        } else {
+          if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
+            console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL: ${resolvedLocation}`);
+            return { isPromo: true };
+          }
         }
         currentUrl = resolvedLocation;
         continue;
@@ -88,9 +98,16 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
     // Successful response
     if (status >= 200 && status < 300) {
       const finalUrl = response.request?.res?.responseUrl || currentUrl;
-      if (isPromoIkiruResponse(finalUrl, imageUrl)) {
-        console.warn(`[fetchCdnImageHelper] Final response URL is a promo: ${finalUrl}`);
-        return { isPromo: true };
+      if (isYuu) {
+        if (isYuuCdnPromoResponse(finalUrl, imageUrl)) {
+          console.warn(`[fetchCdnImageHelper] YuuCDN response URL is promo/different: ${finalUrl}`);
+          return { isPromo: true, isYuuPromo: true };
+        }
+      } else {
+        if (isPromoIkiruResponse(finalUrl, imageUrl)) {
+          console.warn(`[fetchCdnImageHelper] Final response URL is a promo: ${finalUrl}`);
+          return { isPromo: true };
+        }
       }
       return { isPromo: false, data: response.data, contentType: response.headers['content-type'] };
     }
@@ -105,9 +122,16 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
       ? location
       : new URL(location, currentUrl).href;
 
-    if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
-      console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL (status ${status}): ${resolvedLocation}`);
-      return { isPromo: true };
+    if (isYuu) {
+      if (isYuuCdnPromoResponse(resolvedLocation, imageUrl)) {
+        console.warn(`[fetchCdnImageHelper] YuuCDN redirect is promo/different (status ${status}): ${resolvedLocation}`);
+        return { isPromo: true, isYuuPromo: true };
+      }
+    } else {
+      if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
+        console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL (status ${status}): ${resolvedLocation}`);
+        return { isPromo: true };
+      }
     }
     currentUrl = resolvedLocation;
   }
@@ -119,23 +143,10 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
 async function fetchCdnImage(imageUrl) {
   const isYuu = isYuuCdnUrl(imageUrl);
 
-  // For Yuu CDN, use the rotating residential proxy (bypasses Cloudflare bot protection).
-  // yuucdn.com redirects direct/datacenter requests to promo, so we skip the direct attempt.
+  // Yuu CDN proxy is disabled (fetch directly).
   if (isYuu) {
-    const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
-    let yuuAgent = null;
-    if (yuuProxyUrl) {
-      try {
-        const { HttpsProxyAgent } = require('https-proxy-agent');
-        yuuAgent = new HttpsProxyAgent(yuuProxyUrl);
-        console.log(`[fetchCdnImage] Using residential proxy for Yuu CDN: ${imageUrl}`);
-      } catch (e) {
-        console.error('[fetchCdnImage] Failed to create Yuu proxy agent:', e.message);
-      }
-    } else {
-      console.warn('[fetchCdnImage] No proxy configured for Yuu CDN — direct fetch likely to be blocked.');
-    }
-    return fetchCdnImageHelper(imageUrl, yuuAgent);
+    console.log(`[fetchCdnImage] Fetching Yuu CDN URL directly (proxy turned off): ${imageUrl}`);
+    return fetchCdnImageHelper(imageUrl, null);
   }
 
   // For other Ikiru CDN hosts, fetch with the standard proxy agent if configured.
@@ -154,13 +165,13 @@ async function fetchCdnImage(imageUrl) {
 }
 
 async function proxy(req, res) {
+  let targetUrl = '';
   try {
     const rawUrl = req.query.url;
     if (!rawUrl || typeof rawUrl !== 'string') {
       return res.status(400).json({ error: 'Query parameter url is required' });
     }
 
-    let targetUrl;
     try {
       targetUrl = decodeURIComponent(rawUrl.trim());
       const parsed = new URL(targetUrl);
@@ -175,17 +186,18 @@ async function proxy(req, res) {
       return res.status(403).json({ error: 'URL host not allowed for proxy' });
     }
 
-    // yuucdn.com images are proxied through a rotating residential proxy to bypass Cloudflare.
-    // Do NOT redirect directly — that would expose the client to yuucdn.com's promo redirect.
-
     const referer = req.headers.referer || req.headers.referrer || '';
     const origin = req.headers.origin || '';
     const isFromIkiru = !referer || checkIkiruDomain(referer) || checkIkiruDomain(origin);
 
     const fallbackUrl = 'https://is3.cloudhost.id/data.komikneisa/komiknesia/manga/komiknesia-update-/thumbnail-1780155400085.png';
 
-    // Unauthorized visitor → serve fallback image
+    // Unauthorized visitor → serve fallback image (or redirect YuuCDN directly)
     if (!isFromIkiru) {
+      if (isYuuCdnUrl(targetUrl)) {
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.redirect(targetUrl);
+      }
       try {
         const fallbackResponse = await axios.get(fallbackUrl, {
           responseType: 'arraybuffer',
@@ -204,6 +216,11 @@ async function proxy(req, res) {
     const result = await fetchCdnImage(targetUrl);
 
     if (result.isPromo) {
+      if (isYuuCdnUrl(targetUrl)) {
+        console.log(`[proxy] YuuCDN direct fetch returned promo. Redirecting client to original URL: ${targetUrl}`);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.redirect(targetUrl);
+      }
       try {
         const fallbackResponse = await axios.get(fallbackUrl, {
           responseType: 'arraybuffer',
@@ -224,6 +241,11 @@ async function proxy(req, res) {
     return res.send(Buffer.from(result.data));
   } catch (err) {
     console.warn('Image proxy error:', err.message);
+    if (targetUrl && isYuuCdnUrl(targetUrl)) {
+      console.log(`[proxy] YuuCDN proxy error. Redirecting client to original URL: ${targetUrl}`);
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.redirect(targetUrl);
+    }
     const status = err.response?.status;
     return res.status(status && status >= 400 ? status : 502).json({ error: 'Upstream error', message: err.message });
   }

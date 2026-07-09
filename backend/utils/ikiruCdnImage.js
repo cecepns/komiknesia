@@ -56,6 +56,37 @@ function isPromoIkiruResponse(url, originalUrl = '') {
   return lower.includes('promo-ikiru') || lower.includes('promo-kiryuu');
 }
 
+function isYuuCdnPromoResponse(url, originalUrl = '') {
+  if (!url || !originalUrl) return false;
+  const lower = String(url).toLowerCase();
+  const origLower = String(originalUrl).toLowerCase();
+
+  // If final URL is explicitly a promo image
+  if (
+    lower.includes('promo-ikiru') ||
+    lower.includes('promo-kiryuu') ||
+    lower.includes('promo-kiryuu-moon.png') ||
+    lower.includes('promo-kiryuu.png')
+  ) {
+    return true;
+  }
+
+  // Or not the original URL (e.g. redirected to another path/file)
+  try {
+    const finalParsed = new URL(url);
+    const originalParsed = new URL(originalUrl);
+    if (finalParsed.pathname.toLowerCase() !== originalParsed.pathname.toLowerCase()) {
+      return true;
+    }
+  } catch {
+    if (lower !== origLower) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN, targetUrl = '') {
   const ref = String(referer || IKIRU_ORIGIN).replace(/\/+$/, '');
 
@@ -98,6 +129,16 @@ function toProxiedImagePathIfNeeded(imagePath, req) {
   if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return imagePath;
   if (!isIkiruCdnUrl(trimmed)) return imagePath;
 
+  // Route YuuCDN directly through Cloudflare Worker
+  const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+  if (isYuuCdnUrl(trimmed) && yuuWorkerUrl) {
+    try {
+      const u = new URL(trimmed);
+      const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
+      return `${workerBase}${u.pathname}${u.search}`;
+    } catch { }
+  }
+
   const host = req.get('host');
   const base = host ? `${req.protocol}://${host}` : '';
   if (!base) return imagePath;
@@ -110,6 +151,7 @@ module.exports = {
   isIkiruCdnUrl,
   isYuuCdnUrl,
   isPromoIkiruResponse,
+  isYuuCdnPromoResponse,
   getIkiruCdnFetchHeaders,
   toProxiedImagePathIfNeeded,
   IKIRU_CDN_PROXY,

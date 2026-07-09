@@ -9,6 +9,7 @@ const {
   isYuuCdnUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
+  isYuuCdnPromoResponse,
   IKIRU_CDN_PROXY,
   YUUCDN_PROXY,
 } = require('./ikiruCdnImage');
@@ -81,14 +82,14 @@ async function uploadUrlToS3(key, url, contentType) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   };
 
-  // Unwrap image-proxy URLs to get the real source URL.
-  // DB often stores image_path as the proxy URL:
-  //   https://api-be.komiknesia.my.id/api/image-proxy?url=https%3A%2F%2Fyuucdn.com%2F...
+  // Unwrap image-proxy and Cloudflare Worker URLs to get the real source URL.
   let fetchUrl = url;
   try {
     const parsed = new URL(url);
     if (parsed.pathname === '/api/image-proxy' && parsed.searchParams.has('url')) {
       fetchUrl = decodeURIComponent(parsed.searchParams.get('url'));
+    } else if (parsed.hostname === 'proxy.komiknesia.net' || parsed.hostname.endsWith('workers.dev')) {
+      fetchUrl = `https://yuucdn.com${parsed.pathname}${parsed.search}`;
     }
   } catch { }
 
@@ -98,30 +99,15 @@ async function uploadUrlToS3(key, url, contentType) {
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: skip direct fetch entirely — yuucdn.com now always redirects
-  // datacenter IPs to promo. Go straight to the rotating residential proxy.
+  // For YuuCDN: skip proxy entirely, fetch directly
   if (isYuu) {
-    const proxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
-    let httpsAgent = null;
-    if (proxyUrl) {
-      try {
-        const { HttpsProxyAgent } = require('https-proxy-agent');
-        httpsAgent = new HttpsProxyAgent(proxyUrl);
-        console.log(`[uploadUrlToS3] Using residential proxy for YuuCDN: ${fetchUrl}`);
-      } catch (e) {
-        console.error('[uploadUrlToS3] Failed to create YuuCDN proxy agent:', e.message);
-      }
-    } else {
-      console.warn('[uploadUrlToS3] No proxy configured for YuuCDN — fetch likely to be blocked.');
-    }
-
+    console.log(`[uploadUrlToS3] Fetching YuuCDN directly (proxy turned off): ${fetchUrl}`);
     resp = await axios.get(fetchUrl, {
       responseType: 'arraybuffer',
       timeout: 30000,
       maxRedirects: 5,
       // Use Ikiru CDN headers (without CF cookie) — same as ImageProxyController
       headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl),
-      ...(httpsAgent ? { httpsAgent } : {}),
     });
   } else if (isIkiru) {
     // Non-YuuCDN Ikiru: try direct with Ikiru headers first
@@ -172,8 +158,14 @@ async function uploadUrlToS3(key, url, contentType) {
 
 
   const finalUrl = resp.request?.res?.responseUrl || fetchUrl;
-  if (isPromoIkiruResponse(finalUrl, fetchUrl)) {
-    throw new Error('Ikiru CDN returned promo image (access-code/referer rejected)');
+  if (isYuu) {
+    if (isYuuCdnPromoResponse(finalUrl, fetchUrl)) {
+      throw new Error('YuuCDN returned promo image (access-code/referer rejected or redirected)');
+    }
+  } else {
+    if (isPromoIkiruResponse(finalUrl, fetchUrl)) {
+      throw new Error('Ikiru CDN returned promo image (access-code/referer rejected)');
+    }
   }
 
   const ct = contentType || resp.headers?.['content-type'] || 'application/octet-stream';
