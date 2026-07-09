@@ -229,8 +229,17 @@ async function runMigrationWorker(mangaIds, taskId) {
               await db.execute('UPDATE chapter_images SET image_path = ? WHERE id = ?', [newUrl, img.id]);
               task.processedImages++;
             } catch (err) {
-              const statusCode = err.response?.status || '';
-              logError(`Gagal migrasi gambar chapter page ${img.page_number} (ID: ${chapter.id}) [${statusCode}] url=${img.image_path.slice(0, 100)}`, err);
+              const isPromoError = err.message && err.message.includes('promo image');
+              if (isPromoError) {
+                // Promo/blocked — skip silently with a warning, don't add to errors[]
+                task.skippedImages++;
+                task.promoBlockedCount++;
+                task.promoBlockedUrls.push(img.image_path);
+                log(`  ⚠️ Dilewati (promo/blocked) page ${img.page_number} — URL: ${img.image_path.slice(0, 80)}`);
+              } else {
+                const statusCode = err.response?.status || '';
+                logError(`Gagal migrasi gambar chapter page ${img.page_number} (ID: ${chapter.id}) [${statusCode}] url=${img.image_path.slice(0, 100)}`, err);
+              }
             }
           }
         }
@@ -269,6 +278,9 @@ const startMigration = async (req, res) => {
       processedChapters: 0,
       totalImages: 0,
       processedImages: 0,
+      skippedImages: 0,        // images skipped due to promo/block
+      promoBlockedCount: 0,   // specifically promo-blocked count
+      promoBlockedUrls: [],   // list of promo-blocked image URLs
       logs: [],
       errors: [],
       startedAt: new Date().toISOString(),

@@ -98,26 +98,31 @@ async function uploadUrlToS3(key, url, contentType) {
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: try plain direct fetch first (no Ikiru headers, no proxy).
-  // VPS datacenter IPs may be blocked by Cloudflare on yuucdn.com,
-  // so we fall back to the residential proxy agent if direct fetch fails.
+  // For YuuCDN: skip direct fetch entirely — yuucdn.com now always redirects
+  // datacenter IPs to promo. Go straight to the rotating residential proxy.
   if (isYuu) {
-    try {
-      resp = await axios.get(fetchUrl, {
-        responseType: 'arraybuffer',
-        timeout: 15000,
-        maxRedirects: 5,
-        headers: defaultHeaders,
-      });
-
-      const finalUrl = resp.request?.res?.responseUrl || fetchUrl;
-      if (isPromoIkiruResponse(finalUrl, fetchUrl)) {
-        directFailedOrPromo = true;
-        resp = null;
+    const proxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
+    let httpsAgent = null;
+    if (proxyUrl) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        httpsAgent = new HttpsProxyAgent(proxyUrl);
+        console.log(`[uploadUrlToS3] Using residential proxy for YuuCDN: ${fetchUrl}`);
+      } catch (e) {
+        console.error('[uploadUrlToS3] Failed to create YuuCDN proxy agent:', e.message);
       }
-    } catch (err) {
-      directFailedOrPromo = true;
+    } else {
+      console.warn('[uploadUrlToS3] No proxy configured for YuuCDN — fetch likely to be blocked.');
     }
+
+    resp = await axios.get(fetchUrl, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+      maxRedirects: 5,
+      // Use Ikiru CDN headers (without CF cookie) — same as ImageProxyController
+      headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl),
+      ...(httpsAgent ? { httpsAgent } : {}),
+    });
   } else if (isIkiru) {
     // Non-YuuCDN Ikiru: try direct with Ikiru headers first
     try {
@@ -136,33 +141,32 @@ async function uploadUrlToS3(key, url, contentType) {
     } catch (err) {
       directFailedOrPromo = true;
     }
-  }
 
-  // Fallback: use proxy agent.
-  // For YuuCDN: use ROTATING RESIDENTIAL proxy (yuucdn.com blocks datacenter IPs via Cloudflare).
-  // For non-YuuCDN Ikiru: use datacenter proxy + Ikiru headers.
-  // For non-Ikiru: plain fetch without proxy.
-  if (!resp || directFailedOrPromo) {
-    const useProxyNow = isIkiru || isYuu;
-    let httpsAgent = null;
-    // YuuCDN needs residential proxy; other Ikiru CDN uses datacenter proxy
-    const proxyUrl = isYuu
-      ? (YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '')
-      : (IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '');
-    if (proxyUrl && useProxyNow) {
-      try {
-        const { HttpsProxyAgent } = require('https-proxy-agent');
-        httpsAgent = new HttpsProxyAgent(proxyUrl);
-      } catch { }
+    // Fallback to datacenter proxy for non-YuuCDN Ikiru
+    if (!resp || directFailedOrPromo) {
+      const proxyUrl = IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+      let httpsAgent = null;
+      if (proxyUrl) {
+        try {
+          const { HttpsProxyAgent } = require('https-proxy-agent');
+          httpsAgent = new HttpsProxyAgent(proxyUrl);
+        } catch { }
+      }
+      resp = await axios.get(fetchUrl, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+        maxRedirects: 5,
+        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl),
+        ...(httpsAgent ? { httpsAgent } : {}),
+      });
     }
-
+  } else {
+    // Non-Ikiru URL: plain fetch
     resp = await axios.get(fetchUrl, {
       responseType: 'arraybuffer',
       timeout: 30000,
       maxRedirects: 5,
-      // For YuuCDN via proxy: use plain headers (no Ikiru access-code needed)
-      headers: (isIkiru && !isYuu) ? getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl) : defaultHeaders,
-      ...(httpsAgent ? { httpsAgent } : {})
+      headers: defaultHeaders,
     });
   }
 

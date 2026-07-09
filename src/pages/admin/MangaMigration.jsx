@@ -228,7 +228,7 @@ const MangaMigration = () => {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl">
             <div className="text-center">
               <p className="text-xs text-gray-500 dark:text-gray-400">Chapters Selesai</p>
               <p className="text-lg font-bold text-gray-800 dark:text-gray-200">{activeTask.processedChapters}</p>
@@ -237,7 +237,11 @@ const MangaMigration = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400">Gambar Terupload</p>
               <p className="text-lg font-bold text-gray-800 dark:text-gray-200">{activeTask.processedImages}</p>
             </div>
-            <div className="text-center col-span-2 sm:col-span-1">
+            <div className="text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Dilewati (Promo)</p>
+              <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{activeTask.skippedImages || 0}</p>
+            </div>
+            <div className="text-center">
               <p className="text-xs text-gray-500 dark:text-gray-400">Kesalahan Upload</p>
               <p className="text-lg font-bold text-red-600 dark:text-red-400">{activeTask.errors.length}</p>
             </div>
