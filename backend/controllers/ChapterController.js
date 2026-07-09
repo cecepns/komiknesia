@@ -69,11 +69,23 @@ const loadImageZipEntry = async (imagePath, index) => {
   let response;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: try a plain direct fetch first (no Ikiru headers, no proxy)
-  // since yuucdn.com has closed/disabled proxy restrictions
+  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block
   if (isYuu) {
+    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+    let yuuFetchUrl = absoluteUrl;
+    if (yuuWorkerUrl) {
+      try {
+        const u = new URL(absoluteUrl);
+        const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
+        yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
+        console.log(`[loadImageZipEntry] Routing YuuCDN fetch through Worker: ${yuuFetchUrl}`);
+      } catch (e) {
+        console.warn(`[loadImageZipEntry] Failed to parse target URL:`, e.message);
+      }
+    }
+
     try {
-      response = await axios.get(absoluteUrl, {
+      response = await axios.get(yuuFetchUrl, {
         responseType: 'arraybuffer',
         timeout: 15000,
         maxRedirects: 5,

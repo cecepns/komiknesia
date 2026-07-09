@@ -186,6 +186,20 @@ async function proxy(req, res) {
       return res.status(403).json({ error: 'URL host not allowed for proxy' });
     }
 
+    if (isYuuCdnUrl(targetUrl)) {
+      const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+      if (yuuWorkerUrl) {
+        try {
+          const u = new URL(targetUrl);
+          const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
+          const redirectUrl = `${workerBase}${u.pathname}${u.search}`;
+          console.log(`[proxy] YuuCDN URL detected. Redirecting client to Worker: ${redirectUrl}`);
+          res.set('Cache-Control', 'public, max-age=86400');
+          return res.redirect(redirectUrl);
+        } catch { }
+      }
+    }
+
     const referer = req.headers.referer || req.headers.referrer || '';
     const origin = req.headers.origin || '';
     const isFromIkiru = !referer || checkIkiruDomain(referer) || checkIkiruDomain(origin);

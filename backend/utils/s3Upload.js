@@ -99,15 +99,26 @@ async function uploadUrlToS3(key, url, contentType) {
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: skip proxy entirely, fetch directly
+  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block
   if (isYuu) {
-    console.log(`[uploadUrlToS3] Fetching YuuCDN directly (proxy turned off): ${fetchUrl}`);
-    resp = await axios.get(fetchUrl, {
+    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+    let yuuFetchUrl = fetchUrl;
+    if (yuuWorkerUrl) {
+      try {
+        const u = new URL(fetchUrl);
+        const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
+        yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
+        console.log(`[uploadUrlToS3] Routing YuuCDN fetch through Worker: ${yuuFetchUrl}`);
+      } catch (e) {
+        console.warn(`[uploadUrlToS3] Failed to parse target URL:`, e.message);
+      }
+    }
+
+    resp = await axios.get(yuuFetchUrl, {
       responseType: 'arraybuffer',
       timeout: 30000,
       maxRedirects: 5,
-      // Use Ikiru CDN headers (without CF cookie) — same as ImageProxyController
-      headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl),
+      headers: defaultHeaders,
     });
   } else if (isIkiru) {
     // Non-YuuCDN Ikiru: try direct with Ikiru headers first
