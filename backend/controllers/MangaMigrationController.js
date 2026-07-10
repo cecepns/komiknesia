@@ -125,7 +125,11 @@ const listManga = async (req, res) => {
       countParams.push(r2Host, publicHost, r2Host, publicHost);
     }
 
-    dataQuery += ' ORDER BY m.created_at DESC LIMIT ? OFFSET ?';
+    dataQuery += ` ORDER BY (
+      SELECT MAX(c.updated_at)
+      FROM chapters c
+      WHERE c.manga_id = m.id
+    ) DESC LIMIT ? OFFSET ?`;
     dataParams.push(limit, offset);
 
     const [mangaRows] = await db.execute(dataQuery, dataParams);
