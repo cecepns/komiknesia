@@ -123,27 +123,7 @@ function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN, targetUrl = '') {
 }
 
 function toProxiedImagePathIfNeeded(imagePath, req) {
-  if (!imagePath || typeof imagePath !== 'string') return imagePath;
-  const trimmed = imagePath.trim();
-  if (!trimmed) return imagePath;
-  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return imagePath;
-  if (!isIkiruCdnUrl(trimmed)) return imagePath;
-
-  // Route YuuCDN directly through Cloudflare Worker (disabled as Worker is blocked)
-  // const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
-  // if (isYuuCdnUrl(trimmed) && yuuWorkerUrl) {
-  //   try {
-  //     const u = new URL(trimmed);
-  //     const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
-  //     return `${workerBase}${u.pathname}${u.search}`;
-  //   } catch { }
-  // }
-
-  const host = req.get('host');
-  const base = host ? `${req.protocol}://${host}` : '';
-  if (!base) return imagePath;
-
-  return `${base}/api/image-proxy?url=${encodeURIComponent(trimmed)}`;
+  return imagePath;
 }
 
 module.exports = {

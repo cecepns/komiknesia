@@ -36,12 +36,7 @@ function isIkiruCdnUrl(url) {
 
 /** Route Ikiru CDN URLs through backend image-proxy (access-code + referer). */
 export function toProxiedImageUrlIfNeeded(imagePath) {
-  if (!imagePath || typeof imagePath !== 'string') return imagePath;
-  const trimmed = imagePath.trim();
-  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return imagePath;
-  if (trimmed.includes('/api/image-proxy?')) return trimmed;
-  if (!isIkiruCdnUrl(trimmed)) return imagePath;
-  return `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(trimmed)}`;
+  return imagePath;
 }
 
 /**

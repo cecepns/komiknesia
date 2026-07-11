@@ -33,7 +33,7 @@ const cronOpts = tz ? { timezone: tz } : {};
 cron.schedule(
   schedulePage1Delta,
   () => {
-    runJob({ page: 1, mode: 'delta', saveToS3: false }).catch((e) => console.error(e));
+    runJob({ page: 1, mode: 'delta', saveToS3: true }).catch((e) => console.error(e));
   },
   cronOpts
 );
@@ -41,7 +41,7 @@ cron.schedule(
 cron.schedule(
   schedulePage1Full,
   () => {
-    runJob({ page: 1, mode: 'full', saveToS3: false }).catch((e) => console.error(e));
+    runJob({ page: 1, mode: 'full', saveToS3: true }).catch((e) => console.error(e));
   },
   cronOpts
 );
@@ -49,18 +49,18 @@ cron.schedule(
 cron.schedule(
   schedulePage2Full,
   () => {
-    runJob({ page: 2, mode: 'full', saveToS3: false }).catch((e) => console.error(e));
+    runJob({ page: 2, mode: 'full', saveToS3: true }).catch((e) => console.error(e));
   },
   cronOpts
 );
 
 console.log(
   'komiknesia-ikiru-cron scheduling:',
-  'page1 delta saveToS3=false',
+  'page1 delta saveToS3=true',
   schedulePage1Delta,
-  '| page1 full saveToS3=false',
+  '| page1 full saveToS3=true',
   schedulePage1Full,
-  '| page2 full saveToS3=false',
+  '| page2 full saveToS3=true',
   schedulePage2Full,
   tz ? `tz=${tz}` : '',
   '| feed=',
@@ -69,8 +69,8 @@ console.log(
 
 if (String(process.env.RUN_ON_START).toLowerCase() === 'true') {
   Promise.all([
-    runJob({ page: 1, mode: 'delta', saveToS3: false }),
-    runJob({ page: 1, mode: 'full', saveToS3: false }),
-    runJob({ page: 2, mode: 'full', saveToS3: false }),
+    runJob({ page: 1, mode: 'delta', saveToS3: true }),
+    runJob({ page: 1, mode: 'full', saveToS3: true }),
+    runJob({ page: 2, mode: 'full', saveToS3: true }),
   ]).catch(() => {});
 }

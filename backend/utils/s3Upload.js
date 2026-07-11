@@ -86,7 +86,7 @@ async function uploadUrlToS3(key, url, contentType) {
   let fetchUrl = url;
   try {
     const parsed = new URL(url);
-    if (parsed.pathname === '/api/image-proxy' && parsed.searchParams.has('url')) {
+    if (parsed.searchParams.has('url') && (parsed.pathname === '/api/image-proxy' || parsed.hostname === 'proxy.komiknesia.net' || parsed.hostname.endsWith('workers.dev'))) {
       fetchUrl = decodeURIComponent(parsed.searchParams.get('url'));
     } else if (parsed.hostname === 'proxy.komiknesia.net' || parsed.hostname.endsWith('workers.dev')) {
       fetchUrl = `https://yuucdn.com${parsed.pathname}${parsed.search}`;
@@ -99,22 +99,28 @@ async function uploadUrlToS3(key, url, contentType) {
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: fetch through residential proxy
+  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block
   if (isYuu) {
-    const proxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
-    let httpsAgent = null;
-    if (proxyUrl) {
+    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+    let yuuFetchUrl = fetchUrl;
+    if (yuuWorkerUrl) {
       try {
-        const { HttpsProxyAgent } = require('https-proxy-agent');
-        httpsAgent = new HttpsProxyAgent(proxyUrl);
-      } catch { }
+        const u = new URL(fetchUrl);
+        const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
+        yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
+        console.log(`[uploadUrlToS3] Routing YuuCDN fetch through Worker: ${yuuFetchUrl}`);
+      } catch (e) {
+        console.warn(`[uploadUrlToS3] Failed to parse target URL:`, e.message);
+      }
     }
-    resp = await axios.get(fetchUrl, {
+
+    resp = await axios.get(yuuFetchUrl, {
       responseType: 'arraybuffer',
       timeout: 30000,
       maxRedirects: 5,
-      headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl),
-      ...(httpsAgent ? { httpsAgent } : {}),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      },
     });
   } else if (isIkiru) {
     // Non-YuuCDN Ikiru: try direct with Ikiru headers first
