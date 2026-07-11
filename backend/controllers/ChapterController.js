@@ -12,6 +12,7 @@ const {
   isYuuCdnPromoResponse,
   toProxiedImagePathIfNeeded,
   IKIRU_CDN_PROXY,
+  YUUCDN_PROXY,
 } = require('../utils/ikiruCdnImage');
 const {
   CHAPTER_RELEASED_WHERE,
@@ -69,30 +70,27 @@ const loadImageZipEntry = async (imagePath, index) => {
   let response;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block
+  // For YuuCDN: fetch through residential proxy
   if (isYuu) {
-    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
-    let yuuFetchUrl = absoluteUrl;
-    if (yuuWorkerUrl) {
+    const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
+    let yuuAgent = null;
+    if (yuuProxyUrl) {
       try {
-        const u = new URL(absoluteUrl);
-        const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
-        yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
-        console.log(`[loadImageZipEntry] Routing YuuCDN fetch through Worker: ${yuuFetchUrl}`);
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        yuuAgent = new HttpsProxyAgent(yuuProxyUrl);
       } catch (e) {
-        console.warn(`[loadImageZipEntry] Failed to parse target URL:`, e.message);
+        console.warn(`[loadImageZipEntry] Failed to create proxy agent:`, e.message);
       }
     }
 
     try {
-      response = await axios.get(yuuFetchUrl, {
+      response = await axios.get(absoluteUrl, {
         responseType: 'arraybuffer',
-        timeout: 15000,
+        timeout: 20000,
         maxRedirects: 5,
         validateStatus: (status) => status >= 200 && status < 300,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        },
+        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', absoluteUrl),
+        ...(yuuAgent ? { httpsAgent: yuuAgent } : {}),
       });
 
       const finalUrl = response.request?.res?.responseUrl || absoluteUrl;

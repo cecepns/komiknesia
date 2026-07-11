@@ -143,10 +143,20 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
 async function fetchCdnImage(imageUrl) {
   const isYuu = isYuuCdnUrl(imageUrl);
 
-  // Yuu CDN proxy is disabled (fetch directly).
+  // For YuuCDN: fetch through residential proxy
   if (isYuu) {
-    console.log(`[fetchCdnImage] Fetching Yuu CDN URL directly (proxy turned off): ${imageUrl}`);
-    return fetchCdnImageHelper(imageUrl, null);
+    const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
+    let yuuAgent = null;
+    if (yuuProxyUrl) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        yuuAgent = new HttpsProxyAgent(yuuProxyUrl);
+      } catch (e) {
+        console.warn(`[fetchCdnImage] Failed to create proxy agent for YuuCDN:`, e.message);
+      }
+    }
+    console.log(`[fetchCdnImage] Fetching Yuu CDN URL via proxy: ${imageUrl}`);
+    return fetchCdnImageHelper(imageUrl, yuuAgent);
   }
 
   // For other Ikiru CDN hosts, fetch with the standard proxy agent if configured.
@@ -186,19 +196,20 @@ async function proxy(req, res) {
       return res.status(403).json({ error: 'URL host not allowed for proxy' });
     }
 
-    if (isYuuCdnUrl(targetUrl)) {
-      const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
-      if (yuuWorkerUrl) {
-        try {
-          const u = new URL(targetUrl);
-          const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
-          const redirectUrl = `${workerBase}${u.pathname}${u.search}`;
-          console.log(`[proxy] YuuCDN URL detected. Redirecting client to Worker: ${redirectUrl}`);
-          res.set('Cache-Control', 'public, max-age=86400');
-          return res.redirect(redirectUrl);
-        } catch { }
-      }
-    }
+    // Route YuuCDN to Cloudflare Worker (disabled as Worker is blocked)
+    // if (isYuuCdnUrl(targetUrl)) {
+    //   const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+    //   if (yuuWorkerUrl) {
+    //     try {
+    //       const u = new URL(targetUrl);
+    //       const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
+    //       const redirectUrl = `${workerBase}${u.pathname}${u.search}`;
+    //       console.log(`[proxy] YuuCDN URL detected. Redirecting client to Worker: ${redirectUrl}`);
+    //       res.set('Cache-Control', 'public, max-age=86400');
+    //       return res.redirect(redirectUrl);
+    //     } catch { }
+    //   }
+    // }
 
     const referer = req.headers.referer || req.headers.referrer || '';
     const origin = req.headers.origin || '';
@@ -251,7 +262,7 @@ async function proxy(req, res) {
     }
 
     res.set('Content-Type', result.contentType || 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Cache-Control', 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400');
     return res.send(Buffer.from(result.data));
   } catch (err) {
     console.warn('Image proxy error:', err.message);

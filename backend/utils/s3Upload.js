@@ -99,26 +99,22 @@ async function uploadUrlToS3(key, url, contentType) {
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block
+  // For YuuCDN: fetch through residential proxy
   if (isYuu) {
-    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
-    let yuuFetchUrl = fetchUrl;
-    if (yuuWorkerUrl) {
+    const proxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
+    let httpsAgent = null;
+    if (proxyUrl) {
       try {
-        const u = new URL(fetchUrl);
-        const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
-        yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
-        console.log(`[uploadUrlToS3] Routing YuuCDN fetch through Worker: ${yuuFetchUrl}`);
-      } catch (e) {
-        console.warn(`[uploadUrlToS3] Failed to parse target URL:`, e.message);
-      }
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        httpsAgent = new HttpsProxyAgent(proxyUrl);
+      } catch { }
     }
-
-    resp = await axios.get(yuuFetchUrl, {
+    resp = await axios.get(fetchUrl, {
       responseType: 'arraybuffer',
       timeout: 30000,
       maxRedirects: 5,
-      headers: defaultHeaders,
+      headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', fetchUrl),
+      ...(httpsAgent ? { httpsAgent } : {}),
     });
   } else if (isIkiru) {
     // Non-YuuCDN Ikiru: try direct with Ikiru headers first
