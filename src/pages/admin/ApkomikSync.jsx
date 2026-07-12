@@ -10,11 +10,11 @@ const pretty = (obj) => {
   }
 };
 
-export default function IkiruSync() {
+export default function ApkomikSync() {
   const [mode, setMode] = useState('delta'); // delta | full
   const [slug, setSlug] = useState('');
   const [chapterSlug, setChapterSlug] = useState('');
-  const [feedType, setFeedType] = useState('latest'); // latest | project
+  const [feedType, setFeedType] = useState('manga'); // manga | manhua | manhwa
   const [page, setPage] = useState(1);
   const [withImages, setWithImages] = useState(true);
   const [feed, setFeed] = useState([]);
@@ -24,56 +24,8 @@ export default function IkiruSync() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [queueProgress, setQueueProgress] = useState(null);
-  const [cfDraft, setCfDraft] = useState('');
-  const [cfMeta, setCfMeta] = useState({ hasCookie: false, length: 0 });
-  const [cfSaving, setCfSaving] = useState(false);
-  const [cfMsg, setCfMsg] = useState(null);
 
   const selectedSlugs = useMemo(() => Array.from(selected), [selected]);
-
-  const loadCfMeta = async () => {
-    try {
-      const m = await apiClient.getIkiruCloudflareCookiesMeta();
-      setCfMeta({
-        hasCookie: Boolean(m?.hasCookie),
-        length: Number(m?.length) || 0,
-      });
-    } catch {
-      setCfMeta({ hasCookie: false, length: 0 });
-    }
-  };
-
-  const saveCloudflareCookies = async () => {
-    setCfSaving(true);
-    setCfMsg(null);
-    setError(null);
-    try {
-      const res = await apiClient.putIkiruCloudflareCookies(cfDraft.trim());
-      setCfMsg(res?.message || 'Tersimpan.');
-      await loadCfMeta();
-      setCfDraft('');
-    } catch (e) {
-      setError(e?.message || String(e));
-    } finally {
-      setCfSaving(false);
-    }
-  };
-
-  const clearCloudflareCookies = async () => {
-    setCfSaving(true);
-    setCfMsg(null);
-    setError(null);
-    try {
-      const res = await apiClient.putIkiruCloudflareCookies('');
-      setCfMsg(res?.message || 'Dihapus.');
-      setCfDraft('');
-      await loadCfMeta();
-    } catch (e) {
-      setError(e?.message || String(e));
-    } finally {
-      setCfSaving(false);
-    }
-  };
 
   const run = async (fn) => {
     setBusy(true);
@@ -103,8 +55,7 @@ export default function IkiruSync() {
       stage: 'fetch_manga_init',
     });
 
-    const saveToS3 = true; // new default: upload to S3 first
-
+    const saveToS3 = true;
     const initBatchSize = mode === 'full' ? 100 : undefined;
     let batchOffset = 0;
     let totalChapters = 0;
@@ -114,7 +65,7 @@ export default function IkiruSync() {
     let hasMore = true;
 
     while (hasMore) {
-      const init = await apiClient.syncIkiruMangaInit(mangaSlug, {
+      const init = await apiClient.syncApkomikMangaInit(mangaSlug, {
         mode,
         withImages,
         saveToS3,
@@ -145,13 +96,13 @@ export default function IkiruSync() {
         chaptersResult.push(
           ...plannedBatch.map((ch) => ({
             status: !ch.error,
-            source: 'ikiru',
+            source: 'apkomik',
             mangaId: init.mangaId,
             chapterId: ch.chapterId,
             chapterCreated: ch.chapterCreated,
             imagesCount: ch.imagesCount ?? 0,
             imagesInserted: ch.imagesInserted ?? 0,
-            ikiruSlug: ch.ikiruSlug,
+            apkomikSlug: ch.ikiruSlug || ch.slug,
             error: ch.error || null,
           }))
         );
@@ -163,12 +114,12 @@ export default function IkiruSync() {
             ...prev,
             currentChapterIndex: processedChapters + i + 1,
             totalChapters,
-            currentChapterSlug: ch.ikiruSlug,
+            currentChapterSlug: ch.ikiruSlug || ch.slug,
             stage: withImages ? 'fetch_and_save_chapter_images' : 'sync_chapter_only',
           }));
 
           try {
-            const res = await apiClient.syncIkiruChapter(mangaSlug, ch.ikiruSlug, {
+            const res = await apiClient.syncApkomikChapter(mangaSlug, ch.ikiruSlug || ch.slug, {
               title: ch.title,
               chapterNumber: ch.chapterNumber,
               withImages,
@@ -181,7 +132,7 @@ export default function IkiruSync() {
               error: e?.message || String(e),
               chapterId: null,
               chapterCreated: null,
-              ikiruSlug: ch.ikiruSlug,
+              apkomikSlug: ch.ikiruSlug || ch.slug,
               imagesInserted: 0,
             });
           }
@@ -200,7 +151,6 @@ export default function IkiruSync() {
         currentChapterIndex: processedChapters,
       }));
 
-      // Backward compatibility: older backend returns all chapters in one response.
       if (!init?.pagination) {
         hasMore = false;
       }
@@ -289,7 +239,7 @@ export default function IkiruSync() {
     setFeedLoading(true);
     setError(null);
     try {
-      const res = await apiClient.getIkiruSyncFeed(feedType, page);
+      const res = await apiClient.getApkomikSyncFeed(feedType, page);
       setFeed(res?.data || []);
       setSelected(new Set());
       setResult(res);
@@ -301,9 +251,7 @@ export default function IkiruSync() {
   };
 
   useEffect(() => {
-    // auto-load first time
     loadFeed();
-    loadCfMeta();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -331,58 +279,13 @@ export default function IkiruSync() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-7">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Ikiru Sync
+              Apkomik Sync
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Ambil daftar manga dari Ikiru, pilih yang ingin di-sync, lalu simpan ke database.
+              Ambil daftar manga dari Apkomik, pilih yang ingin di-sync, lalu simpan ke database.
               Rekomendasi default: <b>delta</b> untuk update cepat; gunakan <b>full</b> untuk re-scan
               semua chapter.
             </p>
-            <div className="mt-3 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 text-xs leading-relaxed space-y-2">
-              <div>
-                <strong className="font-semibold">Cloudflare</strong> — setelah verifikasi bot di browser,
-                salin nilai header <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">Cookie</code>{' '}
-                untuk <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">v6.kiryuu.to</code>{' '}
-                (DevTools → Application → Cookies, atau Network). Tempel di bawah lalu simpan — disimpan di server
-                sebagai <code className="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">backend/data/ikiru-cloudflare-cookies.txt</code>{' '}
-                (tanpa env). Cookie biasanya terikat IP server.
-              </div>
-              <div className="text-amber-800/90 dark:text-amber-200/90">
-                Status:{' '}
-                {cfMeta.hasCookie
-                  ? `tersimpan (~${cfMeta.length} karakter)`
-                  : 'belum ada cookie'}
-              </div>
-              <textarea
-                value={cfDraft}
-                onChange={(e) => setCfDraft(e.target.value)}
-                placeholder="cf_clearance=...; __cf_bm=..."
-                rows={3}
-                disabled={cfSaving || busy}
-                className="w-full px-2 py-1.5 rounded border border-amber-300/80 dark:border-amber-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-[11px]"
-              />
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={saveCloudflareCookies}
-                  disabled={cfSaving || busy || !cfDraft.trim()}
-                  className="h-8 px-3 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-xs font-medium disabled:opacity-50"
-                >
-                  {cfSaving ? 'Menyimpan…' : 'Simpan cookie'}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearCloudflareCookies}
-                  disabled={cfSaving || busy || !cfMeta.hasCookie}
-                  className="h-8 px-3 rounded-lg border border-amber-600/60 text-amber-900 dark:text-amber-100 text-xs hover:bg-amber-100/50 dark:hover:bg-amber-900/30 disabled:opacity-50"
-                >
-                  Hapus cookie
-                </button>
-              </div>
-              {cfMsg && (
-                <div className="text-amber-900 dark:text-amber-100 font-medium">{cfMsg}</div>
-              )}
-            </div>
           </div>
 
           <div className="lg:col-span-5">
@@ -420,10 +323,6 @@ export default function IkiruSync() {
                 </label>
               </div>
             </div>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Panggilan <b>Init</b> di backend sekarang juga membuat baris chapter + gambar (jika opsi ini
-              aktif); antrean frontend tidak perlu memanggil per-chapter lagi kecuali server lama.
-            </p>
           </div>
         </div>
       </div>
@@ -441,8 +340,9 @@ export default function IkiruSync() {
                 onChange={(e) => setFeedType(e.target.value)}
                 disabled={busy || feedLoading}
               >
-                <option value="latest">Latest Update</option>
-                <option value="project">Project</option>
+                <option value="manga">Manga Terbaru</option>
+                <option value="manhua">Manhua Terbaru</option>
+                <option value="manhwa">Manhwa Terbaru</option>
               </select>
             </div>
 
@@ -481,9 +381,7 @@ export default function IkiruSync() {
               {selected.size === feed.length && feed.length ? 'Unselect all' : 'Select all'}
             </button>
             <button
-              onClick={() =>
-                run(() => syncSelectedQueue())
-              }
+              onClick={() => run(() => syncSelectedQueue())}
               disabled={busy || feedLoading || selected.size === 0}
               className="h-10 flex items-center justify-center px-4 rounded-lg bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-60"
             >
@@ -559,7 +457,7 @@ export default function IkiruSync() {
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              placeholder="contoh: noa-senpai-wa-tomodachi"
+              placeholder="contoh: the-great-heavenly-demon-sovereign"
               disabled={busy}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             />
@@ -567,9 +465,7 @@ export default function IkiruSync() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <button
-              onClick={() =>
-                run(() => syncMangaQueue(slug.trim(), { totalManga: 1, mangaIndex: 0 }))
-              }
+              onClick={() => run(() => syncMangaQueue(slug.trim(), { totalManga: 1, mangaIndex: 0 }))}
               disabled={busy || !slug.trim()}
               className="h-10 flex items-center justify-center px-4 rounded-lg bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-60"
             >
@@ -584,16 +480,14 @@ export default function IkiruSync() {
               <input
                 value={chapterSlug}
                 onChange={(e) => setChapterSlug(e.target.value)}
-                placeholder="contoh: chapter-1.12345"
+                placeholder="contoh: boyish-kanojo-ga-kawai-sugiru-chapter-51-bahasa-indonesia"
                 disabled={busy}
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
               />
             </div>
             <div className="flex items-end">
               <button
-                onClick={() =>
-                  run(() => apiClient.syncIkiruChapterImages(slug.trim(), chapterSlug.trim()))
-                }
+                onClick={() => run(() => apiClient.syncApkomikChapterImages(slug.trim(), chapterSlug.trim()))}
                 disabled={busy || !slug.trim() || !chapterSlug.trim()}
                 className="w-full h-10 flex items-center justify-center px-4 rounded-lg bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-60 dark:bg-gray-700 dark:hover:bg-gray-600"
               >
@@ -602,10 +496,6 @@ export default function IkiruSync() {
               </button>
             </div>
           </div>
-
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Images disarankan on-demand: sync hanya saat chapter benar-benar dibuka.
-          </p>
         </div>
       </div>
 
@@ -641,4 +531,3 @@ export default function IkiruSync() {
     </div>
   );
 }
-

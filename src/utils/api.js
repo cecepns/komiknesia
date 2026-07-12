@@ -646,6 +646,67 @@ class APIClient {
     );
   }
 
+  // Admin: Apkomik sync
+  syncApkomikLatest(type = 'manga', body = {}) {
+    return this.request('/admin/apkomik-sync/latest', {
+      method: 'POST',
+      body: { type, ...body },
+    });
+  }
+
+  getApkomikSyncFeed(type = 'manga', page = 1) {
+    const params = new URLSearchParams({
+      type: String(type || 'manga'),
+      page: String(page || 1),
+    });
+    return this.request(`/admin/apkomik-sync/feed?${params.toString()}`);
+  }
+
+  syncApkomikSelected(slugs, body = {}) {
+    return this.request('/admin/apkomik-sync/selected', {
+      method: 'POST',
+      body: { slugs, ...body },
+    });
+  }
+
+  syncApkomikManga(slug, body = {}) {
+    return this.request(`/admin/apkomik-sync/manga/${encodeURIComponent(slug)}`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  syncApkomikMangaInit(slug, body = {}) {
+    return this.request(`/admin/apkomik-sync/manga/${encodeURIComponent(slug)}/init`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  syncApkomikChapter(slug, chapterSlug, body = {}) {
+    return this.request(
+      `/admin/apkomik-sync/manga/${encodeURIComponent(slug)}/chapter/${encodeURIComponent(
+        chapterSlug
+      )}`,
+      {
+        method: 'POST',
+        body,
+      }
+    );
+  }
+
+  syncApkomikChapterImages(mangaSlug, chapterSlug, body = {}) {
+    return this.request(
+      `/admin/apkomik-sync/manga/${encodeURIComponent(mangaSlug)}/chapter/${encodeURIComponent(
+        chapterSlug
+      )}/images`,
+      {
+        method: 'POST',
+        body,
+      }
+    );
+  }
+
   // Ads
   getAds() {
     return this.request('/ads');

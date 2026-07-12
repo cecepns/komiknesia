@@ -35,6 +35,7 @@ function buildContentsListCacheKey(query) {
     orderBy = 'Update',
     project,
     popularWindow,
+    source,
   } = query;
   return JSON.stringify({
     q: String(q || '').trim(),
@@ -47,6 +48,7 @@ function buildContentsListCacheKey(query) {
     orderBy: String(orderBy || 'Update'),
     project: project != null ? String(project) : '',
     popularWindow: popularWindow != null ? String(popularWindow) : '',
+    source: source != null ? String(source) : '',
   });
 }
 
@@ -58,6 +60,7 @@ function buildContentsCountCacheKey(filters) {
     country,
     type,
     project,
+    source,
   } = filters || {};
   return JSON.stringify({
     q: String(q || '').trim(),
@@ -66,6 +69,7 @@ function buildContentsCountCacheKey(filters) {
     country: country != null ? String(country) : '',
     type: type != null ? String(type) : '',
     project: project != null ? String(project) : '',
+    source: source != null ? String(source) : '',
   });
 }
 
@@ -79,6 +83,7 @@ async function fetchLocalManga(filters) {
     orderBy = 'Update',
     project,
     popularWindow,
+    source,
     page = 1,
     perPage = 24,
   } = filters || {};
@@ -93,6 +98,11 @@ async function fetchLocalManga(filters) {
     if (project === 'false') {
       whereConditions.push('(m.is_project IS NULL OR m.is_project = FALSE)');
     }
+  }
+
+  if (source && source !== 'all') {
+    whereConditions.push('m.source = ?');
+    params.push(source);
   }
 
   if (q && q.trim()) {
@@ -235,6 +245,7 @@ async function fetchLocalManga(filters) {
     country,
     type,
     project,
+    source,
   });
 
   const totalItems = await contentsCountCache.wrap(countCacheKey, async () => {
@@ -383,6 +394,7 @@ const list = async (req, res) => {
         orderBy = 'Update',
         project,
         popularWindow,
+        source,
       } = req.query;
 
       let genreArray = [];
@@ -413,6 +425,7 @@ const list = async (req, res) => {
           orderBy,
           project,
           popularWindow,
+          source,
           page: pageNum,
           perPage,
         });

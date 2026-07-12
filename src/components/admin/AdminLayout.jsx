@@ -19,6 +19,7 @@ const AdminLayout = ({ children }) => {
     { id: 'categories', label: 'Kategori', icon: List, path: '/admin/categories' },
     { id: 'manga', label: 'Manga', icon: BookOpen, path: '/admin/manga' },
     { id: 'ikiru-sync', label: 'Ikiru Sync', icon: CloudDownload, path: '/admin/ikiru-sync' },
+    { id: 'apkomik-sync', label: 'Apkomik Sync', icon: CloudDownload, path: '/admin/apkomik-sync' },
     { id: 'migration', label: 'Manga Migration', icon: Database, path: '/admin/migration' },
     { id: 'users', label: 'Users', icon: Users, path: '/admin/users' },
     { id: 'orders', label: 'Order Premium', icon: ReceiptText, path: '/admin/orders' },

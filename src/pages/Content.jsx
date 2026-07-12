@@ -26,6 +26,12 @@ const projectFilterOptions = [
   { label: "Bukan project", value: "false" },
 ];
 
+const sourceOptions = [
+  { label: "Semua Source", value: "all" },
+  { label: "Source 1", value: "kiryu" },
+  { label: "Source 2", value: "apkomik" },
+];
+
 const Content = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,12 +64,19 @@ const Content = () => {
   const selectedProject =
     projectParam === "true" || projectParam === "false" ? projectParam : "all";
 
+  const selectedSource = sourceOptions.some(
+    (opt) => opt.value === (searchParams.get("source") || ""),
+  )
+    ? searchParams.get("source")
+    : "all";
+
   // Mobile dropdown states
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showOrderDropdown, setShowOrderDropdown] = useState(false);
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const [showSourceDropdown, setShowSourceDropdown] = useState(false);
 
   // Refs for click outside detection
   const genreDropdownRef = useRef(null);
@@ -71,6 +84,7 @@ const Content = () => {
   const typeDropdownRef = useRef(null);
   const orderDropdownRef = useRef(null);
   const projectDropdownRef = useRef(null);
+  const sourceDropdownRef = useRef(null);
 
   // Load genres from API
   useEffect(() => {
@@ -183,6 +197,17 @@ const Content = () => {
     [updateSearchParams],
   );
 
+  const setSourceFilter = useCallback(
+    (source) => {
+      updateSearchParams((params) => {
+        if (source === "all") params.delete("source");
+        else params.set("source", source);
+        params.delete("page");
+      });
+    },
+    [updateSearchParams],
+  );
+
   const fetchManga = useCallback(async () => {
     setLoading(true);
     try {
@@ -196,6 +221,11 @@ const Content = () => {
         params.append("project", "true");
       } else if (selectedProject === "false") {
         params.append("project", "false");
+      }
+
+      // Add source filter
+      if (selectedSource !== "all") {
+        params.append("source", selectedSource);
       }
 
       // Common parameters
@@ -245,6 +275,7 @@ const Content = () => {
     selectedOrder,
     searchQuery,
     selectedProject,
+    selectedSource,
   ]);
 
   // Load manga based on filters
@@ -289,6 +320,12 @@ const Content = () => {
       ) {
         setShowProjectDropdown(false);
       }
+      if (
+        sourceDropdownRef.current &&
+        !sourceDropdownRef.current.contains(event.target)
+      ) {
+        setShowSourceDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -321,6 +358,7 @@ const Content = () => {
       params.delete("type");
       params.delete("order");
       params.delete("project");
+      params.delete("source");
       params.delete("page");
       if (searchQuery) {
         params.delete("q");
@@ -352,11 +390,10 @@ const Content = () => {
         key="prev"
         onClick={() => setPage(currentPage - 1)}
         disabled={currentPage === 1}
-        className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${
-          currentPage === 1
+        className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${currentPage === 1
             ? "bg-gray-200 dark:bg-primary-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
             : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
-        }`}
+          }`}
       >
         <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
       </button>,
@@ -391,11 +428,10 @@ const Content = () => {
         <button
           key={i}
           onClick={() => setPage(i)}
-          className={`px-3 md:px-4 py-2 rounded-lg text-sm md:text-base ${
-            currentPage === i
+          className={`px-3 md:px-4 py-2 rounded-lg text-sm md:text-base ${currentPage === i
               ? "bg-blue-500 text-white"
               : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
-          }`}
+            }`}
         >
           {i}
         </button>,
@@ -431,11 +467,10 @@ const Content = () => {
         key="next"
         onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
-        className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${
-          currentPage === totalPages
+        className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${currentPage === totalPages
             ? "bg-gray-200 dark:bg-primary-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
             : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
-        }`}
+          }`}
       >
         <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
       </button>,
@@ -597,11 +632,10 @@ const Content = () => {
                         setStatusFilter(status);
                         setShowStatusDropdown(false);
                       }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
-                        selectedStatus === status
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedStatus === status
                           ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
                           : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                      }`}
+                        }`}
                     >
                       {status}
                     </button>
@@ -632,11 +666,10 @@ const Content = () => {
                         setProjectFilter(opt.value);
                         setShowProjectDropdown(false);
                       }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
-                        selectedProject === opt.value
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedProject === opt.value
                           ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
                           : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                      }`}
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -667,11 +700,10 @@ const Content = () => {
                         setTypeFilter(type.value);
                         setShowTypeDropdown(false);
                       }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
-                        selectedType === type.value
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedType === type.value
                           ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
                           : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                      }`}
+                        }`}
                     >
                       {type.label}
                     </button>
@@ -702,13 +734,46 @@ const Content = () => {
                         setOrderFilter(order);
                         setShowOrderDropdown(false);
                       }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${
-                        selectedOrder === order
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedOrder === order
                           ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
                           : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                      }`}
+                        }`}
                     >
                       {order}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Source Dropdown */}
+          <div ref={sourceDropdownRef} className="relative">
+            <button
+              onClick={() => setShowSourceDropdown(!showSourceDropdown)}
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
+            >
+              <span className="text-sm font-medium">Source</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${showSourceDropdown ? "rotate-180" : ""}`}
+              />
+            </button>
+            {showSourceDropdown && (
+              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
+                <div className="p-2">
+                  {sourceOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSourceFilter(opt.value);
+                        setShowSourceDropdown(false);
+                      }}
+                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedSource === opt.value
+                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
+                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
+                        }`}
+                    >
+                      {opt.label}
                     </button>
                   ))}
                 </div>
@@ -745,11 +810,10 @@ const Content = () => {
                       onClick={() => {
                         setStatusFilter(status);
                       }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                        selectedStatus === status
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedStatus === status
                           ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
                           : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                      }`}
+                        }`}
                     >
                       {status}
                     </button>
@@ -770,11 +834,34 @@ const Content = () => {
                       onClick={() => {
                         setProjectFilter(opt.value);
                       }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                        selectedProject === opt.value
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedProject === opt.value
                           ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
                           : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                      }`}
+                        }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Source Filter */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                  Source
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {sourceOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setSourceFilter(opt.value);
+                      }}
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedSource === opt.value
+                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
+                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -794,11 +881,10 @@ const Content = () => {
                       onClick={() => {
                         setTypeFilter(type.value);
                       }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                        selectedType === type.value
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedType === type.value
                           ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
                           : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                      }`}
+                        }`}
                     >
                       {type.label}
                     </button>
@@ -818,11 +904,10 @@ const Content = () => {
                       onClick={() => {
                         setOrderFilter(order);
                       }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                        selectedOrder === order
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedOrder === order
                           ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
                           : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                      }`}
+                        }`}
                     >
                       {order}
                     </button>
@@ -871,91 +956,107 @@ const Content = () => {
               selectedStatus !== "All" ||
               selectedType !== "All" ||
               selectedOrder !== "Update" ||
-              selectedProject !== "all") && (
-              <div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_4px_0_0_#e2e8f0] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.18)]">
-                <div className="flex flex-wrap gap-2">
-                  {searchQuery && (
-                    <span className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">
-                      <span>
-                        Pencarian: {'"'}
-                        {searchQuery}
-                        {'"'}
-                      </span>
-                      <button
-                        onClick={clearSearch}
-                        className="hover:text-blue-900 dark:hover:text-blue-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedGenres.map((genreId) => {
-                    const genre = genres.find((g) => g.id === genreId);
-                    return genre ? (
-                      <span
-                        key={genreId}
-                        className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
-                      >
-                        <span>{genre.name}</span>
+              selectedProject !== "all" ||
+              selectedSource !== "all") && (
+                <div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_4px_0_0_#e2e8f0] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.18)]">
+                  <div className="flex flex-wrap gap-2">
+                    {searchQuery && (
+                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                        <span>
+                          Pencarian: {'"'}
+                          {searchQuery}
+                          {'"'}
+                        </span>
                         <button
-                          onClick={() => toggleGenre(genreId)}
+                          onClick={clearSearch}
                           className="hover:text-blue-900 dark:hover:text-blue-100"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       </span>
-                    ) : null;
-                  })}
-                  {selectedStatus !== "All" && (
-                    <span className="inline-flex items-center space-x-2 px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm">
-                      <span>Status: {selectedStatus}</span>
-                      <button
-                        onClick={() => setStatusFilter("All")}
-                        className="hover:text-green-900 dark:hover:text-green-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedType !== "All" && (
-                    <span className="inline-flex items-center space-x-2 px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-sm">
-                      <span>Type: {selectedType}</span>
-                      <button
-                        onClick={() => setTypeFilter("All")}
-                        className="hover:text-purple-900 dark:hover:text-purple-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedProject !== "all" && (
-                    <span className="inline-flex items-center space-x-2 px-3 py-1 bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-800 dark:text-fuchsia-200 rounded-full text-sm">
-                      <span>
-                        Project:{" "}
-                        {selectedProject === "true" ? "Ya" : "Bukan project"}
+                    )}
+                    {selectedGenres.map((genreId) => {
+                      const genre = genres.find((g) => g.id === genreId);
+                      return genre ? (
+                        <span
+                          key={genreId}
+                          className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
+                        >
+                          <span>{genre.name}</span>
+                          <button
+                            onClick={() => toggleGenre(genreId)}
+                            className="hover:text-blue-900 dark:hover:text-blue-100"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                    {selectedStatus !== "All" && (
+                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm">
+                        <span>Status: {selectedStatus}</span>
+                        <button
+                          onClick={() => setStatusFilter("All")}
+                          className="hover:text-green-900 dark:hover:text-green-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </span>
-                      <button
-                        onClick={() => setProjectFilter("all")}
-                        className="hover:text-fuchsia-950 dark:hover:text-fuchsia-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedOrder !== "Update" && (
-                    <span className="inline-flex items-center space-x-2 px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded-full text-sm">
-                      <span>Order: {selectedOrder}</span>
-                      <button
-                        onClick={() => setOrderFilter("Update")}
-                        className="hover:text-orange-900 dark:hover:text-orange-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </span>
-                  )}
+                    )}
+                    {selectedType !== "All" && (
+                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-sm">
+                        <span>Type: {selectedType}</span>
+                        <button
+                          onClick={() => setTypeFilter("All")}
+                          className="hover:text-purple-900 dark:hover:text-purple-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </span>
+                    )}
+                    {selectedProject !== "all" && (
+                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-800 dark:text-fuchsia-200 rounded-full text-sm">
+                        <span>
+                          Project:{" "}
+                          {selectedProject === "true" ? "Ya" : "Bukan project"}
+                        </span>
+                        <button
+                          onClick={() => setProjectFilter("all")}
+                          className="hover:text-fuchsia-950 dark:hover:text-fuchsia-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </span>
+                    )}
+                    {selectedSource !== "all" && (
+                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 rounded-full text-sm">
+                        <span>
+                          Source:{" "}
+                          {sourceOptions.find((opt) => opt.value === selectedSource)?.label ||
+                            selectedSource}
+                        </span>
+                        <button
+                          onClick={() => setSourceFilter("all")}
+                          className="hover:text-amber-950 dark:hover:text-amber-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </span>
+                    )}
+                    {selectedOrder !== "Update" && (
+                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded-full text-sm">
+                        <span>Order: {selectedOrder}</span>
+                        <button
+                          onClick={() => setOrderFilter("Update")}
+                          className="hover:text-orange-900 dark:hover:text-orange-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Loading State */}
             {loading ? (

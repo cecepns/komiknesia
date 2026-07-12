@@ -27,6 +27,8 @@ const featuredItemsRoutes = require('./routes/featuredItemsRoutes');
 const sitemapRoutes = require('./routes/sitemapRoutes');
 const ikiruRoutes = require('./routes/ikiruRoutes');
 const ikiruSyncRoutes = require('./routes/ikiruSyncRoutes');
+const apkomikSyncRoutes = require('./routes/apkomikSyncRoutes');
+const apkomikRoutes = require('./routes/apkomikRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const contactInfoRoutes = require('./routes/contactInfoRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
@@ -235,7 +237,9 @@ app.use('/api/stickers', stickerRoutes);
 app.use('/api/live-chat', liveChatRoutes);
 app.use('/api', imageProxyRoutes);
 app.use('/api/ikiru', ikiruRoutes);
+app.use('/api/apkomik', apkomikRoutes);
 app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
+app.use('/api/admin/apkomik-sync', apkomikSyncRoutes);
 app.use('/api/admin/migration', migrationRoutes);
 app.use('/', sitemapRoutes);
 

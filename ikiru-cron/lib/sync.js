@@ -1,3 +1,5 @@
+/* eslint-disable no-undef */
+/* eslint-env node */
 /**
  * Memanggil backend: POST /api/ikiru/cron-sync
  * Lihat backend/controllers/IkiruSyncController.js — cronSyncFeed
@@ -16,13 +18,14 @@ function buildCronSyncUrl(params) {
     throw new Error('Set IKIRU_CRON_BASE_URL di .env');
   }
 
-  const url = new URL(`${base}/api/ikiru/cron-sync`);
+  const source = params.source || 'ikiru';
+  const url = new URL(`${base}/api/${source}/cron-sync`);
   const q = new URLSearchParams();
-  q.set('type', params.type ?? getFeedType());
+  q.set('type', params.type ?? (source === 'apkomik' ? 'manga' : getFeedType()));
   q.set('page', String(params.page ?? 1));
   q.set('mode', params.mode === 'delta' ? 'delta' : 'full');
   q.set('withImages', params.withImages === false ? 'false' : 'true');
-  q.set('saveToS3', params.saveToS3 === true ? 'true' : 'false');
+  q.set('saveToS3', params.saveToS3 === false ? 'false' : 'true');
   url.search = q.toString();
   return url.toString();
 }
