@@ -79,11 +79,24 @@ async function upsertMangaGenres(mangaId, genreSlugs) {
   const slugs = Array.from(
     new Set((genreSlugs || []).map((s) => String(s || '').toLowerCase()).filter(Boolean))
   );
-  if (!slugs.length) return { matched: 0, inserted: 0 };
+  if (!slugs.length) {
+    // If no genres are provided, clear all genres for this manga
+    await db.execute('DELETE FROM manga_genres WHERE manga_id = ?', [mangaId]);
+    return { matched: 0, inserted: 0 };
+  }
 
   const slugToId = await getCategorySlugToIdMap();
   const categoryIds = slugs.map((s) => slugToId.get(s)).filter(Boolean);
-  if (!categoryIds.length) return { matched: 0, inserted: 0 };
+  if (!categoryIds.length) {
+    await db.execute('DELETE FROM manga_genres WHERE manga_id = ?', [mangaId]);
+    return { matched: 0, inserted: 0 };
+  }
+
+  // Delete genres that are not in the new list for this manga
+  await db.execute(
+    `DELETE FROM manga_genres WHERE manga_id = ? AND category_id NOT IN (${categoryIds.join(',')})`,
+    [mangaId]
+  );
 
   let inserted = 0;
   for (const categoryId of categoryIds) {
@@ -231,7 +244,7 @@ async function scrapeMangaDetail(slug, { baseUrl = BASE_URL } = {}) {
                  cleanText($('.entry-content, [itemprop="description"]').text());
 
   const genres = new Set();
-  $('.genre a, .mgen a').each((_, el) => {
+  $('.mgen a').each((_, el) => {
     const txt = cleanText($(el).text());
     const gSlug = slugifyGenre(txt);
     if (gSlug) genres.add(gSlug);
@@ -321,7 +334,7 @@ async function getMangaBySlugLocal(slug) {
   return rows[0] || null;
 }
 
-async function upsertMangaFromApkomik(detail, { saveToS3 = true } = {}) {
+async function upsertMangaFromApkomik(detail, { saveToS3 = false } = {}) {
   const existing = await getMangaBySlugLocal(detail.slug);
   if (existing) {
     if (!existing.is_input_manual) {
@@ -522,7 +535,7 @@ function normalizeImageUrlForCompare(url) {
   }
 }
 
-async function upsertChapterImages(chapterId, imageUrls, { saveToS3 = true } = {}) {
+async function upsertChapterImages(chapterId, imageUrls, { saveToS3 = false } = {}) {
   const [existingRows] = await db.execute(
     'SELECT image_path, page_number FROM chapter_images WHERE chapter_id = ?',
     [chapterId]
@@ -762,7 +775,7 @@ const syncSelected = async (req, res) => {
 
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
     const withImages = parseBooleanFlag(req.body?.withImages, false);
-    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, true);
+    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
     const summary = {
       requested: uniqueSlugs.length,
@@ -848,7 +861,7 @@ const cronSyncFeed = async (req, res) => {
     const mode = req.query?.mode === 'full' ? 'full' : 'delta';
     // Default cron: withImages = true, saveToS3 = true unless explicitly turned off
     const withImages = parseBooleanFlag(req.query?.withImages, true);
-    const saveToS3 = parseBooleanFlag(req.query?.saveToS3, true);
+    const saveToS3 = parseBooleanFlag(req.query?.saveToS3, false);
 
     const feed = await scrapeFeed(type, { page });
     
@@ -935,7 +948,7 @@ const syncLatest = async (req, res) => {
   try {
     const type = String(req.body?.type || 'manga').toLowerCase();
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
-    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, true);
+    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
     const withImages = parseBooleanFlag(req.body?.withImages, false);
 
     const feed = await scrapeFeed(type, { page: 1 });
@@ -1018,7 +1031,7 @@ const syncMangaBySlug = async (req, res) => {
     }
 
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
-    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, true);
+    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
     const detail = await scrapeMangaDetail(slug, { baseUrl: target.baseUrl });
     const local = await getMangaBySlugLocal(slug);
 
@@ -1066,7 +1079,7 @@ const syncMangaInit = async (req, res) => {
 
     const mode = req.body?.mode === 'full' ? 'full' : 'delta';
     const withImages = parseBooleanFlag(req.body?.withImages, false);
-    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, true);
+    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
     const detail = await scrapeMangaDetail(slug, { baseUrl: target.baseUrl });
     const mangaUpsert = await upsertMangaFromApkomik(detail, { saveToS3 });
@@ -1191,7 +1204,7 @@ const syncMangaChapter = async (req, res) => {
     }
 
     const withImages = parseBooleanFlag(req.body?.withImages, false);
-    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, true);
+    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
 
     let localManga = await getMangaBySlugLocal(slug);
     let detail = null;
@@ -1258,7 +1271,7 @@ const syncChapterImages = async (req, res) => {
       return res.status(400).json({ status: false, error: 'Slug manga tidak valid' });
     }
 
-    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, true);
+    const saveToS3 = parseBooleanFlag(req.body?.saveToS3, false);
     const localChapterSlug = buildLocalChapterSlug(slug, chapterSlug);
     const chapterId = await findLocalChapterIdBySlug(localChapterSlug);
     if (!chapterId) {

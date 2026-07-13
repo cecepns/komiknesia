@@ -26,7 +26,7 @@ async function runIkiruJob({ page, mode, saveToS3 = true }) {
   }
 }
 
-async function runApkomikJob({ type, page, mode, saveToS3 = true }) {
+async function runApkomikJob({ type, page, mode, saveToS3 = false }) {
   const label = `[ikiru-cron:apkomik] ${new Date().toISOString()} type=${type} page=${page} mode=${mode} saveToS3=${saveToS3}`;
   console.log(label, 'start');
   try {

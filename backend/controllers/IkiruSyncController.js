@@ -14,7 +14,7 @@ const { invalidateContentsCaches } = require('./ContentsController');
 const path = require('path');
 
 const BASE_URL = 'https://v6.kiryuu.to';
-const SOURCE = 'kiryuu';
+const SOURCE = 'kiryu';
 const MANGA_PATH_REGEX = /\/manga\/([^/?#]+)/i;
 
 let _categoriesCache = null;
@@ -136,11 +136,23 @@ async function upsertMangaGenres(mangaId, genreSlugs) {
   const slugs = Array.from(
     new Set((genreSlugs || []).map((s) => String(s || '').toLowerCase()).filter(Boolean))
   );
-  if (!slugs.length) return { matched: 0, inserted: 0 };
+  if (!slugs.length) {
+    await db.execute('DELETE FROM manga_genres WHERE manga_id = ?', [mangaId]);
+    return { matched: 0, inserted: 0 };
+  }
 
   const slugToId = await getCategorySlugToIdMap();
   const categoryIds = slugs.map((s) => slugToId.get(s)).filter(Boolean);
-  if (!categoryIds.length) return { matched: 0, inserted: 0 };
+  if (!categoryIds.length) {
+    await db.execute('DELETE FROM manga_genres WHERE manga_id = ?', [mangaId]);
+    return { matched: 0, inserted: 0 };
+  }
+
+  // Delete genres that are not in the new list for this manga
+  await db.execute(
+    `DELETE FROM manga_genres WHERE manga_id = ? AND category_id NOT IN (${categoryIds.join(',')})`,
+    [mangaId]
+  );
 
   let inserted = 0;
   for (const categoryId of categoryIds) {

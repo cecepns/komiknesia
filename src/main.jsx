@@ -10,7 +10,21 @@ const hostname = window.location.hostname;
 const isLocalhost =
   hostname === 'localhost' || hostname === '127.0.0.1';
 
-const allowedHosts = ['02.komiknesia.asia', '03.komiknesia.asia', 'id.komiknesia.net', 'komiknesia.vercel.app'];
+const allowedHosts = [
+  '02.komiknesia.asia',
+  '03.komiknesia.asia',
+  'id.komiknesia.net',
+  'komiknesia.vercel.app',
+  'v1.komiknesia.site',
+  'v2.komiknesia.site',
+  'v3.komiknesia.site',
+  'v4.komiknesia.site',
+  'v5.komiknesia.site',
+  'v6.komiknesia.site',
+  'v7.komiknesia.site',
+  'v8.komiknesia.site',
+  'v9.komiknesia.site'
+];
 const isAllowedHost =
   isLocalhost ||
   allowedHosts.some((h) => hostname === h || hostname.endsWith(`.${h}`)) ||

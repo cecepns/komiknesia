@@ -27,6 +27,15 @@ const ALLOWED_ORIGINS = [
   'https://02.komiknesia.asia',
   'https://www.02.komiknesia.asia',
   'https://id.komiknesia.net',
+  'https://v1.komiknesia.site',
+  'https://v2.komiknesia.site',
+  'https://v3.komiknesia.site',
+  'https://v4.komiknesia.site',
+  'https://v5.komiknesia.site',
+  'https://v6.komiknesia.site',
+  'https://v7.komiknesia.site',
+  'https://v8.komiknesia.site',
+  'https://v9.komiknesia.site',
 ];
 
 // Pre-compute hostname list for Referer matching (Referer includes the full URL path)

@@ -55,7 +55,7 @@ export default function ApkomikSync() {
       stage: 'fetch_manga_init',
     });
 
-    const saveToS3 = true;
+    const saveToS3 = false;
     const initBatchSize = mode === 'full' ? 100 : undefined;
     let batchOffset = 0;
     let totalChapters = 0;
