@@ -27,7 +27,7 @@ const ALLOWED_ORIGINS = [
   'https://02.komiknesia.asia',
   'https://www.02.komiknesia.asia',
   'https://id.komiknesia.net',
-  'https://v1.komiknesia.site',
+  'https://v1.komiknesiaku.com',
   'https://v2.komiknesia.site',
   'https://v3.komiknesia.site',
   'https://v4.komiknesia.site',

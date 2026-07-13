@@ -903,17 +903,31 @@ const cronSyncFeed = async (req, res) => {
         });
         summary.chaptersCreated += chaptersRes.inserted;
 
-        if (withImages && chaptersRes.insertedSlugs && chaptersRes.insertedSlugs.length > 0) {
+        let chaptersToSyncImages = [];
+        if (mode === 'delta' && detail.chapters.length > 0) {
+          const latestCh = detail.chapters[0];
+          const localSlug = buildLocalChapterSlug(target.slug, latestCh.slug);
+          const chId = await findLocalChapterIdBySlug(localSlug);
+          if (chId) {
+            chaptersToSyncImages.push({ chId, origChapterSlug: latestCh.slug });
+          }
+        } else if (chaptersRes.insertedSlugs && chaptersRes.insertedSlugs.length > 0) {
           for (const chSlug of chaptersRes.insertedSlugs) {
             const chId = await findLocalChapterIdBySlug(chSlug);
             if (chId) {
               const origChapterSlug = chSlug.replace(target.slug + '-', '');
-              const { images } = await scrapeChapterImages(target.slug, origChapterSlug, {
-                baseUrl: target.baseUrl,
-              });
-              const inserted = await upsertChapterImages(chId, images, { saveToS3 });
-              summary.imagesInserted += inserted;
+              chaptersToSyncImages.push({ chId, origChapterSlug });
             }
+          }
+        }
+
+        if (withImages && chaptersToSyncImages.length > 0) {
+          for (const { chId, origChapterSlug } of chaptersToSyncImages) {
+            const { images } = await scrapeChapterImages(target.slug, origChapterSlug, {
+              baseUrl: target.baseUrl,
+            });
+            const inserted = await upsertChapterImages(chId, images, { saveToS3 });
+            summary.imagesInserted += inserted;
           }
         }
 
@@ -989,17 +1003,31 @@ const syncLatest = async (req, res) => {
         });
         summary.chaptersCreated += chaptersRes.inserted;
 
-        if (withImages && chaptersRes.insertedSlugs && chaptersRes.insertedSlugs.length > 0) {
+        let chaptersToSyncImages = [];
+        if (mode === 'delta' && detail.chapters.length > 0) {
+          const latestCh = detail.chapters[0];
+          const localSlug = buildLocalChapterSlug(target.slug, latestCh.slug);
+          const chId = await findLocalChapterIdBySlug(localSlug);
+          if (chId) {
+            chaptersToSyncImages.push({ chId, origChapterSlug: latestCh.slug });
+          }
+        } else if (chaptersRes.insertedSlugs && chaptersRes.insertedSlugs.length > 0) {
           for (const chSlug of chaptersRes.insertedSlugs) {
             const chId = await findLocalChapterIdBySlug(chSlug);
             if (chId) {
               const origChapterSlug = chSlug.replace(target.slug + '-', '');
-              const { images } = await scrapeChapterImages(target.slug, origChapterSlug, {
-                baseUrl: target.baseUrl,
-              });
-              const inserted = await upsertChapterImages(chId, images, { saveToS3 });
-              summary.imagesInserted += inserted;
+              chaptersToSyncImages.push({ chId, origChapterSlug });
             }
+          }
+        }
+
+        if (withImages && chaptersToSyncImages.length > 0) {
+          for (const { chId, origChapterSlug } of chaptersToSyncImages) {
+            const { images } = await scrapeChapterImages(target.slug, origChapterSlug, {
+              baseUrl: target.baseUrl,
+            });
+            const inserted = await upsertChapterImages(chId, images, { saveToS3 });
+            summary.imagesInserted += inserted;
           }
         }
 

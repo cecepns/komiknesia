@@ -58,7 +58,7 @@ const allowedOrigins = [
   'https://02.komiknesia.asia',
   'https://www.02.komiknesia.asia', // pastikan versi www juga ada
   'https://id.komiknesia.net',
-  'https://v1.komiknesia.site',
+  'https://v1.komiknesiaku.com',
   'https://v2.komiknesia.site',
   'https://v3.komiknesia.site',
   'https://v4.komiknesia.site',
@@ -176,11 +176,11 @@ const { tryParseS3KeyFromUrl, getDynamicCdnDomainSync } = require('./utils/s3Upl
 
 function transformUrls(obj, cdnUrl) {
   if (obj === null || obj === undefined) return obj;
-  
+
   if (obj instanceof Date) {
     return obj;
   }
-  
+
   if (typeof obj === 'string') {
     if (obj.startsWith('/uploads/')) {
       return obj;
@@ -192,11 +192,11 @@ function transformUrls(obj, cdnUrl) {
     }
     return obj;
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(item => transformUrls(item, cdnUrl));
   }
-  
+
   if (typeof obj === 'object') {
     const newObj = {};
     for (const key in obj) {
@@ -206,7 +206,7 @@ function transformUrls(obj, cdnUrl) {
     }
     return newObj;
   }
-  
+
   return obj;
 }
 
@@ -261,7 +261,7 @@ app.use('/', sitemapRoutes);
 app.get('/api/v/:chapterSlug', async (req, res) => {
   try {
     const { chapterSlug } = req.params;
-    
+
     // First, check if chapter exists in our database
     const [chapters] = await db.execute(`
       SELECT 
@@ -292,14 +292,14 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
       JOIN manga m ON c.manga_id = m.id
       WHERE c.slug = ?
     `, [chapterSlug]);
-    
+
     if (chapters.length > 0) {
       const chapter = chapters[0];
 
       if (isScheduledReleaseInFuture(chapter.scheduled_release_at)) {
         return res.status(404).json({ status: false, error: 'Chapter belum dirilis' });
       }
-      
+
       // Hanya dukung manga input manual
       if (chapter.is_input_manual) {
         // Get all images for this chapter
@@ -309,7 +309,7 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
           WHERE chapter_id = ?
           ORDER BY page_number
         `, [chapter.id]);
-        
+
         // Get all chapters for this manga (for navigation)
         const [allChapters] = await db.execute(`
           SELECT 
@@ -326,7 +326,7 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
             AND ${CHAPTER_RELEASED_WHERE}
           ORDER BY CAST(c.chapter_number AS UNSIGNED) DESC, c.chapter_number DESC
         `, [chapter.manga_id]);
-        
+
         // Get genres for this manga
         const [genres] = await db.execute(`
           SELECT c.id, c.name, c.slug
@@ -334,7 +334,7 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
           JOIN categories c ON mg.category_id = c.id
           WHERE mg.manga_id = ?
         `, [chapter.manga_id]);
-        
+
         // Format response to match WestManga API format
         const responseData = {
           images: images.map(img => {
@@ -381,7 +381,7 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
           })),
           number: chapter.number
         };
-        
+
         return res.json({
           status: true,
           data: responseData
@@ -389,16 +389,16 @@ app.get('/api/v/:chapterSlug', async (req, res) => {
       }
       // Jika bukan manual, tidak didukung
     }
-    
-    return res.status(404).json({ 
-      status: false, 
-      error: 'Chapter tidak ditemukan' 
+
+    return res.status(404).json({
+      status: false,
+      error: 'Chapter tidak ditemukan'
     });
   } catch (error) {
     console.error('Error fetching chapter images:', error);
-    res.status(500).json({ 
-      status: false, 
-      error: 'Internal server error' 
+    res.status(500).json({
+      status: false,
+      error: 'Internal server error'
     });
   }
 });

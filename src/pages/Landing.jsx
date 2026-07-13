@@ -7,7 +7,7 @@ const ctaItems = [
   {
     title: "Baca Manga",
     subtitle: "Ribuan judul manga, manhwa & manhua gratis",
-    href: "https://id.komiknesia.net/",
+    href: "https://v1.komiknesiaku.com/",
     icon: BookOpen,
     iconWrapClass: "bg-cyan-100 ring-cyan-200",
     iconWrapClassDark: "bg-[#38bdf8] ring-[#38bdf8]",
@@ -19,7 +19,7 @@ const ctaItems = [
   {
     title: "Upgrade ke Premium",
     subtitle: "Baca tanpa iklan & fitur eksklusif",
-    href: "https://02.komiknesia.asia/premium",
+    href: "https://v1.komiknesiaku.com/premium",
     icon: Crown,
     iconWrapClass: "bg-amber-100 ring-amber-300",
     iconWrapClassDark: "bg-[#facc15] ring-[#facc15]",
@@ -141,23 +141,20 @@ const Landing = () => {
 
   return (
     <main
-      className={`relative min-h-screen overflow-hidden transition-colors duration-300 ${
-        isLightMode ? "bg-white text-gray-900" : "bg-gray-950 text-gray-100"
-      }`}
+      className={`relative min-h-screen overflow-hidden transition-colors duration-300 ${isLightMode ? "bg-white text-gray-900" : "bg-gray-950 text-gray-100"
+        }`}
     >
       <div
-        className={`pointer-events-none absolute inset-0 ${
-          isLightMode
-            ? "bg-[radial-gradient(circle_at_15%_20%,rgba(14,165,233,0.08),transparent_35%),radial-gradient(circle_at_85%_75%,rgba(239,68,68,0.08),transparent_35%)]"
-            : "bg-[radial-gradient(circle_at_15%_20%,rgba(56,189,248,0.12),transparent_35%),radial-gradient(circle_at_85%_75%,rgba(248,113,113,0.12),transparent_35%)]"
-        }`}
+        className={`pointer-events-none absolute inset-0 ${isLightMode
+          ? "bg-[radial-gradient(circle_at_15%_20%,rgba(14,165,233,0.08),transparent_35%),radial-gradient(circle_at_85%_75%,rgba(239,68,68,0.08),transparent_35%)]"
+          : "bg-[radial-gradient(circle_at_15%_20%,rgba(56,189,248,0.12),transparent_35%),radial-gradient(circle_at_85%_75%,rgba(248,113,113,0.12),transparent_35%)]"
+          }`}
       />
       <div
-        className={`pointer-events-none absolute inset-0 [background-size:36px_36px] ${
-          isLightMode
-            ? "opacity-10 [background-image:radial-gradient(circle,rgba(2,6,23,0.2)_1px,transparent_1px)]"
-            : "opacity-15 [background-image:radial-gradient(circle,rgba(255,255,255,0.25)_1px,transparent_1px)]"
-        }`}
+        className={`pointer-events-none absolute inset-0 [background-size:36px_36px] ${isLightMode
+          ? "opacity-10 [background-image:radial-gradient(circle,rgba(2,6,23,0.2)_1px,transparent_1px)]"
+          : "opacity-15 [background-image:radial-gradient(circle,rgba(255,255,255,0.25)_1px,transparent_1px)]"
+          }`}
       />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {decorativeStars.map((star, index) => (
@@ -187,11 +184,10 @@ const Landing = () => {
         <button
           type="button"
           onClick={() => setIsLightMode((prev) => !prev)}
-          className={`absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors sm:right-6 ${
-            isLightMode
-              ? "border-sky-400/40 bg-white text-sky-600 hover:bg-sky-50"
-              : "border-cyan-200/40 bg-[#0b355f] text-cyan-100 hover:bg-[#124777]"
-          }`}
+          className={`absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors sm:right-6 ${isLightMode
+            ? "border-sky-400/40 bg-white text-sky-600 hover:bg-sky-50"
+            : "border-cyan-200/40 bg-[#0b355f] text-cyan-100 hover:bg-[#124777]"
+            }`}
           aria-label={isLightMode ? "Aktifkan dark mode" : "Aktifkan light mode"}
         >
           {isLightMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
@@ -200,11 +196,10 @@ const Landing = () => {
         <img src={logo} alt="KomikNesia" className="w-44 sm:w-56" />
 
         <div
-          className={`mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ring-1 sm:text-sm ${
-            isLightMode
-              ? "bg-sky-300/30 text-sky-900 ring-sky-500/30"
-              : "bg-cyan-400/20 text-cyan-100 ring-cyan-300/40"
-          }`}
+          className={`mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ring-1 sm:text-sm ${isLightMode
+            ? "bg-sky-300/30 text-sky-900 ring-sky-500/30"
+            : "bg-cyan-400/20 text-cyan-100 ring-cyan-300/40"
+            }`}
         >
           <Flame className={`h-4 w-4 ${isLightMode ? "text-sky-700" : "text-cyan-200"}`} />
           Baca manga, manhwa & manhua favoritmu di sini !!
@@ -220,30 +215,27 @@ const Landing = () => {
                 href={item.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`group flex w-full items-center justify-between rounded-3xl border px-4 py-4 shadow-[0_7px_0_0_#dc2626] transition-all duration-200 hover:-translate-y-0.5 ${
-                  isLightMode
-                    ? "border-sky-300/70 bg-white/95 hover:bg-sky-50"
-                    : "border-cyan-200/40 bg-[#0b355f]/95 hover:bg-[#124777]"
-                }`}
+                className={`group flex w-full items-center justify-between rounded-3xl border px-4 py-4 shadow-[0_7px_0_0_#dc2626] transition-all duration-200 hover:-translate-y-0.5 ${isLightMode
+                  ? "border-sky-300/70 bg-white/95 hover:bg-sky-50"
+                  : "border-cyan-200/40 bg-[#0b355f]/95 hover:bg-[#124777]"
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span
-                    className={`flex h-11 w-11 items-center justify-center rounded-2xl ring-1 ${
-                      isLightMode
-                        ? item.iconWrapClass || "bg-sky-100 ring-sky-200"
-                        : item.iconWrapClassDark || "bg-cyan-300/25 ring-cyan-200/35"
-                    }`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-2xl ring-1 ${isLightMode
+                      ? item.iconWrapClass || "bg-sky-100 ring-sky-200"
+                      : item.iconWrapClassDark || "bg-cyan-300/25 ring-cyan-200/35"
+                      }`}
                   >
                     {item.customIcon ? (
                       <img src={item.customIcon} alt="" aria-hidden="true" className="h-5 w-5" />
                     ) : (
                       Icon && (
                         <Icon
-                          className={`h-5 w-5 ${
-                            isLightMode
-                              ? item.iconClass || "text-sky-700"
-                              : item.iconClassDark || "text-cyan-100"
-                          }`}
+                          className={`h-5 w-5 ${isLightMode
+                            ? item.iconClass || "text-sky-700"
+                            : item.iconClassDark || "text-cyan-100"
+                            }`}
                         />
                       )
                     )}
@@ -269,9 +261,8 @@ const Landing = () => {
                 </div>
 
                 <ExternalLink
-                  className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${
-                    isLightMode ? "text-sky-600" : "text-cyan-200"
-                  }`}
+                  className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${isLightMode ? "text-sky-600" : "text-cyan-200"
+                    }`}
                 />
               </a>
             );
@@ -279,11 +270,10 @@ const Landing = () => {
         </div>
 
         <div
-          className={`mt-8 grid w-full grid-cols-3 gap-3 rounded-3xl border p-4 shadow-[0_7px_0_0_#dc2626] ${
-            isLightMode
-              ? "border-sky-300/60 bg-white/95"
-              : "border-cyan-200/30 bg-[#0b355f]/90"
-          }`}
+          className={`mt-8 grid w-full grid-cols-3 gap-3 rounded-3xl border p-4 shadow-[0_7px_0_0_#dc2626] ${isLightMode
+            ? "border-sky-300/60 bg-white/95"
+            : "border-cyan-200/30 bg-[#0b355f]/90"
+            }`}
         >
           {stats.map((stat) => (
             <div
@@ -302,9 +292,8 @@ const Landing = () => {
 
         <div className="mt-8 w-full space-y-5">
           <section
-            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${
-              isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
-            }`}
+            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
+              }`}
           >
             <h2 className={`text-2xl font-extrabold ${isLightMode ? "text-[#163a5f]" : "text-cyan-50"}`}>
               Apa itu Komiknesia? <span className="align-middle">🎌</span>
@@ -322,9 +311,8 @@ const Landing = () => {
           </section>
 
           <section
-            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${
-              isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
-            }`}
+            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
+              }`}
           >
             <h2 className={`text-2xl font-extrabold ${isLightMode ? "text-[#163a5f]" : "text-cyan-50"}`}>
               Jelajahi Genre <span className="align-middle">🔍</span>
@@ -336,11 +324,10 @@ const Landing = () => {
               {genreItems.map((genre) => (
                 <span
                   key={genre}
-                  className={`cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:text-sm ${
-                    isLightMode
-                      ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200 hover:bg-sky-600 hover:text-white hover:ring-sky-600"
-                      : "bg-[#0a2d52] text-cyan-100 ring-1 ring-cyan-200/30 hover:bg-cyan-500 hover:text-slate-950 hover:ring-cyan-300"
-                  }`}
+                  className={`cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:text-sm ${isLightMode
+                    ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200 hover:bg-sky-600 hover:text-white hover:ring-sky-600"
+                    : "bg-[#0a2d52] text-cyan-100 ring-1 ring-cyan-200/30 hover:bg-cyan-500 hover:text-slate-950 hover:ring-cyan-300"
+                    }`}
                 >
                   {genre}
                 </span>
@@ -349,9 +336,8 @@ const Landing = () => {
           </section>
 
           <section
-            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${
-              isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
-            }`}
+            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
+              }`}
           >
             <h2 className={`text-2xl font-extrabold ${isLightMode ? "text-[#163a5f]" : "text-cyan-50"}`}>
               Kenapa Komiknesia? <span className="align-middle">⚡</span>
@@ -367,9 +353,8 @@ const Landing = () => {
           </section>
 
           <section
-            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${
-              isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
-            }`}
+            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
+              }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className={`text-2xl font-extrabold ${isLightMode ? "text-[#163a5f]" : "text-cyan-50"}`}>
@@ -378,11 +363,10 @@ const Landing = () => {
               <button
                 type="button"
                 onClick={toggleAllFaq}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
-                  isLightMode
-                    ? "bg-sky-100 text-sky-700 hover:bg-sky-200"
-                    : "bg-[#0a2d52] text-cyan-100 hover:bg-[#124777]"
-                }`}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${isLightMode
+                  ? "bg-sky-100 text-sky-700 hover:bg-sky-200"
+                  : "bg-[#0a2d52] text-cyan-100 hover:bg-[#124777]"
+                  }`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 {allFaqOpen ? "Tutup semua" : "Buka semua"}
@@ -392,9 +376,8 @@ const Landing = () => {
               {faqItems.map((item) => (
                 <div
                   key={item.question}
-                  className={`rounded-2xl p-3 transition-colors sm:p-4 ${
-                    isLightMode ? "bg-sky-50" : "bg-[#0a2d52]"
-                  }`}
+                  className={`rounded-2xl p-3 transition-colors sm:p-4 ${isLightMode ? "bg-sky-50" : "bg-[#0a2d52]"
+                    }`}
                 >
                   <button
                     type="button"
@@ -406,24 +389,21 @@ const Landing = () => {
                       {item.question}
                     </h3>
                     <ChevronDown
-                      className={`h-5 w-5 shrink-0 transition-transform ${
-                        openFaqItems.has(item.question)
-                          ? "rotate-180"
-                          : "rotate-0"
-                      } ${isLightMode ? "text-sky-700" : "text-cyan-100"}`}
+                      className={`h-5 w-5 shrink-0 transition-transform ${openFaqItems.has(item.question)
+                        ? "rotate-180"
+                        : "rotate-0"
+                        } ${isLightMode ? "text-sky-700" : "text-cyan-100"}`}
                     />
                   </button>
                   <div
-                    className={`grid transition-all duration-300 ${
-                      openFaqItems.has(item.question)
-                        ? "mt-2 grid-rows-[1fr] opacity-100"
-                        : "grid-rows-[0fr] opacity-0"
-                    }`}
+                    className={`grid transition-all duration-300 ${openFaqItems.has(item.question)
+                      ? "mt-2 grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0"
+                      }`}
                   >
                     <p
-                      className={`overflow-hidden text-sm leading-7 sm:text-base ${
-                        isLightMode ? "text-sky-900/80" : "text-cyan-100/80"
-                      }`}
+                      className={`overflow-hidden text-sm leading-7 sm:text-base ${isLightMode ? "text-sky-900/80" : "text-cyan-100/80"
+                        }`}
                     >
                       {item.answer}
                     </p>
@@ -434,9 +414,8 @@ const Landing = () => {
           </section>
 
           <section
-            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${
-              isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
-            }`}
+            className={`rounded-3xl border p-5 shadow-[0_7px_0_0_#dc2626] sm:p-6 ${isLightMode ? "border-sky-300/60 bg-white/95" : "border-cyan-200/30 bg-[#0b355f]/90"
+              }`}
           >
             <h2 className={`text-2xl font-extrabold ${isLightMode ? "text-[#163a5f]" : "text-cyan-50"}`}>
               Baca Manga Bahasa Indonesia di Komiknesia <span className="align-middle">📖</span>
