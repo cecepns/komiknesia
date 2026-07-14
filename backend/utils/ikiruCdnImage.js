@@ -47,6 +47,18 @@ function isYuuCdnUrl(url) {
   }
 }
 
+function isCdnapUrl(url) {
+  if (!url) return false;
+  try {
+    const href = String(url).trim().startsWith('//') ? `https:${url}` : String(url).trim();
+    const u = new URL(href);
+    const host = u.hostname.toLowerCase();
+    return host === 'cdnap.site' || host === 'www.cdnap.site';
+  } catch {
+    return false;
+  }
+}
+
 function isPromoIkiruResponse(url, originalUrl = '') {
   const lower = String(url || '').toLowerCase();
   const originalLower = String(originalUrl || '').toLowerCase();
@@ -130,6 +142,7 @@ module.exports = {
   IKIRU_CDN_HOSTS,
   isIkiruCdnUrl,
   isYuuCdnUrl,
+  isCdnapUrl,
   isPromoIkiruResponse,
   isYuuCdnPromoResponse,
   getIkiruCdnFetchHeaders,

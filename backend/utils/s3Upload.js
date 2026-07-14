@@ -7,6 +7,7 @@ const axios = require('axios');
 const {
   isIkiruCdnUrl,
   isYuuCdnUrl,
+  isCdnapUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   isYuuCdnPromoResponse,
@@ -95,12 +96,13 @@ async function uploadUrlToS3(key, url, contentType) {
 
   const isIkiru = isIkiruCdnUrl(fetchUrl);
   const isYuu = isYuuCdnUrl(fetchUrl);
+  const isCdnap = isCdnapUrl(fetchUrl);
 
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block
-  if (isYuu) {
+  // For YuuCDN & cdnap.site: route request through the Cloudflare Worker to bypass VPS IP block / referrer check
+  if (isYuu || isCdnap) {
     const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
     let yuuFetchUrl = fetchUrl;
     if (yuuWorkerUrl) {
@@ -108,7 +110,7 @@ async function uploadUrlToS3(key, url, contentType) {
         const u = new URL(fetchUrl);
         const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
         yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
-        console.log(`[uploadUrlToS3] Routing YuuCDN fetch through Worker: ${yuuFetchUrl}`);
+        console.log(`[uploadUrlToS3] Routing Yuu/Cdnap fetch through Worker: ${yuuFetchUrl}`);
       } catch (e) {
         console.warn(`[uploadUrlToS3] Failed to parse target URL:`, e.message);
       }

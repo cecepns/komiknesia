@@ -34,8 +34,17 @@ function isIkiruCdnUrl(url) {
   }
 }
 
-/** Route Ikiru CDN URLs through backend image-proxy (access-code + referer). */
 export function toProxiedImageUrlIfNeeded(imagePath) {
+  if (!imagePath) return imagePath;
+  try {
+    const u = new URL(imagePath);
+    const host = u.hostname.toLowerCase();
+    if (host === 'yuucdn.com' || host === 'www.yuucdn.com' || host === 'cdnap.site' || host === 'www.cdnap.site') {
+      return `https://proxy.komiknesia.net/?url=${encodeURIComponent(imagePath)}`;
+    }
+  } catch (e) {
+    /* ignore */
+  }
   return imagePath;
 }
 

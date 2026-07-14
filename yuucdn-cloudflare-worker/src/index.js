@@ -17,10 +17,11 @@ export default {
       try {
         targetUrlStr = decodeURIComponent(targetUrlStr.trim());
         const parsedTarget = new URL(targetUrlStr);
-        // Validate host is YuuCDN
+        // Validate host is YuuCDN or cdnap.site
         const host = parsedTarget.hostname.toLowerCase();
-        if (host !== 'yuucdn.com' && host !== 'www.yuucdn.com') {
-          return new Response('Only yuucdn.com is allowed', { status: 403 });
+        const allowedHosts = ['yuucdn.com', 'www.yuucdn.com', 'cdnap.site', 'www.cdnap.site'];
+        if (!allowedHosts.includes(host)) {
+          return new Response('Host not allowed', { status: 403 });
         }
       } catch {
         return new Response('Invalid target URL parameter', { status: 400 });
@@ -58,12 +59,17 @@ export default {
       });
     }
 
+    const targetHost = new URL(targetUrlStr).hostname.toLowerCase();
+    const refererHeader = (targetHost === 'cdnap.site' || targetHost === 'www.cdnap.site')
+      ? 'https://01.apkomik.com/'
+      : (env.REFERER || 'https://v6.kiryuu.to/');
+
     const headers = new Headers({
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       'accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       'accept-language': 'id,en;q=0.9',
       'access-code': env.ACCESS_CODE || 'NYQLFxYsnOy+/zwnNWmNTUN5',
-      'referer': env.REFERER || 'https://v6.kiryuu.to/',
+      'referer': refererHeader,
       'cache-control': 'no-cache',
       'pragma': 'no-cache',
     });
