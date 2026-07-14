@@ -72,16 +72,16 @@ const loadImageZipEntry = async (imagePath, index) => {
   let response;
   let directFailedOrPromo = false;
 
-  // For YuuCDN & cdnap.site: route request through the Cloudflare Worker to bypass VPS IP block / referrer check
-  if (isYuu || isCdnap) {
-    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block / referrer check
+  if (isYuu) {
+    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.cdnesia.my.id';
     let yuuFetchUrl = absoluteUrl;
     if (yuuWorkerUrl) {
       try {
         const u = new URL(absoluteUrl);
         const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
         yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
-        console.log(`[loadImageZipEntry] Routing Yuu/Cdnap fetch through Worker: ${yuuFetchUrl}`);
+        console.log(`[loadImageZipEntry] Routing Yuu fetch through Worker: ${yuuFetchUrl}`);
       } catch (e) {
         console.warn(`[loadImageZipEntry] Failed to parse target URL:`, e.message);
       }
@@ -104,6 +104,29 @@ const loadImageZipEntry = async (imagePath, index) => {
         response = null;
       }
     } catch (err) {
+      directFailedOrPromo = true;
+    }
+  } else if (isCdnap) {
+    // For cdnap.site: fetch directly using the residential proxy (YUUCDN_PROXY) to bypass Cloudflare challenge/bot mode
+    try {
+      const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
+      let yuuAgent = null;
+      if (yuuProxyUrl) {
+        try {
+          const { HttpsProxyAgent } = require('https-proxy-agent');
+          yuuAgent = new HttpsProxyAgent(yuuProxyUrl);
+        } catch (e) { }
+      }
+      response = await axios.get(absoluteUrl, {
+        responseType: 'arraybuffer',
+        timeout: 20000,
+        maxRedirects: 5,
+        validateStatus: (status) => status >= 200 && status < 300,
+        headers: getIkiruCdnFetchHeaders('https://01.apkomik.com/', absoluteUrl),
+        ...(yuuAgent ? { httpsAgent: yuuAgent } : {}),
+      });
+    } catch (err) {
+      console.warn(`[loadImageZipEntry] Failed to fetch cdnap URL via proxy:`, err.message);
       directFailedOrPromo = true;
     }
   } else if (isIkiru) {

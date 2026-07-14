@@ -4,6 +4,7 @@ const axios = require('axios');
 const {
   isIkiruCdnUrl,
   isYuuCdnUrl,
+  isCdnapUrl,
   getIkiruCdnFetchHeaders,
   isPromoIkiruResponse,
   isYuuCdnPromoResponse,
@@ -73,7 +74,7 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
         const resolvedLocation = location.startsWith('http')
           ? location
           : new URL(location, currentUrl).href;
-        
+
         // If redirected to promo or Cloudflare challenge, bail to promo
         if (isYuu) {
           if (isYuuCdnPromoResponse(resolvedLocation, imageUrl)) {
@@ -142,9 +143,10 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
 
 async function fetchCdnImage(imageUrl) {
   const isYuu = isYuuCdnUrl(imageUrl);
+  const isCdnap = isCdnapUrl(imageUrl);
 
-  // For YuuCDN: fetch through residential proxy
-  if (isYuu) {
+  // For YuuCDN and cdnap.site: fetch through residential proxy
+  if (isYuu || isCdnap) {
     const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
     let yuuAgent = null;
     if (yuuProxyUrl) {
@@ -152,10 +154,10 @@ async function fetchCdnImage(imageUrl) {
         const { HttpsProxyAgent } = require('https-proxy-agent');
         yuuAgent = new HttpsProxyAgent(yuuProxyUrl);
       } catch (e) {
-        console.warn(`[fetchCdnImage] Failed to create proxy agent for YuuCDN:`, e.message);
+        console.warn(`[fetchCdnImage] Failed to create proxy agent for Yuu/Cdnap:`, e.message);
       }
     }
-    console.log(`[fetchCdnImage] Fetching Yuu CDN URL via proxy: ${imageUrl}`);
+    console.log(`[fetchCdnImage] Fetching Yuu/Cdnap CDN URL via proxy: ${imageUrl}`);
     return fetchCdnImageHelper(imageUrl, yuuAgent);
   }
 
@@ -192,13 +194,13 @@ async function proxy(req, res) {
       return res.status(400).json({ error: 'Invalid url' });
     }
 
-    if (!isIkiruCdnUrl(targetUrl)) {
+    if (!isIkiruCdnUrl(targetUrl) && !isCdnapUrl(targetUrl)) {
       return res.status(403).json({ error: 'URL host not allowed for proxy' });
     }
 
     // Route YuuCDN to Cloudflare Worker (disabled as Worker is blocked)
     // if (isYuuCdnUrl(targetUrl)) {
-    //   const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+    //   const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.cdnesia.my.id';
     //   if (yuuWorkerUrl) {
     //     try {
     //       const u = new URL(targetUrl);

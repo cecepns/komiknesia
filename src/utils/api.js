@@ -39,8 +39,11 @@ export function toProxiedImageUrlIfNeeded(imagePath) {
   try {
     const u = new URL(imagePath);
     const host = u.hostname.toLowerCase();
-    if (host === 'yuucdn.com' || host === 'www.yuucdn.com' || host === 'cdnap.site' || host === 'www.cdnap.site') {
-      return `https://proxy.komiknesia.net/?url=${encodeURIComponent(imagePath)}`;
+    if (host === 'yuucdn.com' || host === 'www.yuucdn.com') {
+      return `https://proxy.cdnesia.my.id/?url=${encodeURIComponent(imagePath)}`;
+    }
+    if (host === 'cdnap.site' || host === 'www.cdnap.site') {
+      return `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(imagePath)}`;
     }
   } catch (e) {
     /* ignore */
@@ -131,7 +134,7 @@ class APIClient {
     if (token && !isAuthAnonymous) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     const config = {
       ...options,
       headers,
@@ -773,12 +776,12 @@ class APIClient {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
       };
-      
+
       // Add auth token if available
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      
+
       fetch(url, {
         method: 'POST',
         headers,
@@ -789,12 +792,12 @@ class APIClient {
             const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
             throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
           }
-          
+
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
           let currentEvent = '';
-          
+
           try {
             while (true) {
               const { done, value } = await reader.read();
@@ -815,25 +818,25 @@ class APIClient {
                 }
                 break;
               }
-              
+
               buffer += decoder.decode(value, { stream: true });
               const lines = buffer.split('\n');
               buffer = lines.pop() || '';
-              
+
               for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
-                
+
                 if (line.startsWith('event: ')) {
                   currentEvent = line.substring(7).trim();
                 } else if (line.startsWith('data: ')) {
                   try {
                     const data = JSON.parse(line.substring(6));
-                    
+
                     // Call progress callback
                     if (onProgress) {
                       onProgress(data);
                     }
-                    
+
                     // Check for completion or error
                     if (currentEvent === 'complete') {
                       // Call progress one more time with final data
@@ -867,7 +870,7 @@ class APIClient {
                 }
               }
             }
-            
+
             // If we reach here without resolve/reject, resolve with last data
             resolve({ message: 'Sync completed' });
           } catch (streamError) {
@@ -1081,7 +1084,7 @@ export function safeParseDate(value) {
   if (value instanceof Date) {
     return isNaN(value.getTime()) ? null : value;
   }
-  
+
   const s = String(value).trim();
   if (!s) return null;
 
@@ -1090,7 +1093,7 @@ export function safeParseDate(value) {
     const d = new Date(s.replace(' ', 'T'));
     if (!isNaN(d.getTime())) return d;
   }
-  
+
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }

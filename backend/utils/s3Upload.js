@@ -101,16 +101,16 @@ async function uploadUrlToS3(key, url, contentType) {
   let resp;
   let directFailedOrPromo = false;
 
-  // For YuuCDN & cdnap.site: route request through the Cloudflare Worker to bypass VPS IP block / referrer check
-  if (isYuu || isCdnap) {
-    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.komiknesia.net';
+  // For YuuCDN: route request through the Cloudflare Worker to bypass VPS IP block / referrer check
+  if (isYuu) {
+    const yuuWorkerUrl = process.env.YUUCDN_WORKER_URL || 'https://proxy.cdnesia.my.id';
     let yuuFetchUrl = fetchUrl;
     if (yuuWorkerUrl) {
       try {
         const u = new URL(fetchUrl);
         const workerBase = yuuWorkerUrl.replace(/\/+$/, '');
         yuuFetchUrl = `${workerBase}${u.pathname}${u.search}`;
-        console.log(`[uploadUrlToS3] Routing Yuu/Cdnap fetch through Worker: ${yuuFetchUrl}`);
+        console.log(`[uploadUrlToS3] Routing Yuu fetch through Worker: ${yuuFetchUrl}`);
       } catch (e) {
         console.warn(`[uploadUrlToS3] Failed to parse target URL:`, e.message);
       }
@@ -123,6 +123,23 @@ async function uploadUrlToS3(key, url, contentType) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       },
+    });
+  } else if (isCdnap) {
+    // For cdnap.site: fetch directly using the residential proxy (YUUCDN_PROXY) to bypass Cloudflare challenge/bot mode
+    const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
+    let yuuAgent = null;
+    if (yuuProxyUrl) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        yuuAgent = new HttpsProxyAgent(yuuProxyUrl);
+      } catch (e) { }
+    }
+    resp = await axios.get(fetchUrl, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+      maxRedirects: 5,
+      headers: getIkiruCdnFetchHeaders('https://01.apkomik.com/', fetchUrl),
+      ...(yuuAgent ? { httpsAgent: yuuAgent } : {}),
     });
   } else if (isIkiru) {
     // Non-YuuCDN Ikiru: try direct with Ikiru headers first
@@ -278,7 +295,7 @@ async function refreshCdnDomain() {
 // Periodically refresh CDN domain from db (every 10 seconds)
 setInterval(refreshCdnDomain, 10000);
 // Run once on load
-refreshCdnDomain().catch(() => {});
+refreshCdnDomain().catch(() => { });
 
 function getDynamicCdnDomainSync() {
   return GLOBAL_CDN_DOMAIN;

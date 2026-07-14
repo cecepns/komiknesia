@@ -100,8 +100,6 @@ function isYuuCdnPromoResponse(url, originalUrl = '') {
 }
 
 function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN, targetUrl = '') {
-  const ref = String(referer || IKIRU_ORIGIN).replace(/\/+$/, '');
-
   let host = '';
   if (targetUrl) {
     try {
@@ -109,6 +107,10 @@ function getIkiruCdnFetchHeaders(referer = IKIRU_ORIGIN, targetUrl = '') {
       host = u.hostname.toLowerCase();
     } catch { }
   }
+
+  const isCdnap = host === 'cdnap.site' || host === 'www.cdnap.site';
+  const resolvedReferer = isCdnap ? 'https://01.apkomik.com' : (referer || IKIRU_ORIGIN);
+  const ref = String(resolvedReferer).replace(/\/+$/, '');
 
   // Do not send Cloudflare cookies if the target is yuucdn.com
   const cfCookie = (host === 'yuucdn.com' || host === 'www.yuucdn.com')
