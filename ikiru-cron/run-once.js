@@ -12,7 +12,7 @@ async function main() {
       page: 1,
       mode: 'delta',
       withImages: true,
-      saveToS3: false,
+      saveToS3: true,
       type: feedType,
     });
     console.log(JSON.stringify(body, null, 2));
@@ -23,7 +23,7 @@ async function main() {
       page: 1,
       mode: 'full',
       withImages: true,
-      saveToS3: false,
+      saveToS3: true,
       type: feedType,
     });
     console.log(JSON.stringify(body, null, 2));
@@ -34,7 +34,7 @@ async function main() {
       page: 2,
       mode: 'full',
       withImages: true,
-      saveToS3: false,
+      saveToS3: true,
       type: feedType,
     });
     console.log(JSON.stringify(body, null, 2));
@@ -45,7 +45,7 @@ async function main() {
       page: 3,
       mode: 'full',
       withImages: true,
-      saveToS3: false,
+      saveToS3: true,
       type: feedType,
     });
     console.log(JSON.stringify(body, null, 2));

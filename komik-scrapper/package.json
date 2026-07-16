@@ -1,0 +1,23 @@
+{
+  "name": "komik-scrapper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"node server.js\" \"cd ui && npm run dev\"",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1087.0",
+    "axios": "^1.18.1",
+    "cheerio": "^1.2.0",
+    "concurrently": "^10.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "inquirer": "^8.2.5"
+  }
+}

@@ -39,6 +39,7 @@ const stickerRoutes = require('./routes/stickerRoutes');
 const liveChatRoutes = require('./routes/liveChatRoutes');
 const imageProxyRoutes = require('./routes/imageProxyRoutes');
 const migrationRoutes = require('./routes/migrationRoutes');
+const scrapperSyncRoutes = require('./routes/scrapperSyncRoutes');
 const { toProxiedImagePathIfNeeded } = require('./utils/ikiruCdnImage');
 const { CHAPTER_RELEASED_WHERE, isScheduledReleaseInFuture } = require('./utils/chapterRelease');
 const { validateApiOrigin } = require('./middlewares/validateApiOrigin');
@@ -250,6 +251,7 @@ app.use('/api/apkomik', apkomikRoutes);
 app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
 app.use('/api/admin/apkomik-sync', apkomikSyncRoutes);
 app.use('/api/admin/migration', migrationRoutes);
+app.use('/api/admin/scrapper-sync', scrapperSyncRoutes);
 app.use('/', sitemapRoutes);
 
 

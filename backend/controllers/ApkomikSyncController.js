@@ -861,7 +861,7 @@ const cronSyncFeed = async (req, res) => {
     const mode = req.query?.mode === 'full' ? 'full' : 'delta';
     // Default cron: withImages = true, saveToS3 = true unless explicitly turned off
     const withImages = parseBooleanFlag(req.query?.withImages, true);
-    const saveToS3 = parseBooleanFlag(req.query?.saveToS3, false);
+    const saveToS3 = parseBooleanFlag(req.query?.saveToS3, true);
 
     const feed = await scrapeFeed(type, { page });
     

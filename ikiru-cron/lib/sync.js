@@ -25,7 +25,7 @@ function buildCronSyncUrl(params) {
   q.set('page', String(params.page ?? 1));
   q.set('mode', params.mode === 'delta' ? 'delta' : 'full');
   q.set('withImages', params.withImages === false ? 'false' : 'true');
-  const defaultSaveToS3 = source === 'apkomik' ? 'false' : 'true';
+  const defaultSaveToS3 = 'true';
   q.set('saveToS3', params.saveToS3 === undefined ? defaultSaveToS3 : (params.saveToS3 ? 'true' : 'false'));
   url.search = q.toString();
   return url.toString();
