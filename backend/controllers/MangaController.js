@@ -158,7 +158,12 @@ const createChapter = async (req, res) => {
     }
 
     const mangaSlug = mangaRows[0].slug;
-    const chapterSlug = `${mangaSlug}-chapter-${chapter_number}`;
+    let chapterSlug = `${mangaSlug}-chapter-${chapter_number}`;
+    // Ensure slug uniqueness: if slug already exists, append a timestamp suffix
+    const [existingSlugRows] = await db.execute('SELECT id FROM chapters WHERE slug = ?', [chapterSlug]);
+    if (existingSlugRows.length > 0) {
+      chapterSlug = `${chapterSlug}-${Date.now()}`;
+    }
 
     const [result] = await db.execute(
       'INSERT INTO chapters (manga_id, title, chapter_number, slug, cover, scheduled_release_at) VALUES (?, ?, ?, ?, ?, ?)',
