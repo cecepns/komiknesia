@@ -150,7 +150,7 @@ const loadImageZipEntry = async (imagePath, index) => {
     }
   }
 
-  // Fallback to proxy if direct failed/redirected for Ikiru CDN (non-YuuCDN only)
+  // Fallback to proxy or generic fetch if direct failed/redirected
   if (!response || directFailedOrPromo) {
     const useProxyNow = isIkiru && !isYuu;
     let httpsAgent = null;
@@ -163,6 +163,12 @@ const loadImageZipEntry = async (imagePath, index) => {
     }
 
     try {
+      let refererHeader = 'https://komiknesia.com/';
+      try {
+        const u = new URL(absoluteUrl);
+        refererHeader = `${u.origin}/`;
+      } catch {}
+
       response = await axios.get(absoluteUrl, {
         responseType: 'arraybuffer',
         timeout: 45000,
@@ -173,6 +179,7 @@ const loadImageZipEntry = async (imagePath, index) => {
           : {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Referer': refererHeader,
           },
         ...(httpsAgent ? { httpsAgent } : {})
       });
@@ -812,9 +819,6 @@ const downloadBySlug = async (req, res) => {
     const chapter = chapters[0];
     if (isScheduledReleaseInFuture(chapter.scheduled_release_at)) {
       return res.status(404).json({ error: 'Chapter belum dirilis' });
-    }
-    if (!chapter.is_input_manual) {
-      return res.status(400).json({ error: 'Download hanya tersedia untuk komik manual' });
     }
 
     const [images] = await db.execute(

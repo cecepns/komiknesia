@@ -48,3 +48,5 @@ export async function downloadChapterZip({ slug, mangaTitle, chapterNumber }) {
   anchor.remove();
   URL.revokeObjectURL(objectUrl);
 }
+
+

@@ -45,11 +45,40 @@ const Home = () => {
   const [popupSettingsReady, setPopupSettingsReady] = useState(false);
   const [sharePopupOpen, setSharePopupOpen] = useState(false);
   const [installModalOpen, setInstallModalOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
   const shareUrl = typeof window !== "undefined" ? window.location.origin : "https://komiknesia.com";
   const shareTitle =
     "Baca komik, manga, manhwa, dan manhua Bahasa Indonesia di KomikNesia!";
   const discordInviteUrl = "https://discord.gg/dgC22PSm9h";
   const donateUrl = "https://saweria.co/KomikNesia";
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") {
+          setDeferredPrompt(null);
+          return;
+        }
+      } catch (err) {
+        console.error("Error triggering PWA prompt:", err);
+      }
+    }
+    setInstallModalOpen(true);
+  };
 
   const copyShareLink = async (context = "default") => {
     try {
@@ -283,7 +312,7 @@ const Home = () => {
 
           <button
             type="button"
-            onClick={() => setInstallModalOpen(true)}
+            onClick={handleInstallClick}
             className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-inner md:h-14 md:w-14">
