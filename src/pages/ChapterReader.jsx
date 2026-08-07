@@ -87,7 +87,7 @@ const ChapterReader = () => {
   const [pendingChapterSlug, setPendingChapterSlug] = useState(null);
   const isPremiumUser = !!user?.membership_active;
 
-  const discordInviteUrl = 'https://discord.gg/3tGVDZCF3a';
+  const discordInviteUrl = 'https://discord.gg/dgC22PSm9h';
   const donateUrl = 'https://saweria.co/KomikNesia';
   const chapterOrigin =
     typeof window !== 'undefined' ? window.location.origin : 'https://komiknesia.com';
@@ -626,6 +626,13 @@ const ChapterReader = () => {
             maxWidth: fitToWidth ? '100%' : `${readerImageWidth}px`,
           }}
         >
+          {/* Ad Banner - Top (Sebelum Chapter Images) */}
+          {!isPremiumUser && mangaDetailTopAds.length > 0 && (
+            <div className="px-4 my-4">
+              <AdBanner ads={mangaDetailTopAds} layout="grid" columns={1} />
+            </div>
+          )}
+
           {chapterLocked ? (
             <div className="px-4 py-24 text-center">
               <p className="mb-2 text-lg font-semibold text-white">Chapter Terkunci</p>
@@ -665,13 +672,6 @@ const ChapterReader = () => {
                   Tidak ada gambar tersedia untuk chapter ini
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Ad Banner - Top of Details */}
-          {!isPremiumUser && mangaDetailTopAds.length > 0 && (
-            <div className="px-4 my-6">
-              <AdBanner ads={mangaDetailTopAds} layout="grid" columns={1} />
             </div>
           )}
 
@@ -786,6 +786,48 @@ const ChapterReader = () => {
             </div>
           </div>
 
+          {/* Prev & Next Ch Navigation (Dibawah Reaction) */}
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-3 mb-3">
+              <button
+                type="button"
+                onClick={handlePrevChapter}
+                disabled={!hasPrevChapter}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#16171e] py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
+                  hasPrevChapter
+                    ? 'hover:bg-white/10 text-white cursor-pointer'
+                    : 'text-gray-600 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <ChevronLeft className="h-5 w-5" />
+                <span>Prev Ch</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextChapter}
+                disabled={!hasNextChapter}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#16171e] py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
+                  hasNextChapter
+                    ? 'hover:bg-white/10 text-white cursor-pointer'
+                    : 'text-gray-600 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <span>Next Ch</span>
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowChapterList(true)}
+              className="w-full flex items-center justify-between rounded-2xl border border-white/10 bg-[#16171e] py-3.5 px-5 font-semibold text-sm sm:text-base text-white hover:bg-white/10 transition-colors"
+            >
+              <span>Chapter {chapterNumber}</span>
+              <List className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
+
           {/* Ad Banner - Bottom */}
           {!isPremiumUser && mangaDetailBottomAds.length > 0 && (
             <div className="px-4 my-6">
@@ -806,43 +848,43 @@ const ChapterReader = () => {
 
       {/* Floating Bottom Navigation Toolbar (Gambar 1) */}
       <div
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 max-w-[95vw] ${
           isControlsVisible
             ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 translate-y-6 pointer-events-none'
         }`}
       >
-        <div className="bg-[#181920]/90 backdrop-blur-md border border-white/10 rounded-full px-4 py-2.5 shadow-2xl flex items-center justify-center gap-3 sm:gap-4 text-gray-300">
+        <div className="bg-[#181920]/95 backdrop-blur-md border border-white/10 rounded-full px-3 sm:px-4 py-2 sm:py-2.5 shadow-2xl flex items-center justify-center gap-1.5 xs:gap-2.5 sm:gap-4 text-gray-300 max-w-full overflow-x-auto no-scrollbar">
           {/* Prev Chapter */}
           <button
             onClick={handlePrevChapter}
             disabled={!hasPrevChapter}
-            className={`p-2 rounded-full transition-colors ${
+            className={`p-1.5 sm:p-2 rounded-full transition-colors ${
               hasPrevChapter
                 ? 'hover:bg-white/10 hover:text-white text-gray-200'
                 : 'text-gray-600 cursor-not-allowed'
             }`}
             title="Prev Chapter"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
           {/* Settings Button */}
           <button
             onClick={handleOpenSettings}
-            className="p-2 rounded-full hover:bg-white/10 hover:text-white transition-colors relative"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 hover:text-white transition-colors relative"
             title="Reader Settings"
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
             {!isPremiumUser && (
-              <Crown className="h-3 w-3 text-amber-400 absolute top-0.5 right-0.5" />
+              <Crown className="h-3 w-3 text-amber-400 absolute -top-0.5 -right-0.5" />
             )}
           </button>
 
           {/* Auto Scroll Play/Pause Button */}
           <button
             onClick={handleToggleAutoScroll}
-            className={`p-2.5 rounded-full transition-all shadow-md ${
+            className={`p-2 sm:p-2.5 rounded-full transition-all shadow-md ${
               autoScrollEnabled
                 ? 'bg-rose-600 text-white ring-2 ring-rose-400'
                 : 'bg-rose-500/80 hover:bg-rose-500 text-white'
@@ -850,52 +892,52 @@ const ChapterReader = () => {
             title={autoScrollEnabled ? 'Pause Auto Scroll' : 'Play Auto Scroll'}
           >
             {autoScrollEnabled ? (
-              <Pause className="h-5 w-5 fill-current" />
+              <Pause className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />
             ) : (
-              <Play className="h-5 w-5 fill-current ml-0.5" />
+              <Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current ml-0.5" />
             )}
           </button>
 
           {/* Chapter List Modal Trigger */}
           <button
             onClick={() => setShowChapterList(true)}
-            className="p-2 rounded-full hover:bg-white/10 hover:text-white transition-colors"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 hover:text-white transition-colors"
             title="Daftar Chapter"
           >
-            <List className="h-5 w-5" />
+            <List className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
           {/* Download Chapter ZIP */}
           <button
             onClick={handleDownloadZip}
             disabled={downloadingZip}
-            className="p-2 rounded-full hover:bg-white/10 hover:text-amber-400 transition-colors text-amber-500/90"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 hover:text-amber-400 transition-colors text-amber-500/90"
             title="Unduh Chapter (ZIP)"
           >
-            <Download className={`h-5 w-5 ${downloadingZip ? 'animate-bounce' : ''}`} />
+            <Download className={`h-4 w-4 sm:h-5 sm:w-5 ${downloadingZip ? 'animate-bounce' : ''}`} />
           </button>
 
           {/* Scroll to Comments */}
           <button
             onClick={scrollToComments}
-            className="p-2 rounded-full hover:bg-white/10 hover:text-white transition-colors"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 hover:text-white transition-colors"
             title="Ke Komentar"
           >
-            <MessageSquare className="h-5 w-5" />
+            <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
           {/* Next Chapter */}
           <button
             onClick={handleNextChapter}
             disabled={!hasNextChapter}
-            className={`p-2 rounded-full transition-colors ${
+            className={`p-1.5 sm:p-2 rounded-full transition-colors ${
               hasNextChapter
                 ? 'hover:bg-white/10 hover:text-white text-gray-200'
                 : 'text-gray-600 cursor-not-allowed'
             }`}
             title="Next Chapter"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         </div>
       </div>

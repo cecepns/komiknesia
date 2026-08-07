@@ -1,0 +1,14 @@
+name = "komiknesia-scrapper-worker"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+KOMIKNESIA_API_URL = "https://api-be.komiknesia.my.id/api/admin/scrapper-sync/sync"
+KOMIKNESIA_API_SECRET = "komiknesia-secret"
+S3_PUBLIC_DOMAIN = "https://data.cdnesia.my.id"
+
+
+# Cloudflare R2 Bucket Binding
+[[r2_buckets]]
+binding = 'MY_BUCKET'
+bucket_name = 'komiknesia'

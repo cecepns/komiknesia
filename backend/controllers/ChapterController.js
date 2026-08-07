@@ -58,10 +58,14 @@ const loadImageZipEntry = async (imagePath, index) => {
     return null;
   }
 
-  const absoluteUrl =
-    imagePath.startsWith('http://') || imagePath.startsWith('https://')
-      ? imagePath
-      : null;
+  let absoluteUrl = null;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    absoluteUrl = imagePath;
+  } else if (imagePath.startsWith('/')) {
+    // Relative path but not local uploads folder, assume S3 CDN / public origin
+    const cdnBase = process.env.S3_ENDPOINT || 'https://data.cdnesia.my.id';
+    absoluteUrl = `${cdnBase.replace(/\/+$/, '')}${imagePath}`;
+  }
 
   if (!absoluteUrl) return null;
 
@@ -129,23 +133,21 @@ const loadImageZipEntry = async (imagePath, index) => {
       console.warn(`[loadImageZipEntry] Failed to fetch cdnap URL via proxy:`, err.message);
       directFailedOrPromo = true;
     }
-  } else if (isIkiru) {
-    // Non-YuuCDN Ikiru: try direct with Ikiru headers first
+  } else {
+    // Normal S3 CDN / direct URLs
     try {
       response = await axios.get(absoluteUrl, {
         responseType: 'arraybuffer',
-        timeout: 15000,
+        timeout: 20000,
         maxRedirects: 5,
         validateStatus: (status) => status >= 200 && status < 300,
-        headers: getIkiruCdnFetchHeaders('https://v6.kiryuu.to/', absoluteUrl),
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
       });
-
-      const finalUrl = response.request?.res?.responseUrl || absoluteUrl;
-      if (isPromoIkiruResponse(finalUrl, absoluteUrl)) {
-        directFailedOrPromo = true;
-        response = null;
-      }
     } catch (err) {
+      console.warn(`[loadImageZipEntry] Direct fetch failed for ${absoluteUrl}:`, err.message);
       directFailedOrPromo = true;
     }
   }

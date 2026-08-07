@@ -25,6 +25,29 @@ async function sendToBackend(payload) {
   }
 }
 
+async function checkChapterExists(localSlug) {
+  const url = process.env.KOMIKNESIA_API_URL;
+  if (!url) return false;
+
+  try {
+    const apiBase = url.replace(/\/api\/(admin\/)?scrapper-sync\/sync.*$/, '');
+    const checkUrl = `${apiBase}/api/chapters/slug/${encodeURIComponent(localSlug)}`;
+
+    const response = await axios.get(checkUrl, { timeout: 8000 });
+    if (response.status === 200 && response.data && response.data.status === true) {
+      return true;
+    }
+  } catch (error) {
+    if (error.response && error.response.status === 404) {
+      return false;
+    }
+    console.warn(`[checkChapterExists] Gagal mengecek chapter ${localSlug}:`, error.message);
+  }
+  return false;
+}
+
 module.exports = {
   sendToBackend,
+  checkChapterExists,
 };
+

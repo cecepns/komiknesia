@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronDown, ChevronLeft, ChevronRight, Filter, LayoutGrid, List } from "lucide-react";
 import LazyImage from "../components/LazyImage";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
@@ -70,21 +70,9 @@ const Content = () => {
     ? searchParams.get("source")
     : "all";
 
-  // Mobile dropdown states
-  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const [showOrderDropdown, setShowOrderDropdown] = useState(false);
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  const [showSourceDropdown, setShowSourceDropdown] = useState(false);
-
-  // Refs for click outside detection
-  const genreDropdownRef = useRef(null);
-  const statusDropdownRef = useRef(null);
-  const typeDropdownRef = useRef(null);
-  const orderDropdownRef = useRef(null);
-  const projectDropdownRef = useRef(null);
-  const sourceDropdownRef = useRef(null);
+  // Mobile filter & view mode states
+  const [showMobileFilterModal, setShowMobileFilterModal] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
 
   // Load genres from API
   useEffect(() => {
@@ -129,6 +117,17 @@ const Content = () => {
 
     return [];
   }, [searchParams, genres]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedStatus !== "All") count++;
+    if (selectedType !== "All") count++;
+    if (selectedProject !== "all") count++;
+    if (selectedSource !== "all") count++;
+    if (selectedOrder !== "Update") count++;
+    if (selectedGenres.length > 0) count += selectedGenres.length;
+    return count;
+  }, [selectedStatus, selectedType, selectedProject, selectedSource, selectedOrder, selectedGenres]);
 
   const updateSearchParams = useCallback(
     (updater) => {
@@ -287,50 +286,7 @@ const Content = () => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [currentPage]);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        genreDropdownRef.current &&
-        !genreDropdownRef.current.contains(event.target)
-      ) {
-        setShowGenreDropdown(false);
-      }
-      if (
-        statusDropdownRef.current &&
-        !statusDropdownRef.current.contains(event.target)
-      ) {
-        setShowStatusDropdown(false);
-      }
-      if (
-        typeDropdownRef.current &&
-        !typeDropdownRef.current.contains(event.target)
-      ) {
-        setShowTypeDropdown(false);
-      }
-      if (
-        orderDropdownRef.current &&
-        !orderDropdownRef.current.contains(event.target)
-      ) {
-        setShowOrderDropdown(false);
-      }
-      if (
-        projectDropdownRef.current &&
-        !projectDropdownRef.current.contains(event.target)
-      ) {
-        setShowProjectDropdown(false);
-      }
-      if (
-        sourceDropdownRef.current &&
-        !sourceDropdownRef.current.contains(event.target)
-      ) {
-        setShowSourceDropdown(false);
-      }
-    };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const toggleGenre = (genreId) => {
     updateSearchParams((params) => {
@@ -544,243 +500,232 @@ const Content = () => {
       </div>
 
       <div className="container mx-auto px-4 pb-8 pt-4 md:pt-8">
-        {/* Mobile Filter Dropdowns */}
-        <div className="lg:hidden mb-6 grid grid-cols-2 gap-3">
-          {/* Genre Dropdown */}
-          <div ref={genreDropdownRef} className="relative">
+        {/* Mobile Control Bar (View Mode Toggle & Filter Trigger) */}
+        <div className="lg:hidden mb-4 flex items-center justify-between">
+          {/* View Mode Toggle Pill */}
+          <div className="bg-[#141622] border border-white/10 rounded-2xl p-1 flex items-center gap-1 shadow-md">
             <button
-              onClick={() => setShowGenreDropdown(!showGenreDropdown)}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded-xl transition-all ${
+                viewMode === "grid"
+                  ? "bg-sky-600 dark:bg-[#0b355f] text-white shadow-[0_2px_0_0_#facc15]"
+                  : "text-gray-400 hover:text-white"
+              }`}
+              title="Grid View"
             >
-              <span className="text-sm font-medium">
-                Genre{" "}
-                {selectedGenres.length > 0 && `(${selectedGenres.length})`}
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showGenreDropdown ? "rotate-180" : ""}`}
-              />
+              <LayoutGrid className="h-5 w-5" />
             </button>
-            {showGenreDropdown && (
-              <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
-                <div className="border-b border-slate-200 p-3 dark:border-primary-700">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                      Pilih Genre
-                    </span>
-                    {selectedGenres.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded-xl transition-all ${
+                viewMode === "list"
+                  ? "bg-sky-600 dark:bg-[#0b355f] text-white shadow-[0_2px_0_0_#facc15]"
+                  : "text-gray-400 hover:text-white"
+              }`}
+              title="List View"
+            >
+              <List className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Filter Button */}
+          <button
+            type="button"
+            onClick={() => setShowMobileFilterModal(true)}
+            className="relative bg-[#141622] border border-white/10 p-3 rounded-2xl text-sky-400 hover:text-sky-300 transition-colors shadow-md flex items-center justify-center"
+            title="Filter"
+          >
+            <Filter className="h-5 w-5" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-[#141622]">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Bottom Sheet Filter Modal */}
+        {showMobileFilterModal && (
+          <div
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 lg:hidden"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-[#13141f] border border-white/10 max-h-[85vh] flex flex-col shadow-2xl text-white overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <h3 className="text-base font-bold tracking-wider uppercase text-white">Filter</h3>
+                <div className="flex items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearAllFilters}
+                      className="text-xs font-semibold text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileFilterModal(false)}
+                    className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="overflow-y-auto p-5 space-y-6 flex-1 text-left">
+                {/* STATUS */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">STATUS</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {statusOptions.map((status) => (
                       <button
-                        onClick={() => {
-                          updateSearchParams((params) => {
-                            params.delete("genreId");
-                            params.delete("genre");
-                            params.delete("page");
-                          });
-                        }}
-                        className="rounded-lg border border-sky-500/50 bg-sky-600 px-2 py-1 text-xs font-semibold text-white shadow-[0_2px_0_0_#facc15] transition-all hover:-translate-y-px hover:brightness-105 dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_2px_0_0_#facc15]"
+                        key={status}
+                        type="button"
+                        onClick={() => setStatusFilter(status)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          selectedStatus === status
+                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
+                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                        }`}
                       >
-                        Clear
+                        {status}
                       </button>
-                    )}
+                    ))}
                   </div>
                 </div>
-                <div className="p-2">
-                  {genresLoading ? (
-                    <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
-                      Loading...
-                    </div>
-                  ) : (
-                    genres.map((genre) => (
-                      <label
-                        key={genre.id}
-                        className="flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-primary-800 rounded cursor-pointer"
+
+                {/* TIPE / KATEGORI */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">TIPE / KATEGORI</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {typeOptions.map((type) => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => setTypeFilter(type.value)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          selectedType === type.value
+                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
+                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                        }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedGenres.includes(genre.id)}
-                          onChange={() => toggleGenre(genre.id)}
-                          className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {genre.name}
-                        </span>
-                      </label>
-                    ))
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* PROJECT */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">PROJECT</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {projectFilterOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setProjectFilter(opt.value)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          selectedProject === opt.value
+                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
+                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SOURCE */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">SOURCE</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {sourceOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSourceFilter(opt.value)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          selectedSource === opt.value
+                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
+                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* URUTKAN */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">URUTKAN</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {orderOptions.map((order) => (
+                      <button
+                        key={order}
+                        type="button"
+                        onClick={() => setOrderFilter(order)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          selectedOrder === order
+                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
+                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                        }`}
+                      >
+                        {order}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* GENRE */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">GENRE</h4>
+                  {genresLoading ? (
+                    <p className="text-xs text-gray-500">Memuat genre...</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                      {genres.map((genre) => {
+                        const isSelected = selectedGenres.includes(genre.id);
+                        return (
+                          <button
+                            key={genre.id}
+                            type="button"
+                            onClick={() => toggleGenre(genre.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                              isSelected
+                                ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
+                                : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                            }`}
+                          >
+                            {genre.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Status Dropdown */}
-          <div ref={statusDropdownRef} className="relative">
-            <button
-              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
-            >
-              <span className="text-sm font-medium">Status</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showStatusDropdown ? "rotate-180" : ""}`}
-              />
-            </button>
-            {showStatusDropdown && (
-              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
-                <div className="p-2">
-                  {statusOptions.map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => {
-                        setStatusFilter(status);
-                        setShowStatusDropdown(false);
-                      }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedStatus === status
-                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
-                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                        }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/10 bg-[#141522]">
+                <button
+                  type="button"
+                  onClick={() => setShowMobileFilterModal(false)}
+                  className="w-full py-3 bg-sky-600 hover:bg-sky-500 dark:bg-[#0b355f] text-white font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-[0_4px_0_0_#facc15] dark:shadow-[0_4px_0_0_#facc15]"
+                >
+                  Terapkan Filter
+                </button>
               </div>
-            )}
+            </div>
           </div>
-
-          {/* Project filter (is_project) */}
-          <div ref={projectDropdownRef} className="relative">
-            <button
-              onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
-            >
-              <span className="text-sm font-medium">Project</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showProjectDropdown ? "rotate-180" : ""}`}
-              />
-            </button>
-            {showProjectDropdown && (
-              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
-                <div className="p-2">
-                  {projectFilterOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        setProjectFilter(opt.value);
-                        setShowProjectDropdown(false);
-                      }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedProject === opt.value
-                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
-                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                        }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Type Dropdown */}
-          <div ref={typeDropdownRef} className="relative">
-            <button
-              onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
-            >
-              <span className="text-sm font-medium">Type</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showTypeDropdown ? "rotate-180" : ""}`}
-              />
-            </button>
-            {showTypeDropdown && (
-              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
-                <div className="p-2">
-                  {typeOptions.map((type) => (
-                    <button
-                      key={type.value}
-                      onClick={() => {
-                        setTypeFilter(type.value);
-                        setShowTypeDropdown(false);
-                      }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedType === type.value
-                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
-                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                        }`}
-                    >
-                      {type.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sort By Dropdown */}
-          <div ref={orderDropdownRef} className="relative">
-            <button
-              onClick={() => setShowOrderDropdown(!showOrderDropdown)}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
-            >
-              <span className="text-sm font-medium">Sort By</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showOrderDropdown ? "rotate-180" : ""}`}
-              />
-            </button>
-            {showOrderDropdown && (
-              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
-                <div className="p-2">
-                  {orderOptions.map((order) => (
-                    <button
-                      key={order}
-                      onClick={() => {
-                        setOrderFilter(order);
-                        setShowOrderDropdown(false);
-                      }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedOrder === order
-                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
-                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                        }`}
-                    >
-                      {order}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Source Dropdown */}
-          <div ref={sourceDropdownRef} className="relative">
-            <button
-              onClick={() => setShowSourceDropdown(!showSourceDropdown)}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-[0_4px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-cyan-200/20 dark:bg-[#0b355f]/95 dark:text-cyan-50 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.35)] dark:hover:shadow-[0_5px_0_0_rgba(56,189,248,0.45)]"
-            >
-              <span className="text-sm font-medium">Source</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showSourceDropdown ? "rotate-180" : ""}`}
-              />
-            </button>
-            {showSourceDropdown && (
-              <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_6px_0_0_#cbd5e1] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(30,58,138,0.5)]">
-                <div className="p-2">
-                  {sourceOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        setSourceFilter(opt.value);
-                        setShowSourceDropdown(false);
-                      }}
-                      className={`mb-1 w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200 last:mb-0 ${selectedSource === opt.value
-                          ? "border-sky-500/50 bg-sky-600 font-semibold text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]"
-                          : "border-transparent text-gray-700 hover:border-slate-200 hover:bg-slate-50 hover:shadow-[0_2px_0_0_#e2e8f0] dark:text-gray-300 dark:hover:border-primary-600 dark:hover:bg-primary-800 dark:hover:shadow-[0_2px_0_0_#1e3a5f]"
-                        }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters Sidebar - Desktop Only */}
@@ -1074,104 +1019,143 @@ const Content = () => {
               </div>
             ) : (
               <>
-                {/* Manga Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
-                  {mangaList.map((manga) => (
-                    <div
-                      key={manga.id}
-                      onClick={() => navigate(`/komik/${manga.slug}`)}
-                      className="bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
-                    >
-                      {/* Cover Image */}
-                      <div className="relative aspect-[3/4] overflow-hidden">
-                        <LazyImage
-                          src={getImageUrl(manga.cover)}
-                          alt={manga.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          wrapperClassName="w-full h-full"
-                        />
-
-                        {/* Gradient Overlay */}
-                        {/* <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" /> */}
-
-                        {/* Country Flag */}
-                        {/* <div className="absolute top-2 right-2 text-2xl bg-white/90 dark:bg-primary-900/90 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
-                          {countryFlags[manga.country_id] || "🌍"}
-                        </div> */}
-
-                        {/* Color Badge */}
-                        {/* {manga.color && (
-                          <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-md text-xs font-bold flex items-center space-x-1">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z"/>
-                            </svg>
-                            <span className="block text-[10px] md:text-sm">
-                              COLOR
-                            </span>
-                          </div>
-                        )} */}
-
-                        {/* Rating Badge */}
-                        {manga.rating > 0 && (
-                          <div className="absolute top-2 left-2 h-8 w-8 rounded-full bg-yellow-500/95 text-white shadow-lg backdrop-blur-sm flex items-center justify-center">
-                            <span className="text-[11px] font-bold leading-none">
-                              {Number(manga.rating).toFixed(1)}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Hot Badge */}
-                        {/* {manga.hot && (
-                          <div className="absolute bottom-2 left-2 bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
-                            <span className="text-white text-xs font-bold">HOT</span>
-                          </div>
-                        )} */}
-                      </div>
-
-                      {/* Info Section */}
-                      <div className="p-3 flex flex-col h-[192px]">
-                        {/* Title */}
-                        {!!manga.hot && (
-                          <div className="mb-1 max-w-fit bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
-                            <span className="text-white text-xs font-bold">
-                              HOT
-                            </span>
-                          </div>
-                        )}
-                        <div className="min-h-[2.75rem] md:min-h-[3rem] mb-2 flex items-center">
-                          <Link
-                            to={`/komik/${manga.slug}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="block w-full"
-                          >
-                            <h3 className="font-bold text-xs md:text-sm line-clamp-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                              {manga.title}
-                            </h3>
-                          </Link>
+                {/* Manga Grid / List View */}
+                {viewMode === "list" ? (
+                  <div className="flex flex-col gap-3 mb-8">
+                    {mangaList.map((manga) => (
+                      <div
+                        key={manga.id}
+                        onClick={() => navigate(`/komik/${manga.slug}`)}
+                        className="bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex gap-3.5 p-3 cursor-pointer group"
+                      >
+                        {/* Cover Image */}
+                        <div className="relative w-24 sm:w-28 aspect-[3/4] shrink-0 overflow-hidden rounded-lg">
+                          <LazyImage
+                            src={getImageUrl(manga.cover)}
+                            alt={manga.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            wrapperClassName="w-full h-full"
+                          />
+                          {manga.rating > 0 && (
+                            <div className="absolute top-1.5 left-1.5 h-6 w-6 rounded-full bg-yellow-500/95 text-white shadow backdrop-blur-sm flex items-center justify-center">
+                              <span className="text-[10px] font-bold leading-none">
+                                {Number(manga.rating).toFixed(1)}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
-                        {manga.lastChapters?.length > 0 ? (
-                          <div className="space-y-2 mb-1 mt-auto">
-                            {manga.lastChapters.slice(0, 3).map((chapter, chapterIndex) => (
-                              <ChapterAccessLink
-                                key={chapter.slug}
-                                chapter={chapter}
-                                to={`/view/${chapter.slug}`}
-                                onClick={(e) => e.stopPropagation()}
-                                label={`Chapter ${chapter.number || "N/A"}`}
-                                meta={getChapterTimeAgo(chapter) || null}
-                              />
-                            ))}
+                        {/* Info Section */}
+                        <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0">
+                          <div>
+                            {!!manga.hot && (
+                              <div className="mb-1 inline-block bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-0.5">
+                                <span className="text-white text-[10px] font-bold">HOT</span>
+                              </div>
+                            )}
+                            <Link
+                              to={`/komik/${manga.slug}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="block"
+                            >
+                              <h3 className="font-bold text-sm md:text-base line-clamp-2 text-gray-900 dark:text-gray-100 group-hover:text-blue-500 transition-colors">
+                                {manga.title}
+                              </h3>
+                            </Link>
                           </div>
-                        ) : (
-                          <div className="text-xs text-gray-500 dark:text-gray-500 mb-1 mt-auto">
-                            Chapter N/A
-                          </div>
-                        )}
+
+                          {manga.lastChapters?.length > 0 ? (
+                            <div className="space-y-1.5 mt-2">
+                              {manga.lastChapters.slice(0, 2).map((chapter) => (
+                                <ChapterAccessLink
+                                  key={chapter.slug}
+                                  chapter={chapter}
+                                  to={`/view/${chapter.slug}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  label={`Chapter ${chapter.number || "N/A"}`}
+                                  meta={getChapterTimeAgo(chapter) || null}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">Chapter N/A</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
+                    {mangaList.map((manga) => (
+                      <div
+                        key={manga.id}
+                        onClick={() => navigate(`/komik/${manga.slug}`)}
+                        className="bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                      >
+                        {/* Cover Image */}
+                        <div className="relative aspect-[3/4] overflow-hidden">
+                          <LazyImage
+                            src={getImageUrl(manga.cover)}
+                            alt={manga.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            wrapperClassName="w-full h-full"
+                          />
+
+                          {/* Rating Badge */}
+                          {manga.rating > 0 && (
+                            <div className="absolute top-2 left-2 h-8 w-8 rounded-full bg-yellow-500/95 text-white shadow-lg backdrop-blur-sm flex items-center justify-center">
+                              <span className="text-[11px] font-bold leading-none">
+                                {Number(manga.rating).toFixed(1)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info Section */}
+                        <div className="p-3 flex flex-col h-[192px]">
+                          {/* Title */}
+                          {!!manga.hot && (
+                            <div className="mb-1 max-w-fit bg-red-500/90 backdrop-blur-sm rounded-full px-2 py-1">
+                              <span className="text-white text-xs font-bold">
+                                HOT
+                              </span>
+                            </div>
+                          )}
+                          <div className="min-h-[2.75rem] md:min-h-[3rem] mb-2 flex items-center">
+                            <Link
+                              to={`/komik/${manga.slug}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="block w-full"
+                            >
+                              <h3 className="font-bold text-xs md:text-sm line-clamp-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                {manga.title}
+                              </h3>
+                            </Link>
+                          </div>
+
+                          {manga.lastChapters?.length > 0 ? (
+                            <div className="space-y-2 mb-1 mt-auto">
+                              {manga.lastChapters.slice(0, 3).map((chapter) => (
+                                <ChapterAccessLink
+                                  key={chapter.slug}
+                                  chapter={chapter}
+                                  to={`/view/${chapter.slug}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  label={`Chapter ${chapter.number || "N/A"}`}
+                                  meta={getChapterTimeAgo(chapter) || null}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 dark:text-gray-500 mb-1 mt-auto">
+                              Chapter N/A
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Pagination */}
                 <div className="flex justify-center items-center space-x-2 pb-8 md:pb-4">
