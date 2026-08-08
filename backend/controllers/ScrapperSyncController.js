@@ -201,9 +201,10 @@ const receiveScrapedData = async (req, res) => {
         let chapterId;
         if (existingCh.length) {
           chapterId = existingCh[0].id;
+          // Pertahankan slug & title lama jika chapter sudah ada agar slug DB tidak tertimpa/berubah format
           await db.execute(
-            'UPDATE chapters SET title = ?, chapter_number = ?, slug = ? WHERE id = ?',
-            [chapterTitle, chapterNumber, localSlug, chapterId]
+            'UPDATE chapters SET chapter_number = ? WHERE id = ?',
+            [chapterNumber, chapterId]
           );
         } else {
           const [resCh] = await db.execute(
@@ -214,8 +215,8 @@ const receiveScrapedData = async (req, res) => {
           chaptersCreated++;
         }
 
-        // Upsert images
-        if (Array.isArray(ch.images) && ch.images.length > 0) {
+        // Upsert images (Hanya insert gambar jika chapter BARU dibuat, jangan timpa jika chapter SUDAH ADA)
+        if (!existingCh.length && Array.isArray(ch.images) && ch.images.length > 0) {
            await db.execute('DELETE FROM chapter_images WHERE chapter_id = ?', [chapterId]);
            for (let i = 0; i < ch.images.length; i++) {
              await db.execute(

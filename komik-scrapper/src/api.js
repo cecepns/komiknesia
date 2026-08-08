@@ -31,18 +31,32 @@ async function checkChapterExists(localSlug) {
 
   try {
     const apiBase = url.replace(/\/api\/(admin\/)?scrapper-sync\/sync.*$/, '');
-    const checkUrl = `${apiBase}/api/chapters/slug/${encodeURIComponent(localSlug)}`;
-
-    const response = await axios.get(checkUrl, { timeout: 8000 });
+    
+    // Cek slug persis
+    let checkUrl = `${apiBase}/api/chapters/slug/${encodeURIComponent(localSlug)}`;
+    let response = await axios.get(checkUrl, { timeout: 8000 });
     if (response.status === 200 && response.data && response.data.status === true) {
       return true;
     }
   } catch (error) {
-    if (error.response && error.response.status === 404) {
-      return false;
+    if (error.response && error.response.status !== 404) {
+      console.warn(`[checkChapterExists] Gagal mengecek chapter ${localSlug}:`, error.message);
     }
-    console.warn(`[checkChapterExists] Gagal mengecek chapter ${localSlug}:`, error.message);
   }
+
+  // Jika slug mengandung angka format pad (misal: chapter-08), coba cek juga versi tanpa pad (misal: chapter-8) dan sebaliknya
+  try {
+    const altSlug = localSlug.replace(/chapter-0*(\d+)/i, 'chapter-$1');
+    if (altSlug !== localSlug) {
+      const apiBase = url.replace(/\/api\/(admin\/)?scrapper-sync\/sync.*$/, '');
+      const checkUrl = `${apiBase}/api/chapters/slug/${encodeURIComponent(altSlug)}`;
+      const response = await axios.get(checkUrl, { timeout: 8000 });
+      if (response.status === 200 && response.data && response.data.status === true) {
+        return true;
+      }
+    }
+  } catch (error) {}
+
   return false;
 }
 

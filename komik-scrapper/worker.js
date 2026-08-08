@@ -23,11 +23,21 @@ function slugifyGenre(text) {
 async function checkChapterExistsInBackend(apiBaseUrl, localSlug) {
   try {
     const apiBase = apiBaseUrl.replace(/\/api\/(admin\/)?scrapper-sync\/sync.*$/, '');
-    const checkUrl = `${apiBase}/api/chapters/slug/${encodeURIComponent(localSlug)}`;
-    const res = await fetch(checkUrl);
+    let checkUrl = `${apiBase}/api/chapters/slug/${encodeURIComponent(localSlug)}`;
+    let res = await fetch(checkUrl);
     if (res.status === 200) {
       const data = await res.json();
-      return !!data.status;
+      if (data.status) return true;
+    }
+
+    const altSlug = localSlug.replace(/chapter-0*(\d+)/i, 'chapter-$1');
+    if (altSlug !== localSlug) {
+      checkUrl = `${apiBase}/api/chapters/slug/${encodeURIComponent(altSlug)}`;
+      res = await fetch(checkUrl);
+      if (res.status === 200) {
+        const data = await res.json();
+        if (data.status) return true;
+      }
     }
   } catch (e) {
     console.warn(`[Worker] Check chapter error:`, e.message);
