@@ -8,18 +8,18 @@ const { IKIRU_ORIGIN } = require('./ikiruSession');
 
 const { readIkiruCloudflareCookiesSync } = require('./ikiruCloudflareCookiesFile');
 
-const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id', 'yuucdn.com', 'www.yuucdn.com']);
+const IKIRU_CDN_HOSTS = new Set(['cdn.itachi.my.id', 'yuucdn.com', 'www.yuucdn.com', 'cdnap.site', 'www.cdnap.site']);
 
 const IKIRU_CDN_ACCESS_CODE =
   process.env.IKIRU_CDN_ACCESS_CODE || 'NYQLFxYsnOy+/zwnNWmNTUN5';
 
 const IKIRU_CDN_PROXY =
-  process.env.IKIRU_CDN_PROXY || 'http://jlqhqvqf:2q5jwr526cph@45.43.70.75:6362';
+  process.env.IKIRU_CDN_PROXY || '';
 
 // Rotating residential proxy — used for YuuCDN which blocks datacenter IPs.
 // Residential IPs bypass Cloudflare bot protection on yuucdn.com.
 const YUUCDN_PROXY =
-  process.env.YUUCDN_PROXY || process.env.IKIRU_CDN_PROXY || 'http://jlqhqvqf-rotate:2q5jwr526cph@p.webshare.io:80';
+  process.env.YUUCDN_PROXY || process.env.IKIRU_CDN_PROXY || '';
 
 const DEFAULT_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36';

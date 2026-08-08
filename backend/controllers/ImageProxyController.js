@@ -23,6 +23,7 @@ function checkIkiruDomain(urlStr) {
       host.endsWith('.ikiru.wtf') ||
       host.includes('ikiru') ||
       host.includes('komiknesia') ||
+      host.includes('cdnesia') ||
       host.includes('kiryuu') ||
       host.includes('localhost') ||
       host.includes('127.0.0.1')
@@ -33,6 +34,7 @@ function checkIkiruDomain(urlStr) {
       lower.includes('ikiru') ||
       lower.includes('06.ikiru.wtf') ||
       lower.includes('komiknesia') ||
+      lower.includes('cdnesia') ||
       lower.includes('kiryuu') ||
       lower.includes('localhost') ||
       lower.includes('127.0.0.1')
@@ -48,7 +50,10 @@ function checkIkiruDomain(urlStr) {
  */
 async function fetchCdnImageHelper(imageUrl, httpsAgent) {
   const MAX_MANUAL_REDIRECTS = 3;
-  let currentUrl = imageUrl;
+  let currentUrl = String(imageUrl || '').trim();
+  if (currentUrl.startsWith('//')) {
+    currentUrl = `https:${currentUrl}`;
+  }
   const isYuu = isYuuCdnUrl(imageUrl);
 
   for (let attempt = 0; attempt <= MAX_MANUAL_REDIRECTS; attempt++) {
@@ -71,9 +76,12 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
           console.warn(`[fetchCdnImageHelper] 3xx redirect missing Location header at: ${currentUrl}`);
           break;
         }
-        const resolvedLocation = location.startsWith('http')
+        let resolvedLocation = location.startsWith('http')
           ? location
           : new URL(location, currentUrl).href;
+        if (resolvedLocation.startsWith('//')) {
+          resolvedLocation = `https:${resolvedLocation}`;
+        }
 
         // If redirected to promo or Cloudflare challenge, bail to promo
         if (isYuu) {
@@ -81,6 +89,8 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
             console.warn(`[fetchCdnImageHelper] YuuCDN redirect is promo/different: ${resolvedLocation}`);
             return { isPromo: true, isYuuPromo: true };
           }
+        } else if (isCdnapUrl(imageUrl)) {
+          // cdnap.site handles normal image redirects, do not flag as promo
         } else {
           if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
             console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL: ${resolvedLocation}`);
@@ -119,15 +129,20 @@ async function fetchCdnImageHelper(imageUrl, httpsAgent) {
       console.warn(`[fetchCdnImageHelper] 3xx redirect status ${status} missing Location at: ${currentUrl}`);
       break;
     }
-    const resolvedLocation = location.startsWith('http')
+    let resolvedLocation = location.startsWith('http')
       ? location
       : new URL(location, currentUrl).href;
+    if (resolvedLocation.startsWith('//')) {
+      resolvedLocation = `https:${resolvedLocation}`;
+    }
 
     if (isYuu) {
       if (isYuuCdnPromoResponse(resolvedLocation, imageUrl)) {
         console.warn(`[fetchCdnImageHelper] YuuCDN redirect is promo/different (status ${status}): ${resolvedLocation}`);
         return { isPromo: true, isYuuPromo: true };
       }
+    } else if (isCdnapUrl(imageUrl)) {
+      // cdnap.site handles normal image redirects, do not flag as promo
     } else {
       if (isPromoIkiruResponse(resolvedLocation, imageUrl) || !isIkiruCdnUrl(resolvedLocation)) {
         console.warn(`[fetchCdnImageHelper] Redirected to promo or non-whitelisted URL (status ${status}): ${resolvedLocation}`);
@@ -145,8 +160,20 @@ async function fetchCdnImage(imageUrl) {
   const isYuu = isYuuCdnUrl(imageUrl);
   const isCdnap = isCdnapUrl(imageUrl);
 
-  // For YuuCDN and cdnap.site: fetch through residential proxy
-  if (isYuu || isCdnap) {
+  if (isCdnap) {
+    let cleanUrl = String(imageUrl || '').trim();
+    if (cleanUrl.startsWith('//')) cleanUrl = `https:${cleanUrl}`;
+    const headers = getIkiruCdnFetchHeaders('https://01.apkomik.com/', cleanUrl);
+    const resp = await axios.get(cleanUrl, {
+      responseType: 'arraybuffer',
+      timeout: 20000,
+      headers,
+    });
+    return { isPromo: false, data: resp.data, contentType: resp.headers['content-type'] };
+  }
+
+  // For YuuCDN: fetch through residential proxy
+  if (isYuu) {
     const yuuProxyUrl = YUUCDN_PROXY || IKIRU_CDN_PROXY || process.env.OUTBOUND_PROXY || '';
     let yuuAgent = null;
     if (yuuProxyUrl) {
@@ -186,6 +213,11 @@ async function proxy(req, res) {
 
     try {
       targetUrl = decodeURIComponent(rawUrl.trim());
+      if (targetUrl.startsWith('//')) {
+        targetUrl = `https:${targetUrl}`;
+      } else if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+        targetUrl = `https://${targetUrl}`;
+      }
       const parsed = new URL(targetUrl);
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
         return res.status(400).json({ error: 'Invalid url' });

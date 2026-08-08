@@ -178,9 +178,20 @@ async function uploadImageToR2(env, key, imageUrl, referer = 'https://01.apkomik
     }
   } catch (e) {}
 
-  const imgRes = await fetch(imageUrl, { headers });
+  let imgRes = await fetch(imageUrl, { headers });
   if (!imgRes.ok) {
-    throw new Error(`HTTP ${imgRes.status} fetching image`);
+    // Jika direct fetch diblokir (403), fallback lewat proxy.cdnesia.my.id (Cloudflare Worker proxy)
+    try {
+      const proxyFetchUrl = `https://proxy.cdnesia.my.id/?url=${encodeURIComponent(imageUrl)}`;
+      const proxyRes = await fetch(proxyFetchUrl);
+      if (proxyRes.ok) {
+        imgRes = proxyRes;
+      } else {
+        throw new Error(`HTTP ${imgRes.status} (direct) & HTTP ${proxyRes.status} (proxy) fetching image`);
+      }
+    } catch (proxyErr) {
+      throw new Error(`HTTP ${imgRes.status} fetching image (${proxyErr.message})`);
+    }
   }
 
   const arrayBuffer = await imgRes.arrayBuffer();

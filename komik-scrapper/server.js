@@ -110,6 +110,19 @@ app.get('/api/process', async (req, res) => {
     const processedChapters = [];
     for (let i = 0; i < selectedChapters.length; i++) {
       const ch = selectedChapters[i];
+      const localSlug = ch.slug.startsWith(`${mangaDetail.slug}-`) ? ch.slug : `${mangaDetail.slug}-${ch.slug}`;
+
+      // CEK APAKAH CHAPTER SUDAH ADA DI DB → SKIP JIKA SUDAH ADA
+      try {
+        const exists = await checkChapterExists(localSlug);
+        if (exists) {
+          sendEvent('log', { message: `⏭️ [SKIP] ${ch.title} (${localSlug}) sudah ada di DB. Tidak akan menimpa.` });
+          continue;
+        }
+      } catch (e) {
+        sendEvent('log', { message: `⚠️ Gagal cek chapter ${localSlug}: ${e.message}. Tetap lanjut proses.` });
+      }
+
       sendEvent('log', { message: `\n[Chapter ${i+1}/${selectedChapters.length}] Scraping ${ch.title}...` });
       
       try {
@@ -214,9 +227,10 @@ app.get('/api/process', async (req, res) => {
   res.end();
 });
 
-// AUTO SCRAP LATEST CHAPTER FROM LIST PAGE ENDPOINT
+// AUTO SCRAP CHAPTERS FROM LIST PAGE ENDPOINT
 app.get('/api/auto-scrap-latest', async (req, res) => {
-  const { source, pageUrl } = req.query;
+  const { source, pageUrl, chapterLimit } = req.query;
+  const limitCount = parseInt(chapterLimit, 10) || 1; // 1 (latest) or 5 or 9999 (full)
   if (!source || !scrapers[source]) {
     return res.status(400).json({ error: 'Invalid or missing source parameter (e.g., apkomik)' });
   }
@@ -258,84 +272,87 @@ app.get('/api/auto-scrap-latest', async (req, res) => {
           continue;
         }
 
-        const latestCh = mangaDetail.chapters[0];
-        const localSlug = latestCh.slug.startsWith(`${mangaDetail.slug}-`)
-          ? latestCh.slug
-          : `${mangaDetail.slug}-${latestCh.slug}`;
+        const chaptersToProcess = mangaDetail.chapters.slice(0, limitCount);
+        sendEvent('log', { message: `📌 Memproses ${chaptersToProcess.length} chapter teratas...` });
 
-        sendEvent('log', { message: `📌 Chapter terbaru: ${latestCh.title} (slug: ${localSlug})` });
+        for (let c = 0; c < chaptersToProcess.length; c++) {
+          const ch = chaptersToProcess[c];
+          const localSlug = ch.slug.startsWith(`${mangaDetail.slug}-`)
+            ? ch.slug
+            : `${mangaDetail.slug}-${ch.slug}`;
 
-        // KONDISI SKIP JIKA CHAPTER SUDAH ADA DI DB
-        const exists = await checkChapterExists(localSlug);
-        if (exists) {
-          sendEvent('log', { message: `⏭️ [SKIP] Chapter ${latestCh.title} sudah ada di database.` });
-          summary.push({ slug: item.slug, chapter: latestCh.title, status: 'skipped' });
-          continue;
-        }
-
-        sendEvent('log', { message: `🚀 [NEW] Chapter belum ada di DB! Memulai proses scraping & upload...` });
-
-        // Upload Cover
-        if (mangaDetail.coverImage) {
-          const extFromUrl = (() => {
-            try { return path.extname(String(mangaDetail.coverImage).split('?')[0]) || '.webp'; }
-            catch { return '.webp'; }
-          })();
-          const key = `komiknesia/${scraper.SOURCE}/manga/${mangaDetail.slug}/cover${extFromUrl}`;
-          try {
-            const r2Url = await uploadUrlToS3(key, mangaDetail.coverImage);
-            mangaDetail.coverImage = r2Url;
-          } catch (e) {
-            sendEvent('log', { message: `⚠️ Gagal upload cover: ${e.message}` });
+          // KONDISI SKIP JIKA CHAPTER SUDAH ADA DI DB
+          const exists = await checkChapterExists(localSlug);
+          if (exists) {
+            sendEvent('log', { message: `⏭️ [SKIP] Chapter ${ch.title} sudah ada di database.` });
+            summary.push({ slug: item.slug, chapter: ch.title, status: 'skipped' });
+            continue;
           }
-        }
 
-        // Scrape Chapter Images
-        const images = await scraper.scrapeChapterImages(latestCh.url, item.url);
-        sendEvent('log', { message: `🖼️ Ditemukan ${images.length} gambar untuk ${latestCh.title}. Memulai upload ke R2...` });
+          sendEvent('log', { message: `🚀 [NEW] Processing ${ch.title}...` });
 
-        const r2Images = [];
-        for (let j = 0; j < images.length; j++) {
-          const imgUrl = images[j];
-          const ext = path.extname(imgUrl.split('?')[0]) || '.webp';
-          const key = `komiknesia/${scraper.SOURCE}/chapters/${mangaDetail.slug}/${latestCh.slug}/pages/${j + 1}${ext}`;
-          
-          try {
-            const r2Url = await uploadUrlToS3(key, imgUrl);
-            r2Images.push(r2Url);
-          } catch (e) {
-            sendEvent('log', { message: `⚠️ Gagal upload hal ${j+1}: ${e.message}` });
-            r2Images.push(imgUrl);
+          // Upload Cover (hanya 1x jika belum diupload)
+          if (mangaDetail.coverImage && !mangaDetail.coverImage.includes('data.cdnesia.my.id')) {
+            const extFromUrl = (() => {
+              try { return path.extname(String(mangaDetail.coverImage).split('?')[0]) || '.webp'; }
+              catch { return '.webp'; }
+            })();
+            const key = `komiknesia/${scraper.SOURCE}/manga/${mangaDetail.slug}/cover${extFromUrl}`;
+            try {
+              const r2Url = await uploadUrlToS3(key, mangaDetail.coverImage);
+              mangaDetail.coverImage = r2Url;
+            } catch (e) {
+              sendEvent('log', { message: `⚠️ Gagal upload cover: ${e.message}` });
+            }
           }
+
+          // Scrape Chapter Images
+          const images = await scraper.scrapeChapterImages(ch.url, item.url);
+          sendEvent('log', { message: `🖼️ Ditemukan ${images.length} gambar untuk ${ch.title}. Memulai upload ke R2...` });
+
+          const r2Images = [];
+          for (let j = 0; j < images.length; j++) {
+            const imgUrl = images[j];
+            const ext = path.extname(imgUrl.split('?')[0]) || '.webp';
+            const key = `komiknesia/${scraper.SOURCE}/chapters/${mangaDetail.slug}/${ch.slug}/pages/${j + 1}${ext}`;
+            
+            try {
+              const r2Url = await uploadUrlToS3(key, imgUrl);
+              r2Images.push(r2Url);
+            } catch (e) {
+              sendEvent('log', { message: `⚠️ Gagal upload hal ${j+1}: ${e.message}` });
+              r2Images.push(imgUrl);
+            }
+          }
+
+          const processedChapter = {
+            slug: ch.slug,
+            title: ch.title,
+            chapterNumber: ch.chapterNumber,
+            images: r2Images,
+          };
+
+          // Sync ke Backend DB
+          sendEvent('log', { message: `📡 Mengirim Chapter ${ch.title} ke backend...` });
+          const payload = {
+            source: scraper.SOURCE,
+            mangaDetail: {
+              title: mangaDetail.title,
+              slug: mangaDetail.slug,
+              alternativeName: mangaDetail.alternativeName,
+              synopsis: mangaDetail.synopsis,
+              contentType: mangaDetail.contentType,
+              rating: mangaDetail.rating,
+              coverImage: mangaDetail.coverImage,
+              genres: mangaDetail.genres,
+            },
+            chapters: [processedChapter],
+          };
+
+          await sendToBackend(payload);
+          sendEvent('log', { message: `✅ SUKSES! Chapter ${ch.title} disinkronkan ke DB.\n` });
+          summary.push({ slug: item.slug, chapter: ch.title, status: 'synced' });
         }
-
-        const processedChapter = {
-          slug: latestCh.slug,
-          title: latestCh.title,
-          chapterNumber: latestCh.chapterNumber,
-          images: r2Images,
-        };
-
-        // Sync ke Backend DB
-        sendEvent('log', { message: `📡 Mengirim Chapter ${latestCh.title} ke backend...` });
-        const payload = {
-          source: scraper.SOURCE,
-          mangaDetail: {
-            title: mangaDetail.title,
-            slug: mangaDetail.slug,
-            alternativeName: mangaDetail.alternativeName,
-            synopsis: mangaDetail.synopsis,
-            contentType: mangaDetail.contentType,
-            rating: mangaDetail.rating,
-            coverImage: mangaDetail.coverImage,
-            genres: mangaDetail.genres,
-          },
-          chapters: [processedChapter],
-        };
-
-        await sendToBackend(payload);
-        sendEvent('log', { message: `✅ SUKSES! Chapter ${latestCh.title} disinkronkan ke DB.\n` });
-        summary.push({ slug: item.slug, chapter: latestCh.title, status: 'synced' });
 
       } catch (err) {
         sendEvent('log', { message: `❌ Gagal memproses ${item.title}: ${err.message}\n` });

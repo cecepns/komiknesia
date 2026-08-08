@@ -14,7 +14,7 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState([]);
   
-  const [mode, setMode] = useState('single'); // 'single' | 'bulk'
+  const [mode, setMode] = useState('single'); // 'single' | 'bulk' | 'cron'
   const [bulkInput, setBulkInput] = useState('');
   const [bulkSelectionMode, setBulkSelectionMode] = useState('all'); // 'all' | 'latest'
   const [syncPerChapter, setSyncPerChapter] = useState(false);
@@ -25,6 +25,16 @@ function App() {
   const [fetchedMangaList, setFetchedMangaList] = useState([]);
   const [selectedMangas, setSelectedMangas] = useState([]);
   
+  // CRONJOB AUTOMATION STATES
+  const [isCronRunning, setIsCronRunning] = useState(false);
+  const [cronTasks, setCronTasks] = useState([
+    { id: 1, name: 'Page 1 - Last Chapter', url: 'https://01.apkomik.com/manga/?page=1&order=update', intervalMinutes: 20, chapterLimit: 1, lastRun: null, nextRun: null, enabled: true },
+    { id: 2, name: 'Page 1 - 5 Chapter Terakhir', url: 'https://01.apkomik.com/manga/?page=1&order=update', intervalMinutes: 40, chapterLimit: 5, lastRun: null, nextRun: null, enabled: true },
+    { id: 3, name: 'Page 2 - Full Chapter (Mencegah Kelolosan)', url: 'https://01.apkomik.com/manga/?page=2&order=update', intervalMinutes: 60, chapterLimit: 9999, lastRun: null, nextRun: null, enabled: true },
+  ]);
+  const [activeCronTask, setActiveCronTask] = useState(null);
+  const cronTimerRef = useRef(null);
+
   const logEndRef = useRef(null);
 
   const fetchPreview = async () => {
@@ -234,6 +244,100 @@ function App() {
     });
   };
 
+  // --- CRON ENGINE FUNCTIONS ---
+  const executeCronTask = (task) => {
+    return new Promise((resolve) => {
+      setActiveCronTask(task.name);
+      setLogs(prev => [...prev, { type: 'info', text: `\n⏰ [CRON START] Executing Task: "${task.name}"` }]);
+      setLogs(prev => [...prev, { type: 'normal', text: `   URL: ${task.url} | Limit: ${task.chapterLimit === 9999 ? 'FULL' : task.chapterLimit + ' chapter'}` }]);
+
+      const url = `http://localhost:4000/api/auto-scrap-latest?source=${source}&pageUrl=${encodeURIComponent(task.url)}&chapterLimit=${task.chapterLimit}`;
+      const eventSource = new EventSource(url);
+
+      eventSource.addEventListener('log', (e) => {
+        const data = JSON.parse(e.data);
+        setLogs(prev => [...prev, { type: 'normal', text: `  → ${data.message}` }]);
+      });
+
+      eventSource.addEventListener('error', (e) => {
+        const data = JSON.parse(e.data);
+        setLogs(prev => [...prev, { type: 'error', text: `  ❌ ${data.message}` }]);
+        eventSource.close();
+        setActiveCronTask(null);
+        resolve();
+      });
+
+      eventSource.addEventListener('done', (e) => {
+        eventSource.close();
+        setActiveCronTask(null);
+        const now = new Date();
+        const next = new Date(now.getTime() + task.intervalMinutes * 60 * 1000);
+        
+        setCronTasks(prev => prev.map(t => t.id === task.id ? {
+          ...t,
+          lastRun: now.toLocaleTimeString(),
+          nextRun: next.toLocaleTimeString()
+        } : t));
+
+        setLogs(prev => [...prev, { type: 'success', text: `  ✅ [CRON DONE] Task "${task.name}" selesai. Run berikutnya: ${next.toLocaleTimeString()}` }]);
+        resolve();
+      });
+    });
+  };
+
+  const toggleCronScheduler = () => {
+    if (isCronRunning) {
+      if (cronTimerRef.current) clearInterval(cronTimerRef.current);
+      cronTimerRef.current = null;
+      setIsCronRunning(false);
+      setActiveCronTask(null);
+      setLogs(prev => [...prev, { type: 'error', text: '🛑 Cronjob otomatis DINOAKTIFKAN (OFF).' }]);
+    } else {
+      setIsCronRunning(true);
+      const now = Date.now();
+      
+      // Update initial nextRun times
+      setCronTasks(prev => prev.map(t => ({
+        ...t,
+        nextRun: new Date(now + t.intervalMinutes * 60 * 1000).toLocaleTimeString()
+      })));
+
+      setLogs(prev => [...prev, { type: 'success', text: '🚀 Cronjob otomatis DIAKTIFKAN (ON). Berjalan di latar belakang...' }]);
+
+      // Cek timer setiap 10 detik
+      cronTimerRef.current = setInterval(async () => {
+        const currentTasks = cronTasksRef.current;
+        const nowMs = Date.now();
+
+        for (const task of currentTasks) {
+          if (!task.enabled) continue;
+          
+          // Jika belum pernah jalan ATAU sudah waktunya jalan
+          const intervalMs = task.intervalMinutes * 60 * 1000;
+          if (!task.lastRunTimestamp || (nowMs - task.lastRunTimestamp >= intervalMs)) {
+            task.lastRunTimestamp = nowMs;
+            await executeCronTask(task);
+          }
+        }
+      }, 10000);
+    }
+  };
+
+  const cronTasksRef = useRef(cronTasks);
+  useEffect(() => {
+    cronTasksRef.current = cronTasks;
+  }, [cronTasks]);
+
+  useEffect(() => {
+    return () => {
+      if (cronTimerRef.current) clearInterval(cronTimerRef.current);
+    };
+  }, []);
+
+  const toggleTaskEnabled = (id) => {
+    setCronTasks(prev => prev.map(t => t.id === id ? { ...t, enabled: !t.enabled } : t));
+  };
+
   useEffect(() => {
     if (logEndRef.current) {
       logEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -258,6 +362,13 @@ function App() {
           disabled={isProcessing}
         >
           Bulk Manga (Multiple)
+        </button>
+        <button 
+          className={`tab-btn ${mode === 'cron' ? 'active' : ''}`} 
+          onClick={() => setMode('cron')}
+          style={{ position: 'relative' }}
+        >
+          ⏰ Auto Cronjob {isCronRunning && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3fb950', display: 'inline-block', marginLeft: 6 }}></span>}
         </button>
       </div>
       
@@ -378,7 +489,7 @@ function App() {
             </div>
           )}
         </>
-      ) : (
+      ) : mode === 'bulk' ? (
         <>
           <div className="form-group">
             <label>Metode Input Bulk</label>
@@ -497,6 +608,79 @@ function App() {
             >
               {isProcessing ? <><span className="loader" style={{borderColor: 'rgba(255,255,255,0.2)', borderTopColor: '#fff'}}></span> Sedang Memproses Bulk...</> : 'Start Bulk Scraping & Upload'}
             </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="preview-card" style={{ display: 'block', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h2 style={{ margin: 0 }}>⏰ Cronjob Otomatis (Local PC)</h2>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#8b949e' }}>
+                  Jalankan scrapper otomatis di latar belakang. Bisa dinyalakan pagi & dimatikan malam hari.
+                </p>
+              </div>
+              <button 
+                onClick={toggleCronScheduler}
+                style={{ 
+                  width: 'auto', 
+                  padding: '0.6rem 1.5rem', 
+                  fontSize: '1rem', 
+                  fontWeight: 'bold',
+                  background: isCronRunning ? '#da3633' : '#238636',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                {isCronRunning ? '🛑 MATIKAN CRONJOB (OFF)' : '🚀 NYALAKAN CRONJOB (ON)'}
+              </button>
+            </div>
+
+            {activeCronTask && (
+              <div style={{ padding: '0.75rem 1rem', background: 'rgba(56, 139, 253, 0.15)', border: '1px solid #1f6feb', borderRadius: 6, marginBottom: '1rem', color: '#58a6ff' }}>
+                ⚙️ <strong>Sedang Memproses:</strong> {activeCronTask}...
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+              {cronTasks.map(task => (
+                <div 
+                  key={task.id} 
+                  style={{ 
+                    padding: '1rem', 
+                    background: task.enabled ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.01)', 
+                    border: '1px solid var(--glass-border)', 
+                    borderRadius: 8,
+                    opacity: task.enabled ? 1 : 0.5
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={task.enabled} 
+                        onChange={() => toggleTaskEnabled(task.id)}
+                        style={{ width: 'auto', margin: 0 }}
+                      />
+                      <strong style={{ fontSize: '1rem', color: '#f0f6fc' }}>{task.name}</strong>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.6rem', borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: '#c9d1d9' }}>
+                      Setiap {task.intervalMinutes} menit
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '0.85rem', color: '#8b949e', marginLeft: '1.75rem' }}>
+                    <div><strong>URL:</strong> <code style={{ color: '#58a6ff' }}>{task.url}</code></div>
+                    <div><strong>Limit Chapter:</strong> {task.chapterLimit === 9999 ? 'Full Chapter (Semua)' : `${task.chapterLimit} Chapter Terakhir`}</div>
+                    <div style={{ marginTop: '0.35rem', color: '#c9d1d9' }}>
+                      <span>Terakhir Jalan: {task.lastRun || '-'}</span> | <span style={{ color: '#3fb950' }}>Jadwal Berikutnya: {task.nextRun || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </>
       )}
