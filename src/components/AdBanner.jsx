@@ -21,7 +21,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
 
   if (layout === 'carousel') {
     return (
-      <div className={`flex overflow-x-auto pb-2 scrollbar-hide ${className}`}>
+      <div className={`flex overflow-x-auto gap-0 scrollbar-hide w-full ${className}`}>
         {ads.map((ad) => {
           const alt = ad.image_alt || ad.title || 'Advertisement';
           const title = ad.title || ad.image_alt || '';
@@ -29,7 +29,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
             <div
               key={ad.id}
               onClick={() => handleAdClick(ad)}
-              className={`flex-shrink-0 cursor-pointer transition-transform duration-300 hover:scale-20 ${
+              className={`flex-shrink-0 w-full cursor-pointer transition-opacity duration-200 ${
                 ad.link_url ? 'hover:opacity-90' : ''
               }`}
               title={title || undefined}
@@ -38,8 +38,8 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
                 src={getImageUrl(ad.image)}
                 alt={alt}
                 title={title || undefined}
-                className="rounded-lg shadow-md"
-                wrapperClassName="w-full"
+                className="w-full h-auto object-contain block"
+                wrapperClassName="w-full block"
               />
             </div>
           );
@@ -48,7 +48,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
     );
   }
 
-  // Grid layout
+  // Grid layout - flush edge to edge with 0 gap
   const gridCols = {
     1: 'grid-cols-1',
     2: 'grid-cols-1 sm:grid-cols-2',
@@ -59,7 +59,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
   };
 
   return (
-    <div className={`grid ${gridCols[columns] || gridCols[1]} ${className}`}>
+    <div className={`grid gap-0 w-full overflow-hidden ${gridCols[columns] || gridCols[1]} ${className}`}>
       {ads.map((ad) => {
         const alt = ad.image_alt || ad.title || 'Advertisement';
         const title = ad.title || ad.image_alt || '';
@@ -67,7 +67,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
           <div
             key={ad.id}
             onClick={() => handleAdClick(ad)}
-            className={`cursor-pointer transition-transform duration-300 hover:scale-20 ${
+            className={`relative w-full overflow-hidden cursor-pointer transition-opacity duration-200 ${
               ad.link_url ? 'hover:opacity-90' : ''
             }`}
             title={title || undefined}
@@ -76,8 +76,8 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
               src={getImageUrl(ad.image)}
               alt={alt}
               title={title || undefined}
-              className="w-full rounded-lg shadow-md"
-              wrapperClassName="w-full"
+              className="w-full h-auto object-contain block"
+              wrapperClassName="w-full block"
             />
           </div>
         );
@@ -87,6 +87,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
 };
 
 export default AdBanner;
+
 
 
 

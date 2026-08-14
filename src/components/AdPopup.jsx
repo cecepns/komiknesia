@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Crown } from 'lucide-react';
 import { getImageUrl, apiClient } from '../utils/api';
 import LazyImage from './LazyImage';
 import { useAds } from '../hooks/useAds';
@@ -20,8 +21,8 @@ const sanitizeRedirectUrls = (value) => {
 
 /**
  * AdPopup component to display popup ads.
- * - Desktop: 3 kiri, 3 kanan (6 ads). Mobile: 6 items dengan jarak.
- * - Durasi no-skip & jadwal interval diatur dari admin (settings API).
+ * - Background hitam dengan hiasan bintang-bintang warna merah.
+ * - Bar kontrol: Kiri = Angka countdown (abu-abu), Tengah = Skip Iklan (merah), Kanan = Beli Premium (emas).
  */
 const AdPopup = () => {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ const AdPopup = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // ignore storage write failures (private mode, quota, etc)
+      // ignore storage write failures
     }
   };
 
@@ -200,13 +201,8 @@ const AdPopup = () => {
   }, [pendingPremiumRedirect, canClose, navigate]);
 
   const handlePremiumClick = () => {
-    if (canClose) {
-      setIsOpen(false);
-      navigate('/premium');
-      return;
-    }
-
-    setPendingPremiumRedirect(true);
+    setIsOpen(false);
+    navigate('/premium');
   };
 
   const handleSkipAd = () => {
@@ -256,27 +252,76 @@ const AdPopup = () => {
   const displayAds = ads;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-slate-800">
-      <div className="absolute inset-0 flex flex-col justify-center w-full h-full">
-        <div className="flex-shrink-0 relative flex items-center justify-center px-4 py-3 bg-slate-800 z-10">
-          {!canClose ? (
-            <span className="absolute left-4 text-white text-sm font-medium">
-              Close in {countdown}
+    <div className="fixed inset-0 z-[9999] flex flex-col w-full h-full bg-black overflow-hidden select-none">
+      {/* Background Ornamen Bintang Merah */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
+        <div className="absolute inset-0 bg-black" />
+        {Array.from({ length: 40 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute animate-pulse"
+            style={{
+              top: `${(i * 19) % 100}%`,
+              left: `${(i * 29 + (i % 7) * 13) % 100}%`,
+              opacity: 0.35 + (i % 5) * 0.12,
+              animationDuration: `${1.8 + (i % 5) * 0.6}s`,
+              animationDelay: `${(i % 4) * 0.4}s`,
+            }}
+          >
+            <svg
+              width={8 + (i % 4) * 5}
+              height={8 + (i % 4) * 5}
+              viewBox="0 0 24 24"
+              fill={i % 3 === 0 ? '#ef4444' : i % 3 === 1 ? '#ff2244' : '#dc2626'}
+              className="drop-shadow-[0_0_8px_rgba(239,68,68,0.9)]"
+            >
+              <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
+            </svg>
+          </div>
+        ))}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,rgba(0,0,0,0.85)_100%)]" />
+      </div>
+
+      <div className="relative z-10 flex flex-col w-full h-full">
+        {/* Header Bar Control */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-black/90 backdrop-blur-md border-b border-red-950/80 shadow-lg">
+          {/* Kiri: Countdown angka (Abu-abu) */}
+          <div className="flex items-center">
+            <span className="inline-flex items-center rounded-lg bg-gray-800/90 border border-gray-700/80 px-3 py-1.5 text-xs font-semibold text-gray-300 font-mono shadow-sm">
+              {!canClose ? `close in ${countdown}` : 'close in 0'}
             </span>
-          ) : null}
+          </div>
+
+          {/* Tengah: Skip Iklan (Merah) */}
           <button
             type="button"
             onClick={handleSkipAd}
-            className="inline-flex items-center justify-center rounded-xl border border-sky-500/25 bg-sky-600 px-8 py-2.5 text-sm font-semibold text-white shadow-[0_5px_0_0_#0369a1] transition-all hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-[0_6px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_3px_0_0_#0369a1]"
+            disabled={!canClose}
+            className={`inline-flex items-center justify-center rounded-xl bg-red-600 px-6 py-2 text-sm font-bold text-white shadow-[0_4px_0_0_#991b1b] transition-all hover:-translate-y-0.5 hover:bg-red-500 hover:shadow-[0_5px_0_0_#991b1b] active:translate-y-0.5 active:shadow-[0_2px_0_0_#991b1b] ${
+              !canClose ? 'opacity-60 cursor-not-allowed' : ''
+            }`}
           >
             Skip Iklan
           </button>
+
+          {/* Kanan: Beli Premium (Emas) */}
+          <button
+            type="button"
+            onClick={handlePremiumClick}
+            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 px-4 py-2 text-sm font-extrabold text-slate-950 shadow-[0_4px_0_0_#b45309] border border-amber-300 transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0.5 active:shadow-[0_2px_0_0_#b45309]"
+          >
+            <Crown className="mr-1.5 h-4 w-4 fill-current text-slate-950" />
+            Beli Premium
+          </button>
         </div>
 
-        <div className="grid md:grid-cols-2 p-4 gap-2">
-          {displayAds.map((ad, index) => (
-            <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} />
-          ))}
+        {/* Ads Content Container */}
+        <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center">
+          <div className="grid md:grid-cols-2 gap-3 w-full max-w-5xl max-h-full">
+            {displayAds.map((ad, index) => (
+              <AdItem key={ad.id || index} ad={ad} onAdClick={handleAdClick} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -289,7 +334,7 @@ function AdItem({ ad, onAdClick }) {
   return (
     <div
       onClick={() => onAdClick(ad)}
-      className={`relative rounded-lg overflow-hidden flex items-center justify-center min-h-0 ${
+      className={`relative overflow-hidden flex items-center justify-center min-h-0 ${
         ad.link_url ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
       }`}
       title={title || undefined}
@@ -298,7 +343,7 @@ function AdItem({ ad, onAdClick }) {
         src={getImageUrl(ad.image)}
         alt={alt}
         title={title || undefined}
-        className="w-full h-full object-cover"
+        className="w-full h-auto max-h-[75vh] object-contain block"
         wrapperClassName="w-full h-full min-h-0 flex items-center justify-center"
       />
     </div>

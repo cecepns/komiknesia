@@ -44,8 +44,8 @@ const Populer = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const { ads: topAds } = useAds("library-top");
-  const { ads: footerAds } = useAds("library-footer");
+  const { ads: popularTopAds } = useAds("popular-top");
+  const { ads: popularFooterAds } = useAds("popular-footer");
 
   const setType = (type) => {
     const next = new URLSearchParams(searchParams);
@@ -95,11 +95,9 @@ const Populer = () => {
 
       <div className="container mx-auto px-4 max-w-7xl">
         {/* Top Ads */}
-        {topAds && topAds.length > 0 && (
-          <div className="mb-6 flex flex-col gap-4">
-            {topAds.map((ad) => (
-              <AdBanner key={ad.id} ad={ad} />
-            ))}
+        {popularTopAds && popularTopAds.length > 0 && (
+          <div className="mb-6">
+            <AdBanner ads={popularTopAds} layout="grid" columns={2} />
           </div>
         )}
 
@@ -243,11 +241,9 @@ const Populer = () => {
         )}
 
         {/* Footer Ads */}
-        {footerAds && footerAds.length > 0 && (
-          <div className="mt-8 flex flex-col gap-4">
-            {footerAds.map((ad) => (
-              <AdBanner key={ad.id} ad={ad} />
-            ))}
+        {popularFooterAds && popularFooterAds.length > 0 && (
+          <div className="mt-8">
+            <AdBanner ads={popularFooterAds} layout="grid" columns={2} />
           </div>
         )}
       </div>

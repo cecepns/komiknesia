@@ -1,0 +1,1 @@
+ALTER TABLE ads ADD COLUMN display_order INT NOT NULL DEFAULT 0 AFTER expired_at;

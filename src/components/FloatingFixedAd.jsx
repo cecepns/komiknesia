@@ -78,10 +78,10 @@ const FloatingFixedAd = ({ position, ads }) => {
 
   return (
     <div
-      className={`pointer-events-auto fixed left-1/2 z-[48] flex w-[min(100vw-1rem,728px)] max-w-full -translate-x-1/2 flex-col gap-2 items-center px-2 ${
+      className={`pointer-events-auto fixed left-1/2 z-[48] flex w-[min(100vw,728px)] max-w-full -translate-x-1/2 flex-col gap-0 items-center px-0 ${
         isTop
           ? "top-14 md:top-20"
-          : "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-3"
+          : "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-0"
       }`}
     >
       {!isTop && closeBtn}
@@ -110,7 +110,7 @@ const FloatingFixedAd = ({ position, ads }) => {
                   }
                 : undefined
             }
-            className={`w-full overflow-hidden bg-slate-900/40 shadow-2xl ring-1 ring-white/20 dark:bg-black/50 rounded-xl ${
+            className={`w-full overflow-hidden bg-black/60 shadow-2xl ${
               ad.link_url ? "cursor-pointer" : ""
             }`}
           >
@@ -118,7 +118,7 @@ const FloatingFixedAd = ({ position, ads }) => {
               src={getImageUrl(ad.image)}
               alt={ad.image_alt || ad.title || "Iklan"}
               title={ad.title || ad.image_alt || undefined}
-              className="max-h-[100px] w-full object-contain sm:max-h-[120px] md:max-h-[140px]"
+              className="w-full h-auto max-h-[120px] sm:max-h-[150px] md:max-h-[180px] object-contain block"
               wrapperClassName="block w-full"
             />
           </div>

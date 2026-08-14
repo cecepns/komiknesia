@@ -10,8 +10,8 @@ const invalidateCache = () => adsListCache.invalidate();
 const index = async (req, res) => {
   try {
     const ads = await adsListCache.wrap('list', async () => {
-      // Tanpa LIMIT supaya UI edit bisa mengambil ad mana pun.
-      const [rows] = await db.execute('SELECT * FROM ads ORDER BY created_at DESC');
+      // Order by display_order ASC, then created_at DESC
+      const [rows] = await db.execute('SELECT * FROM ads ORDER BY display_order ASC, created_at DESC');
       return rows;
     });
     res.json(ads);
@@ -23,13 +23,14 @@ const index = async (req, res) => {
 
 const store = async (req, res) => {
   try {
-    const { link_url, ads_type, expired_at } = req.body;
+    const { link_url, ads_type, expired_at, display_order } = req.body;
     const image = req.file ? `/uploads/${req.file.filename}` : null;
     const expiredAt = expired_at && String(expired_at).trim() ? expired_at : null;
+    const orderVal = display_order !== undefined && display_order !== null ? parseInt(display_order, 10) || 0 : 0;
 
     const [result] = await db.execute(
-      'INSERT INTO ads (image, link_url, ads_type, expired_at) VALUES (?, ?, ?, ?)',
-      [image, link_url, ads_type, expiredAt]
+      'INSERT INTO ads (image, link_url, ads_type, expired_at, display_order) VALUES (?, ?, ?, ?, ?)',
+      [image, link_url, ads_type, expiredAt, orderVal]
     );
 
     invalidateCache();
@@ -44,11 +45,13 @@ const store = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { link_url, ads_type, image_alt, title, expired_at } = req.body;
+    const { link_url, ads_type, image_alt, title, expired_at, display_order } = req.body;
 
-    let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?, expired_at = ?';
     const expiredAt = expired_at && String(expired_at).trim() ? expired_at : null;
-    const params = [link_url || null, ads_type || null, image_alt || null, title || null, expiredAt];
+    const orderVal = display_order !== undefined && display_order !== null ? parseInt(display_order, 10) || 0 : 0;
+
+    let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?, expired_at = ?, display_order = ?';
+    const params = [link_url || null, ads_type || null, image_alt || null, title || null, expiredAt, orderVal];
 
     if (req.file) {
       query += ', image = ?';

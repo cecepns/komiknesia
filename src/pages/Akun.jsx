@@ -486,7 +486,7 @@ const Akun = () => {
               </p>
             </div>
 
-            <div className="mb-6 flex gap-1 rounded-2xl border border-slate-200/90 bg-slate-100/80 p-1 dark:border-cyan-200/15 dark:bg-[#0a2d52]/60">
+            <div className="mb-6 flex gap-1 rounded-2xl border border-slate-200/90 bg-slate-100/80 p-1 dark:border-red-900/30 dark:bg-gray-800/80">
               <button
                 type="button"
                 onClick={() => {
@@ -494,8 +494,8 @@ const Akun = () => {
                 }}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
                   mode === 'login'
-                    ? 'bg-white text-sky-800 shadow-[0_4px_0_0_#38bdf8] dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#42a5f5]'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-cyan-200/70 dark:hover:text-cyan-100'
+                    ? 'bg-red-600 text-white shadow-md'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
                 }`}
               >
                 <LogIn className="h-4 w-4 shrink-0" />
@@ -508,8 +508,8 @@ const Akun = () => {
                 }}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
                   mode === 'register'
-                    ? 'bg-white text-sky-800 shadow-[0_4px_0_0_#38bdf8] dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#42a5f5]'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-cyan-200/70 dark:hover:text-cyan-100'
+                    ? 'bg-red-600 text-white shadow-md'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
                 }`}
               >
                 <UserPlus className="h-4 w-4 shrink-0" />
@@ -522,7 +522,7 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-login-username"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
                     Username atau email
                   </label>
@@ -531,7 +531,7 @@ const Akun = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
                     placeholder="Username atau email"
                     required
                     disabled={loading}
@@ -541,7 +541,7 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-login-password"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
                     Password
                   </label>
@@ -550,18 +550,18 @@ const Akun = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
                     placeholder="••••••••"
                     required
                     disabled={loading}
                     autoComplete="current-password"
                   />
                 </div>
-                <p className="text-center text-sm leading-relaxed text-slate-600 dark:text-cyan-100/75">
+                <p className="text-center text-sm leading-relaxed text-slate-600 dark:text-gray-300">
                   Lupa sandi?{' '}
                   <Link
                     to="/contact"
-                    className="font-semibold text-sky-700 underline decoration-sky-600/40 underline-offset-2 transition-colors hover:text-sky-800 dark:text-cyan-300 dark:decoration-cyan-400/40 dark:hover:text-cyan-200"
+                    className="font-semibold text-red-600 underline decoration-red-600/40 underline-offset-2 transition-colors hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                   >
                     Hubungi admin
                   </Link>
@@ -570,7 +570,7 @@ const Akun = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-600 py-3.5 text-[15px] font-semibold text-white shadow-[0_7px_0_0_#0369a1] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_4px_0_0_#0369a1] disabled:pointer-events-none disabled:opacity-55 dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#42a5f5] dark:hover:shadow-[0_8px_0_0_#60a5fa] dark:active:shadow-[0_4px_0_0_#3b82f6] dark:hover:brightness-110"
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
                 >
                   {loading ? (
                     <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
@@ -585,7 +585,7 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-reg-name"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
                     Nama
                   </label>
@@ -594,7 +594,7 @@ const Akun = () => {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
                     placeholder="Nama lengkap"
                     required
                     disabled={loading}
@@ -604,7 +604,7 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-reg-username"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
                     Username (unik, min. 3 karakter)
                   </label>
@@ -613,7 +613,7 @@ const Akun = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
                     placeholder="username_unik"
                     required
                     minLength={3}
@@ -624,7 +624,7 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-reg-email"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
                     Email (opsional)
                   </label>
@@ -633,7 +633,7 @@ const Akun = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
                     placeholder="email@contoh.com"
                     disabled={loading}
                     autoComplete="email"
@@ -642,7 +642,7 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-reg-password"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
                     Password
                   </label>
@@ -651,7 +651,7 @@ const Akun = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
                     placeholder="••••••••"
                     required
                     disabled={loading}
@@ -661,7 +661,7 @@ const Akun = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-600 py-3.5 text-[15px] font-semibold text-white shadow-[0_7px_0_0_#0369a1] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_4px_0_0_#0369a1] disabled:pointer-events-none disabled:opacity-55 dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#42a5f5] dark:hover:shadow-[0_8px_0_0_#60a5fa] dark:active:shadow-[0_4px_0_0_#3b82f6] dark:hover:brightness-110"
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
                 >
                   {loading ? (
                     <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
