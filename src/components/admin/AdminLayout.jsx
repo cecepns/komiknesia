@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3, Star, Mail, LogOut, CloudDownload, Users, ReceiptText, Sticker, Database } from 'lucide-react';
+import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3, Star, Mail, LogOut, CloudDownload, Users, ReceiptText, Sticker, Database, Link2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminLayout = ({ children }) => {
@@ -18,6 +18,7 @@ const AdminLayout = ({ children }) => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/admin/dashboard' },
     { id: 'categories', label: 'Kategori', icon: List, path: '/admin/categories' },
     { id: 'manga', label: 'Manga', icon: BookOpen, path: '/admin/manga' },
+    { id: 'quick-links', label: 'Quick Links', icon: Link2, path: '/admin/quick-links' },
     { id: 'ikiru-sync', label: 'Ikiru Sync', icon: CloudDownload, path: '/admin/ikiru-sync' },
     { id: 'apkomik-sync', label: 'Apkomik Sync', icon: CloudDownload, path: '/admin/apkomik-sync' },
     { id: 'migration', label: 'Manga Migration', icon: Database, path: '/admin/migration' },

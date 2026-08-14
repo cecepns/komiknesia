@@ -123,3 +123,56 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+/* ── Chapter Card Rotating Border Animation ── */
+/* Uses JS-driven --border-angle + conic-gradient + mask (same technique as scythescans) */
+
+.chapter-border-anim {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Rotating conic-gradient border, masked to show only the border outline */
+.chapter-border-anim::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px; /* border thickness */
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    transparent 0%,
+    transparent 75%,
+    var(--border-glow-color) 95%,
+    #ffffff 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Subtle static border for shape definition */
+.chapter-border-anim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid var(--border-static-color);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.chapter-border-unlocked {
+  --border-glow-color: #dc2626;
+  --border-static-color: rgba(220, 38, 38, 0.15);
+}
+
+.chapter-border-locked {
+  --border-glow-color: #fbbf24;
+  --border-static-color: rgba(251, 191, 36, 0.15);
+}

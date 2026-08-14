@@ -21,25 +21,25 @@ import { removeFromHistory, clearHistory } from "../utils/historyManager";
 import { useAuth } from "../contexts/AuthContext";
 import ChapterAccessLink from "../components/ChapterAccessLink";
 
-/** Tombol — selaras Content.jsx (chip + bayangan offset) */
+/** Tombol — selaras Tema Merah (chip + bayangan offset) */
 const contentBtnTrans = "transition-all duration-200";
-const contentFilterInactive = `rounded-xl border ${contentBtnTrans} border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800`;
-const contentFilterActive = `rounded-xl border ${contentBtnTrans} border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#0369a1] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#38bdf8]`;
-const contentCtaPrimary = `rounded-xl border border-sky-500/25 bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_5px_0_0_#0369a1] ${contentBtnTrans} hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_3px_0_0_#0369a1] dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_5px_0_0_#0ea5e9] dark:hover:shadow-[0_6px_0_0_#38bdf8] dark:active:shadow-[0_3px_0_0_#0369a1] dark:hover:brightness-110`;
+const contentFilterInactive = `rounded-xl border ${contentBtnTrans} border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-red-900/60 dark:bg-[#0b1628] dark:text-gray-200 dark:shadow-[0_3px_0_0_#7f1d1d] dark:hover:border-red-600/80 dark:hover:bg-[#0f1d35]`;
+const contentFilterActive = `rounded-xl border ${contentBtnTrans} border-red-500/50 bg-red-600 text-white shadow-[0_4px_0_0_#991b1b] dark:border-red-400/40 dark:bg-red-600 dark:text-white dark:shadow-[0_4px_0_0_#991b1b]`;
+const contentCtaPrimary = `rounded-xl border border-red-500/25 bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_5px_0_0_#991b1b] ${contentBtnTrans} hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_#991b1b] active:translate-y-0.5 active:shadow-[0_3px_0_0_#991b1b] dark:border-red-400/20 dark:bg-red-600 dark:text-white dark:shadow-[0_5px_0_0_#991b1b] dark:hover:shadow-[0_6px_0_0_#dc2626] dark:active:shadow-[0_3px_0_0_#991b1b] dark:hover:brightness-110`;
 const paginationBtnClass = `${contentFilterInactive} px-4 py-2.5 text-sm font-semibold disabled:pointer-events-none disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:shadow-[0_3px_0_0_#e2e8f0] dark:disabled:opacity-40`;
 const dangerIconBtnClass = `rounded-xl border border-red-500/40 bg-red-600 p-2 text-white shadow-[0_3px_0_0_rgb(127,29,29)] transition-all duration-200 hover:brightness-105 active:translate-y-px active:shadow-[0_2px_0_0_rgb(127,29,29)] dark:border-red-500/30 dark:shadow-[0_3px_0_0_rgb(69,10,10)]`;
 const dangerOutlineBtnClass = `inline-flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_0_0_rgb(127,29,29)] ${contentBtnTrans} hover:brightness-105 active:translate-y-px active:shadow-[0_2px_0_0_rgb(127,29,29)] dark:shadow-[0_4px_0_0_rgb(69,10,10)]`;
 const linkChipBtnClass = `max-w-fit rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 shadow-[0_2px_0_0_#e2e8f0] transition-all duration-200 hover:-translate-y-px hover:bg-white hover:shadow-[0_3px_0_0_#cbd5e1] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_2px_0_0_#1e3a5f] dark:hover:bg-primary-700 md:text-sm`;
 
-const VALID_TABS = ["bookmark", "readlist", "history", "popular"];
+const VALID_TABS = ["bookmark", "readlist", "history"];
 const VALID_POPULAR_TYPES = ["manga", "manhwa", "manhua"];
 
 const Library = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
-  const tabParam = (searchParams.get("tab") || "popular").toLowerCase();
-  const activeTabId = VALID_TABS.includes(tabParam) ? tabParam : "popular";
+  const tabParam = (searchParams.get("tab") || "bookmark").toLowerCase();
+  const activeTabId = VALID_TABS.includes(tabParam) ? tabParam : "bookmark";
   const popularParam = (searchParams.get("popular") || "manga").toLowerCase();
   const activePopularType = VALID_POPULAR_TYPES.includes(popularParam)
     ? popularParam
@@ -50,15 +50,10 @@ const Library = () => {
       bookmark: "bookmark",
       readlist: "readlist",
       history: "history",
-      popular: "popular",
     };
-    const nextTab = map[id] || "popular";
+    const nextTab = map[id] || "bookmark";
     const next = new URLSearchParams(searchParams);
     next.set("tab", nextTab);
-    if (nextTab !== "popular") next.delete("popular");
-    else if (!VALID_POPULAR_TYPES.includes((next.get("popular") || "").toLowerCase())) {
-      next.set("popular", "manga");
-    }
     setSearchParams(next);
   };
 
@@ -319,7 +314,6 @@ const Library = () => {
   };
 
   const tabs = [
-    { id: "popular", label: "Populer", icon: Flame },
     { id: "bookmark", label: "Bookmark", icon: Bookmark },
     { id: "readlist", label: "Readlist", icon: ListChecks },
     { id: "history", label: "History", icon: History },
@@ -346,7 +340,7 @@ const Library = () => {
         className={`sticky top-[70px] md:top-[75px] z-30 bg-white dark:bg-transparent border-b border-gray-200 dark:border-white/10 ${libraryTopAds.length === 0 ? "" : "mt-8"}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-4 gap-2 py-2">
+          <div className="grid grid-cols-3 gap-2 py-2 max-w-xl mx-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTabId === tab.id;

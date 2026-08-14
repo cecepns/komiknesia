@@ -70,6 +70,7 @@ const Home = () => {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === "accepted") {
+          toast.success("Terima kasih telah memasang aplikasi KomikNesia!");
           setDeferredPrompt(null);
           return;
         }
@@ -77,7 +78,9 @@ const Home = () => {
         console.error("Error triggering PWA prompt:", err);
       }
     }
-    setInstallModalOpen(true);
+    toast.info("Silakan gunakan menu browser (titik 3) -> 'Tambahkan ke Layar Utama' / 'Pasang Aplikasi'", {
+      autoClose: 5000,
+    });
   };
 
   const copyShareLink = async (context = "default") => {
@@ -115,6 +118,13 @@ const Home = () => {
   const { ads: homeFooterAds } = useAds("home-footer");
   const { ads: homePopupAds } = useAds("home-popup");
 
+  const [quickLinks, setQuickLinks] = useState([
+    { id: 'discord', title: 'Discord', href: 'https://discord.gg/dgC22PSm9h', icon: 'Discord', is_active: true },
+    { id: 'facebook', title: 'Facebook', href: 'https://facebook.com', icon: 'Facebook', is_active: true },
+    { id: 'instagram', title: 'Instagram', href: 'https://instagram.com', icon: 'Instagram', is_active: true },
+    { id: 'download_app', title: 'Download App', href: 'https://02.komiknesia.asia/', icon: 'Download', is_active: true }
+  ]);
+
   useEffect(() => {
     apiClient
       .getSettings()
@@ -123,10 +133,78 @@ const Home = () => {
         if (Number.isFinite(v) && [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].includes(v)) {
           setHomePopupIntervalMinutes(v);
         }
+        if (s && Array.isArray(s.quick_links) && s.quick_links.length > 0) {
+          const activeOnly = s.quick_links.filter(item => item.is_active !== false);
+          if (activeOnly.length > 0) setQuickLinks(activeOnly);
+        }
       })
       .catch(() => {})
       .finally(() => setPopupSettingsReady(true));
   }, []);
+
+  const renderHomeIcon = (iconName) => {
+    if (iconName === 'Discord') {
+      return (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]">
+          <img src={discordIcon} alt="" className="h-3.5 w-3.5" aria-hidden />
+        </div>
+      );
+    }
+    if (iconName === 'Facebook') {
+      return (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#1877F2] text-white">
+          <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+        </div>
+      );
+    }
+    if (iconName === 'TikTok') {
+      return (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black text-white border border-gray-700">
+          <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 3 15.68 6.34 6.34 0 0 0 9.33 22a6.34 6.34 0 0 0 6.34-6.34V9.37a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.85-.8z"/>
+          </svg>
+        </div>
+      );
+    }
+    if (iconName === 'Instagram') {
+      return (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white">
+          <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+          </svg>
+        </div>
+      );
+    }
+    if (iconName === 'Crown') {
+      return (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white">
+          <Crown className="h-3.5 w-3.5" />
+        </div>
+      );
+    }
+    if (iconName === 'Download' || iconName === 'Smartphone') {
+      return (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+          <Smartphone className="h-3.5 w-3.5" />
+        </div>
+      );
+    }
+    if (iconName === 'Heart') {
+      return (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-500 text-white">
+          <Heart className="h-3.5 w-3.5" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-600 text-white">
+        <ExternalLink className="h-3.5 w-3.5" />
+      </div>
+    );
+  };
 
   useEffect(() => {
     AOS.init({
@@ -240,90 +318,65 @@ const Home = () => {
           />
         </div>
 
+        {/* Simple Link Badges Section per Client Feedback */}
         <div
-          className="mx-auto mb-8 grid max-w-4xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4"
+          className="mx-auto mb-8 grid grid-cols-2 gap-2 max-w-3xl sm:grid-cols-3 md:flex md:flex-wrap md:items-center md:justify-center md:gap-3"
           data-aos="fade-up"
           data-aos-delay="120"
         >
-          <Link
-            to="/premium"
-            className="group flex w-full items-center gap-4 rounded-2xl border border-amber-500/30 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-amber-400/50 hover:bg-slate-800/95 md:p-5"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-inner md:h-14 md:w-14">
-              <Crown className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-semibold text-white md:text-lg">Premium</p>
-              <p className="text-sm text-slate-400">
-                Tanpa iklan, bonus point, dan fitur eksklusif
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-amber-300" aria-hidden />
-          </Link>
+          {quickLinks.map((item) => {
+            const isDownloadApp = item.id === 'download_app' || item.icon === 'Download' || item.icon === 'Smartphone' || item.title.toLowerCase().includes('download');
 
-          <button
-            type="button"
-            onClick={() => setSharePopupOpen(true)}
-            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-inner md:h-14 md:w-14">
-              <Share2 className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-semibold text-white md:text-lg">Bagikan KomikNesia</p>
-              <p className="text-sm text-slate-400">
-                Salin tautan, WhatsApp, X, TikTok, Telegram
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-300" aria-hidden />
-          </button>
+            const btnCls = "inline-flex items-center gap-1.5 rounded-lg border border-gray-800 bg-[#0f172a]/90 px-2 py-1.5 shadow-sm transition-all hover:scale-105 hover:border-gray-700 hover:bg-[#1e293b] md:px-2.5 md:py-1.5";
+            const txtCls = "text-[11px] font-semibold text-white sm:text-xs truncate";
+            const iconCls = "";
 
-          <a
-            href={discordInviteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-inner md:h-14 md:w-14">
-              <img src={discordIcon} alt="" className="h-7 w-7" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-semibold text-white md:text-lg">Discord</p>
-              <p className="text-sm text-slate-400">Gabung komunitas pembaca</p>
-            </div>
-            <ExternalLink className="h-5 w-5 shrink-0 text-slate-500 group-hover:text-slate-300" aria-hidden />
-          </a>
+            if (isDownloadApp) {
+              return (
+                <button
+                  key={item.id || item.title}
+                  type="button"
+                  onClick={handleInstallClick}
+                  className={`${btnCls} ${iconCls}`}
+                >
+                  {renderHomeIcon(item.icon)}
+                  <span className={txtCls}>
+                    {item.title}
+                  </span>
+                </button>
+              );
+            }
 
-          <a
-            href={donateUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-inner md:h-14 md:w-14">
-              <Heart className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-semibold text-white md:text-lg">Donasi</p>
-              <p className="text-sm text-slate-400">Dukung lewat Saweria</p>
-            </div>
-            <ExternalLink className="h-5 w-5 shrink-0 text-slate-500 group-hover:text-slate-300" aria-hidden />
-          </a>
+            if (item.is_internal) {
+              return (
+                <Link
+                  key={item.id || item.title}
+                  to={item.href}
+                  className={`${btnCls} ${iconCls}`}
+                >
+                  {renderHomeIcon(item.icon)}
+                  <span className={txtCls}>
+                    {item.title}
+                  </span>
+                </Link>
+              );
+            }
 
-          <button
-            type="button"
-            onClick={handleInstallClick}
-            className="group flex w-full items-center gap-4 rounded-2xl border border-slate-700/90 bg-[#111827] p-4 text-left shadow-md transition-all hover:border-slate-600 hover:bg-slate-800/95 md:p-5"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-inner md:h-14 md:w-14">
-              <Smartphone className="h-6 w-6 md:h-7 md:w-7" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-semibold text-white md:text-lg">Unduh aplikasi</p>
-              <p className="text-sm text-slate-400">Pasang ke layar utama (PWA)</p>
-            </div>
-            <ChevronRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-300" aria-hidden />
-          </button>
+            return (
+              <a
+                key={item.id || item.title}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${btnCls} ${iconCls}`}
+              >
+                {renderHomeIcon(item.icon)}
+                <span className={txtCls}>
+                  {item.title}
+                </span>
+              </a>
+            );
+          })}
         </div>
 
         {sharePopupOpen && (
@@ -412,51 +465,6 @@ const Home = () => {
                   <span>Telegram</span>
                 </TelegramShareButton>
               </div>
-            </div>
-          </div>
-        )}
-
-        {installModalOpen && (
-          <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Cara memasang aplikasi"
-          >
-            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-white">Cara memasang aplikasi</h3>
-                <button
-                  type="button"
-                  onClick={() => setInstallModalOpen(false)}
-                  className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
-                  aria-label="Tutup"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <p className="mb-4 text-sm leading-relaxed text-slate-300">
-                Ikuti langkah berikut untuk memasang aplikasi web KomikNesia di perangkat kamu (tampilan seperti aplikasi):
-              </p>
-
-              <ol className="mb-6 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-slate-200">
-                <li>Ketuk ikon menu (titik tiga) di pojok browser.</li>
-                <li>
-                  Pilih <strong className="text-white">Pasang aplikasi</strong> atau{" "}
-                  <strong className="text-white">Tambahkan ke Layar utama</strong> (nama menu bisa sedikit berbeda
-                  tergantung browser).
-                </li>
-                <li>Ikuti petunjuk di layar hingga pemasangan selesai.</li>
-              </ol>
-
-              <button
-                type="button"
-                onClick={() => setInstallModalOpen(false)}
-                className="w-full rounded-xl bg-sky-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-500"
-              >
-                Tutup
-              </button>
             </div>
           </div>
         )}

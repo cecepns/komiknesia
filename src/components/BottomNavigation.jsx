@@ -1,16 +1,14 @@
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { mainNavigationItems, resolveActiveNavId } from '../config/navigation';
-import { useScrollHide } from '../hooks/useScrollHide';
 
 const BOTTOM_OFFSET = 'calc(1rem + env(safe-area-inset-bottom, 0px))';
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const hidden = useScrollHide();
 
-  const activeTab = resolveActiveNavId(location.pathname);
+  const activeTab = resolveActiveNavId(location.pathname, location.search);
 
   const handleNavigation = (item) => {
     if (item.comingSoon) return;
@@ -20,11 +18,7 @@ const BottomNavigation = () => {
   const nav = (
     <nav
       aria-label="Navigasi utama"
-      className={`md:hidden fixed inset-x-3 z-50 will-change-transform transition-[transform,opacity] duration-300 ease-out ${
-        hidden
-          ? 'translate-y-[calc(100%+1.5rem)] opacity-0 pointer-events-none'
-          : 'translate-y-0 opacity-100'
-      }`}
+      className="md:hidden fixed inset-x-3 z-50 transition-all duration-300 ease-out"
       style={{ bottom: BOTTOM_OFFSET }}
     >
       <div className="overflow-hidden rounded-2xl border border-gray-700/70 bg-gray-900/95 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-md dark:border-gray-800/90 dark:bg-gray-950/95">

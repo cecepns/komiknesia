@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import MangaDetail from "./pages/MangaDetail";
 import ChapterReader from "./pages/ChapterReader";
 import Library from "./pages/Library";
+import Populer from "./pages/Populer";
 import Content from "./pages/Content";
 import Contact from "./pages/Contact";
 import Akun from "./pages/Akun";
@@ -51,6 +52,14 @@ function AppContent() {
           element={
             <Layout>
               <Library />
+            </Layout>
+          }
+        />
+        <Route
+          path="/populer"
+          element={
+            <Layout>
+              <Populer />
             </Layout>
           }
         />

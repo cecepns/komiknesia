@@ -20,11 +20,78 @@ const parseAllowedInt = (raw, allowed, fallback) => {
   return Number.isFinite(v) && allowed.includes(v) ? v : fallback;
 };
 
+const DEFAULT_QUICK_LINKS = [
+  {
+    id: "read_manga",
+    title: "Baca Manga",
+    subtitle: "Ribuan judul manga, manhwa & manhua gratis",
+    href: "https://v1.komiknesiaku.com/",
+    icon: "BookOpen",
+    badge: "Hot",
+    is_active: true,
+    is_internal: false
+  },
+  {
+    id: "premium",
+    title: "Upgrade ke Premium",
+    subtitle: "Baca tanpa iklan & fitur eksklusif",
+    href: "https://v1.komiknesiaku.com/premium",
+    icon: "Crown",
+    is_active: true,
+    is_internal: false
+  },
+  {
+    id: "discord",
+    title: "Join Discord",
+    subtitle: "Komunitas pembaca & update info terbaru",
+    href: "https://discord.gg/dgC22PSm9h",
+    icon: "Discord",
+    is_active: true,
+    is_internal: false
+  },
+  {
+    id: "facebook",
+    title: "Facebook",
+    subtitle: "Halaman resmi KomikNesia di Facebook",
+    href: "https://facebook.com",
+    icon: "Facebook",
+    is_active: true,
+    is_internal: false
+  },
+  {
+    id: "tiktok",
+    title: "TikTok",
+    subtitle: "Follow TikTok KomikNesia",
+    href: "https://tiktok.com",
+    icon: "TikTok",
+    is_active: true,
+    is_internal: false
+  },
+  {
+    id: "instagram",
+    title: "Instagram",
+    subtitle: "Follow Instagram KomikNesia",
+    href: "https://instagram.com",
+    icon: "Instagram",
+    is_active: true,
+    is_internal: false
+  },
+  {
+    id: "download_app",
+    title: "Download App",
+    subtitle: "Baca manga lebih nyaman di aplikasi",
+    href: "https://02.komiknesia.asia/",
+    icon: "Download",
+    is_active: true,
+    is_internal: false
+  }
+];
+
 const show = async (req, res) => {
   try {
     const payload = await settingsPublicCache.wrap('public', async () => {
       const [rows] = await db.execute(
-        "SELECT `key`, `value` FROM settings WHERE `key` IN ('popup_ads_interval_minutes', 'home_popup_interval_minutes', 'popup_ads_initial_delay_minutes', 'popup_ads_unlock_seconds', 'redirect_script_urls', 'cdn_domain')"
+        "SELECT `key`, `value` FROM settings WHERE `key` IN ('popup_ads_interval_minutes', 'home_popup_interval_minutes', 'popup_ads_initial_delay_minutes', 'popup_ads_unlock_seconds', 'redirect_script_urls', 'cdn_domain', 'quick_links')"
       );
       const map = Object.fromEntries((rows || []).map((r) => [r.key, r.value]));
       const popupAds = parseInt(map.popup_ads_interval_minutes, 10);
@@ -43,6 +110,19 @@ const show = async (req, res) => {
           redirectScriptUrls = DEFAULT_REDIRECT_SCRIPT_URLS;
         }
       }
+
+      let quickLinks = DEFAULT_QUICK_LINKS;
+      if (typeof map.quick_links === 'string' && map.quick_links.trim()) {
+        try {
+          const parsed = JSON.parse(map.quick_links);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            quickLinks = parsed;
+          }
+        } catch {
+          quickLinks = DEFAULT_QUICK_LINKS;
+        }
+      }
+
       return {
         popup_ads_interval_minutes:
           Number.isFinite(popupAds) && POPUP_INTERVAL_OPTIONS.includes(popupAds) ? popupAds : 20,
@@ -60,6 +140,7 @@ const show = async (req, res) => {
         ),
         redirect_script_urls: redirectScriptUrls,
         cdn_domain: map.cdn_domain || 'https://cdn.komiknesia.net',
+        quick_links: quickLinks,
       };
     });
     res.json(payload);
@@ -71,6 +152,7 @@ const show = async (req, res) => {
       popup_ads_initial_delay_minutes: 5,
       popup_ads_unlock_seconds: 10,
       redirect_script_urls: DEFAULT_REDIRECT_SCRIPT_URLS,
+      quick_links: DEFAULT_QUICK_LINKS,
     });
   }
 };
@@ -84,6 +166,7 @@ const update = async (req, res) => {
       popup_ads_unlock_seconds,
       redirect_script_urls,
       cdn_domain,
+      quick_links,
     } = req.body;
 
     const setIntervalKey = (key, value, allowed) => {
@@ -131,6 +214,13 @@ const update = async (req, res) => {
       );
       const { refreshCdnDomain } = require('../utils/s3Upload');
       await refreshCdnDomain().catch(() => {});
+    }
+
+    if (quick_links !== undefined && Array.isArray(quick_links)) {
+      await db.execute(
+        'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
+        ['quick_links', JSON.stringify(quick_links), JSON.stringify(quick_links)]
+      );
     }
 
     settingsPublicCache.invalidate();
