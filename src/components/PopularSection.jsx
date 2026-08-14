@@ -162,7 +162,7 @@ const PopularSection = () => {
   }
 
   return (
-    <div className="mb-12 relative">
+    <div className="mb-12 relative min-h-[440px] sm:min-h-[490px] md:min-h-[520px]">
       {/* Centered Pill Header Badge "Popular Today" */}
       <div className="flex justify-center mb-6">
         <div className="inline-flex items-center gap-2 rounded-full border border-pink-500/30 bg-[#12121a] px-5 py-2 shadow-lg shadow-pink-950/20 backdrop-blur-md">
@@ -197,7 +197,7 @@ const PopularSection = () => {
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        {/* Horizontal Drag/Scroll Container */}
+        {/* Horizontal Drag/Scroll Container - Fixed height container to prevent desktop layout glitch */}
         <div
           ref={scrollRef}
           onScroll={updateActiveIndexOnScroll}
@@ -205,7 +205,7 @@ const PopularSection = () => {
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
-          className="flex items-center gap-4 sm:gap-6 overflow-x-auto py-6 px-[28vw] sm:px-[36vw] md:px-[40vw] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center gap-4 sm:gap-6 overflow-x-auto py-8 px-[28vw] sm:px-[36vw] md:px-[40vw] h-[370px] sm:h-[410px] md:h-[450px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
         >
           {manga.map((item, index) => {
             const isActive = index === activeIndex;
@@ -222,14 +222,14 @@ const PopularSection = () => {
                     scrollToCard(index);
                   }
                 }}
-                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center ${
+                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[310px] sm:h-[350px] md:h-[380px] ${
                   isActive
                     ? "w-[54vw] max-w-[220px] sm:w-[220px] md:w-[250px] z-10 scale-105 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/50 opacity-100 cursor-pointer"
                     : "w-[30vw] max-w-[130px] sm:w-[160px] md:w-[185px] z-0 scale-90 opacity-60 hover:opacity-85 border-white/10 cursor-pointer"
                 }`}
               >
                 {/* Cover */}
-                <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-950">
+                <div className="relative aspect-[3/4] w-full flex-1 overflow-hidden bg-gray-950">
                   <LazyImage
                     src={getImageUrl(item.cover)}
                     alt={item.title}
@@ -240,7 +240,7 @@ const PopularSection = () => {
                 </div>
 
                 {/* Card Footer Info */}
-                <div className="p-2.5 sm:p-3.5 flex flex-col justify-between bg-[#1e1e26] min-h-[85px] sm:min-h-[95px]">
+                <div className="p-2.5 sm:p-3.5 flex flex-col justify-between bg-[#1e1e26] h-[85px] sm:h-[95px] shrink-0">
                   <div>
                     <h3 className={`font-bold line-clamp-1 leading-snug transition-colors ${isActive ? 'text-white text-xs sm:text-sm md:text-base' : 'text-gray-300 text-[11px] sm:text-xs'}`}>
                       {item.title}
