@@ -78,13 +78,12 @@ const ProjectSection = () => {
     <>
       {projectTopBanner}
     <div className="mb-12">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 p-2 rounded-lg">
-            <FolderKanban className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Project
+      {/* Title Bar with Red Background */}
+      <div className="w-full bg-red-600 dark:bg-red-600 text-white rounded-xl px-4 py-3 mb-6 flex items-center justify-between shadow-lg shadow-red-900/20">
+        <div className="flex items-center gap-3">
+          <FolderKanban className="h-5 w-5 sm:h-6 sm:w-6 text-white shrink-0" />
+          <h2 className="text-base sm:text-lg font-bold tracking-wide uppercase text-white">
+            PROJEK
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -95,34 +94,19 @@ const ProjectSection = () => {
                 prev === "vertical" ? "horizontal" : "vertical",
               )
             }
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center ${contentFilterInactive}`}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/20 text-white transition-colors hover:bg-black/40"
             title={
               cardLayout === "vertical"
                 ? "Tampilan baris (horizontal)"
                 : "Tampilan grid (vertical)"
             }
-            aria-label={
-              cardLayout === "vertical"
-                ? "Ubah ke tampilan baris"
-                : "Ubah ke tampilan grid"
-            }
+            aria-label="Ubah mode tampilan"
           >
             {cardLayout === "vertical" ? (
-              <List className="h-5 w-5" aria-hidden />
+              <List className="h-4 w-4" aria-hidden />
             ) : (
-              <LayoutGrid className="h-5 w-5" aria-hidden />
+              <LayoutGrid className="h-4 w-4" aria-hidden />
             )}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate("/content?project=true")}
-            className={`group inline-flex items-center gap-1.5 ${contentCtaClearAll}`}
-          >
-            Lihat semua
-            <ChevronRight
-              className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5"
-              aria-hidden
-            />
           </button>
         </div>
       </div>
@@ -138,7 +122,7 @@ const ProjectSection = () => {
           <div
             key={manga.id}
             onClick={() => navigate(`/komik/${manga.slug}`)}
-            className={`bg-white dark:bg-primary-900 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer ${
+            className={`bg-[#0f172a] rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border border-gray-800/80 hover:border-red-900/50 ${
               cardLayout === "horizontal"
                 ? "flex flex-row gap-3 p-3 sm:gap-4 sm:p-4"
                 : "flex flex-col"
@@ -175,11 +159,11 @@ const ProjectSection = () => {
             >
               {!!manga.hot && (
                 <div
-                  className={`max-w-fit rounded-full bg-red-500/90 px-2 py-1 backdrop-blur-sm ${
+                  className={`max-w-fit rounded-full bg-red-600/90 px-2 py-0.5 backdrop-blur-sm ${
                     cardLayout === "vertical" ? "mb-1" : "mb-0"
                   }`}
                 >
-                  <span className="text-xs font-bold text-white">HOT</span>
+                  <span className="text-[10px] font-bold text-white">HOT</span>
                 </div>
               )}
               <div
@@ -195,7 +179,7 @@ const ProjectSection = () => {
                   className="block w-full"
                 >
                   <h3
-                    className={`font-bold line-clamp-2 text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 ${
+                    className={`font-bold line-clamp-2 text-white transition-colors hover:text-red-400 ${
                       cardLayout === "vertical" ? "text-sm" : "text-sm sm:text-base"
                     }`}
                   >
@@ -218,7 +202,7 @@ const ProjectSection = () => {
                       chapter={chapter}
                       to={`/view/${chapter.slug}`}
                       onClick={(e) => e.stopPropagation()}
-                      accent="violet"
+                      accent="red"
                       className={
                         cardLayout === "vertical"
                           ? "text-xs"
@@ -231,7 +215,7 @@ const ProjectSection = () => {
                 </div>
               ) : (
                 <div
-                  className={`text-xs text-gray-500 dark:text-gray-500 ${
+                  className={`text-xs text-gray-500 ${
                     cardLayout === "vertical" ? "mb-1 mt-auto" : ""
                   }`}
                 >
@@ -241,6 +225,18 @@ const ProjectSection = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Button "Lihat Semuanya" at bottom of ProjectSection */}
+      <div className="mt-6 flex justify-center">
+        <button
+          type="button"
+          onClick={() => navigate("/content?project=true")}
+          className="group inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-red-900/30 hover:bg-red-700 hover:scale-105 active:scale-95 transition-all"
+        >
+          Lihat semua
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </button>
       </div>
     </div>
     </>

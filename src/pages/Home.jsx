@@ -13,6 +13,7 @@ import {
 import ProjectSection from "../components/ProjectSection";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
+import ComicTypeSection from "../components/ComicTypeSection";
 import HeroBannerSection from "../components/HeroBannerSection";
 import FeaturedBanner from "../components/FeaturedBanner";
 import "../styles/featured-banner.css";
@@ -476,19 +477,9 @@ const Home = () => {
           </div>
         )}
 
-        {/* Project (is_project) — hidden when empty */}
-        <div data-aos="fade-up" data-aos-delay="175">
-          <ProjectSection />
-        </div>
-
-        {/* Update Section */}
-        <div data-aos="fade-up" data-aos-delay="200">
-          <UpdateSection />
-        </div>
-
-        {/* Populer Ads - 4 ads above Popular Section */}
+        {/* 1. Populer Section */}
         {populerAds.length > 0 && (
-          <div className="mb-8" data-aos="fade-up" data-aos-delay="250">
+          <div className="mb-8" data-aos="fade-up" data-aos-delay="150">
             <AdBanner
               ads={populerAds}
               layout="grid"
@@ -496,10 +487,45 @@ const Home = () => {
             />
           </div>
         )}
-
-        {/* Popular Section */}
-        <div data-aos="fade-up" data-aos-delay="300">
+        <div data-aos="fade-up" data-aos-delay="175">
           <PopularSection />
+        </div>
+
+        {/* 2. Projek Section */}
+        <div data-aos="fade-up" data-aos-delay="200">
+          <ProjectSection />
+        </div>
+
+        {/* 3. Last Update Section */}
+        <div data-aos="fade-up" data-aos-delay="225">
+          <UpdateSection />
+        </div>
+
+        {/* 4. Manhwa Section */}
+        <div data-aos="fade-up" data-aos-delay="250">
+          <ComicTypeSection
+            title="MANHWA"
+            type="manhwa"
+            targetUrl="/content?type=Manhwa"
+          />
+        </div>
+
+        {/* 5. Manga Section */}
+        <div data-aos="fade-up" data-aos-delay="275">
+          <ComicTypeSection
+            title="MANGA"
+            type="manga"
+            targetUrl="/content?type=Manga"
+          />
+        </div>
+
+        {/* 6. Manhua Section */}
+        <div data-aos="fade-up" data-aos-delay="300">
+          <ComicTypeSection
+            title="MANHUA"
+            type="manhua"
+            targetUrl="/content?type=Manhua"
+          />
         </div>
 
         {/* Home Footer Ads - 2 ads at bottom */}

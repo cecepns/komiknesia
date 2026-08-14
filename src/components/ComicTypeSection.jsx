@@ -1,24 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
-import { useIsMdUp } from "../hooks/useIsMdUp";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Clock, LayoutGrid, List } from "lucide-react";
+import { ChevronRight, LayoutGrid, List, BookOpen, Layers, Sparkles } from "lucide-react";
 import LazyImage from "./LazyImage";
-import AdBanner from "./AdBanner";
-import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
 import { getChapterTimeAgo } from "../utils/chapterTime";
 import ChapterAccessLink from "./ChapterAccessLink";
-
-/** Sama dengan Content.jsx — filter tidak aktif & CTA sky */
-const contentBtnTrans = "transition-all duration-200";
-const contentFilterInactive = `rounded-xl border ${contentBtnTrans} border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800`;
-const contentCtaClearAll = `rounded-xl border border-sky-500/25 bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_5px_0_0_#0369a1] ${contentBtnTrans} hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_3px_0_0_#0369a1] dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_5px_0_0_#0ea5e9] dark:hover:shadow-[0_6px_0_0_#38bdf8] dark:active:shadow-[0_3px_0_0_#0369a1] dark:hover:brightness-110`;
+import { useIsMdUp } from "../hooks/useIsMdUp";
 
 const MOBILE_HOME_SECTION_CAP = 14;
 
-const UpdateSection = () => {
+const sectionIcons = {
+  manhwa: Sparkles,
+  manga: BookOpen,
+  manhua: Layers,
+};
+
+const ComicTypeSection = ({ title, type, targetUrl }) => {
   const navigate = useNavigate();
-  const { ads: updateTopAds } = useAds("update-top");
   const [mangaList, setMangaList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardLayout, setCardLayout] = useState("vertical");
@@ -26,30 +24,22 @@ const UpdateSection = () => {
 
   const visibleManga = useMemo(
     () => (isMdUp ? mangaList : mangaList.slice(0, MOBILE_HOME_SECTION_CAP)),
-    [isMdUp, mangaList],
+    [isMdUp, mangaList]
   );
 
   useEffect(() => {
-    fetchUpdateManga();
-  }, []);
+    const fetchManga = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.getContents({
+          page: 1,
+          per_page: 15,
+          type: type,
+          orderBy: "Update",
+        });
 
-  const fetchUpdateManga = async () => {
-    try {
-      setLoading(true);
-      // Use /api/contents endpoint with page=1, orderBy=Update, per_page=14
-      const response = await apiClient.getContents({
-        page: 1,
-        per_page: 15,
-        orderBy: "Update",
-      });
-
-      // Extract manga data from response
-      const mangaData = response.data || [];
-
-      // Transform to match expected format
-      const transformed = mangaData
-        .filter((manga) => manga.lastChapters && manga.lastChapters.length > 0)
-        .map((manga) => ({
+        const mangaData = response?.data || [];
+        const transformed = mangaData.map((manga) => ({
           id: manga.id,
           title: manga.title,
           slug: manga.slug,
@@ -62,29 +52,32 @@ const UpdateSection = () => {
           lastChapters: manga.lastChapters || [],
         }));
 
-      setMangaList(transformed);
-    } catch (error) {
-      console.error("Error fetching update manga:", error);
-      setMangaList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        setMangaList(transformed);
+      } catch (error) {
+        console.error(`Error fetching ${type} manga:`, error);
+        setMangaList([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchManga();
+  }, [type]);
+
+  const IconComponent = sectionIcons[type.toLowerCase()] || BookOpen;
+
+  if (!loading && mangaList.length === 0) {
+    return null;
+  }
 
   return (
-    <>
-      {updateTopAds.length > 0 && (
-        <div className="mb-8">
-          <AdBanner ads={updateTopAds} layout="grid" columns={2} />
-        </div>
-      )}
     <div className="mb-12">
-      {/* Title Bar with Red Background */}
+      {/* Title Bar with Red Background - Styled like reference image */}
       <div className="w-full bg-red-600 dark:bg-red-600 text-white rounded-xl px-4 py-3 mb-6 flex items-center justify-between shadow-lg shadow-red-900/20">
         <div className="flex items-center gap-3">
-          <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white shrink-0" />
+          <IconComponent className="h-5 w-5 sm:h-6 sm:w-6 text-white shrink-0" />
           <h2 className="text-base sm:text-lg font-bold tracking-wide uppercase text-white">
-            LAST UPDATE
+            {title}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -112,17 +105,11 @@ const UpdateSection = () => {
         </div>
       </div>
 
-      {/* Manga Grid */}
+      {/* Grid or List of Comics */}
       {loading ? (
         <div className="text-center py-12 bg-gray-900/60 rounded-xl border border-gray-800">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-500 mx-auto"></div>
-          <p className="text-gray-400 mt-4 text-sm">Memuat...</p>
-        </div>
-      ) : mangaList.length === 0 ? (
-        <div className="text-center py-12 bg-gray-900/60 rounded-xl border border-gray-800">
-          <p className="text-gray-400">
-            Tidak ada manga update terbaru
-          </p>
+          <p className="text-gray-400 mt-4 text-sm">Memuat {title}...</p>
         </div>
       ) : (
         <div
@@ -142,7 +129,6 @@ const UpdateSection = () => {
                   : "flex flex-col"
               }`}
             >
-              {/* Cover Image */}
               <div
                 className={
                   cardLayout === "vertical"
@@ -157,7 +143,6 @@ const UpdateSection = () => {
                   wrapperClassName="w-full h-full"
                 />
 
-                {/* Rating Badge */}
                 {manga.rating > 0 && (
                   <div className="absolute top-2 left-2 h-8 w-8 rounded-full bg-yellow-500/95 text-white shadow-lg backdrop-blur-sm flex items-center justify-center">
                     <span className="text-[11px] font-bold leading-none">
@@ -167,7 +152,6 @@ const UpdateSection = () => {
                 )}
               </div>
 
-              {/* Info Section */}
               <div
                 className={
                   cardLayout === "vertical"
@@ -184,7 +168,6 @@ const UpdateSection = () => {
                     <span className="text-[10px] font-bold text-white">HOT</span>
                   </div>
                 )}
-                {/* Title */}
                 <div
                   className={
                     cardLayout === "vertical"
@@ -215,7 +198,7 @@ const UpdateSection = () => {
                         : "flex flex-col gap-1.5 sm:gap-2"
                     }
                   >
-                    {manga.lastChapters.slice(0, 3).map((chapter, chapterIndex) => (
+                    {manga.lastChapters.slice(0, 3).map((chapter) => (
                       <ChapterAccessLink
                         key={chapter.slug}
                         chapter={chapter}
@@ -247,11 +230,11 @@ const UpdateSection = () => {
         </div>
       )}
 
-      {/* Button "Lihat Semuanya" at bottom of UpdateSection */}
+      {/* Button "Lihat Semuanya" at bottom of section */}
       <div className="mt-6 flex justify-center">
         <button
           type="button"
-          onClick={() => navigate("/content")}
+          onClick={() => navigate(targetUrl)}
           className="group inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-red-900/30 hover:bg-red-700 hover:scale-105 active:scale-95 transition-all"
         >
           Lihat semua
@@ -259,8 +242,7 @@ const UpdateSection = () => {
         </button>
       </div>
     </div>
-    </>
   );
 };
 
-export default UpdateSection;
+export default ComicTypeSection;
