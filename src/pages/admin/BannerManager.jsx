@@ -9,6 +9,8 @@ const BannerManager = () => {
   const [saving, setSaving] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
 
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const [form, setForm] = useState({
     id: '',
     image: '',
@@ -23,6 +25,32 @@ const BannerManager = () => {
   useEffect(() => {
     fetchBanners();
   }, []);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Pilih file gambar yang valid');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingImage(true);
+    try {
+      const res = await apiClient.uploadBannerImage(formData);
+      if (res && res.image) {
+        setForm((prev) => ({ ...prev, image: res.image }));
+      }
+    } catch (err) {
+      console.error('Error uploading banner image:', err);
+      alert('Gagal mengunggah gambar banner: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const fetchBanners = async () => {
     try {
@@ -167,18 +195,55 @@ const BannerManager = () => {
 
         <form onSubmit={handleAddOrUpdate} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                URL Gambar Banner *
+                Upload Gambar Banner (S3 / Storage) *
               </label>
-              <input
-                type="text"
-                value={form.image}
-                onChange={(e) => setForm(prev => ({ ...prev, image: e.target.value }))}
-                placeholder="https://... atau /uploads/..."
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                required
-              />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <label className="cursor-pointer flex items-center justify-center px-4 py-2.5 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm text-gray-600 dark:text-gray-300 font-medium">
+                  {uploadingImage ? (
+                    <span>Mengunggah file gambar ke S3...</span>
+                  ) : (
+                    <>
+                      <ImageIcon className="h-4 w-4 mr-2 text-red-500" />
+                      <span>Upload File Gambar (S3 / R2)</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={uploadingImage}
+                  />
+                </label>
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={form.image}
+                    onChange={(e) => setForm((prev) => ({ ...prev, image: e.target.value }))}
+                    placeholder="Direktori/Key relatif (misal: banners/banner_xxx.webp atau /uploads/banners/...)"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm font-mono"
+                    required
+                  />
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Direktori yang disimpan di DB bersifat relatif. Domain CDN disesuaikan secara dinamis dari setting DB.
+              </p>
+              {form.image && (
+                <div className="mt-2.5 flex items-center gap-3">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Preview:</span>
+                  <div className="relative h-20 w-36 overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-900 shadow-sm">
+                    <LazyImage
+                      src={getImageUrl(form.image)}
+                      alt="Preview"
+                      className="h-full w-full object-cover"
+                      wrapperClassName="h-full w-full"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

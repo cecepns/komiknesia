@@ -238,6 +238,32 @@ const update = async (req, res) => {
     }
 
     if (hero_banners !== undefined && Array.isArray(hero_banners)) {
+      // Fetch existing hero_banners from DB to check for deleted files
+      try {
+        const [existingRows] = await db.execute("SELECT `value` FROM settings WHERE `key` = 'hero_banners' LIMIT 1");
+        if (existingRows && existingRows.length > 0 && existingRows[0].value) {
+          const oldBanners = JSON.parse(existingRows[0].value);
+          if (Array.isArray(oldBanners)) {
+            const newImages = new Set(hero_banners.map((b) => b.image).filter(Boolean));
+            const { deleteUrlFromS3 } = require('../utils/s3Upload');
+            const { deleteFile } = require('../utils/files');
+
+            for (const oldBanner of oldBanners) {
+              const oldImg = oldBanner.image || oldBanner.cover;
+              if (oldImg && !newImages.has(oldImg)) {
+                if (oldImg.startsWith('/uploads/')) {
+                  deleteFile(oldImg);
+                } else {
+                  deleteUrlFromS3(oldImg).catch(() => {});
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error unlinking old banner images:', err);
+      }
+
       await db.execute(
         'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
         ['hero_banners', JSON.stringify(hero_banners), JSON.stringify(hero_banners)]
@@ -252,7 +278,53 @@ const update = async (req, res) => {
   }
 };
 
+const uploadBanner = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file uploaded' });
+    }
+
+    const { uploadFileToS3, s3Client } = require('../utils/s3Upload');
+    const path = require('path');
+    const fs = require('fs');
+
+    const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
+    const filename = `banner_${Date.now()}_${Math.round(Math.random() * 1e6)}${ext}`;
+    const s3Key = `banners/${filename}`;
+
+    let savedPath = '';
+
+    if (s3Client) {
+      try {
+        await uploadFileToS3(s3Key, req.file.path, req.file.mimetype);
+        savedPath = s3Key;
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (s3Err) {
+        console.error('Error uploading banner to S3, falling back to local:', s3Err);
+      }
+    }
+
+    if (!savedPath) {
+      const bannersDir = path.join(__dirname, '..', 'uploads-komiknesia', 'banners');
+      if (!fs.existsSync(bannersDir)) {
+        fs.mkdirSync(bannersDir, { recursive: true });
+      }
+      const targetPath = path.join(bannersDir, filename);
+      fs.renameSync(req.file.path, targetPath);
+      savedPath = `/uploads/banners/${filename}`;
+    }
+
+    res.json({ image: savedPath });
+  } catch (error) {
+    console.error('Error uploading banner image:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   show,
   update,
+  uploadBanner,
 };

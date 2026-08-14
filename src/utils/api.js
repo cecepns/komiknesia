@@ -255,6 +255,24 @@ class APIClient {
     });
   }
 
+  async uploadBannerImage(formData) {
+    const token = this.getAuthToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/settings/upload-banner`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || errData.message || 'Upload banner gagal');
+    }
+    return await response.json();
+  }
+
   deleteAdminPremiumOrder(id) {
     return this.request(`/premium-orders/admin/${id}`, {
       method: 'DELETE',

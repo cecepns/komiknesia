@@ -322,7 +322,7 @@ const Home = () => {
           data-aos="fade-up"
           data-aos-delay="100"
         >
-          <HeroBannerSection banners={heroBanners.length > 0 ? heroBanners : bannerManga} />
+          <HeroBannerSection banners={heroBanners && heroBanners.length > 0 ? heroBanners : bannerManga} />
         </div>
 
         {/* Simple Link Badges Section per Client Feedback */}
