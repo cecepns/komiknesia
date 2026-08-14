@@ -64,6 +64,7 @@ const Populer = () => {
         limit: 100,
         per_page: 100,
         orderBy: "Popular",
+        type: activeType,
         type_id: typeIdMap[activeType],
       });
       if (res.status && res.data) {

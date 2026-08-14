@@ -1055,6 +1055,7 @@ class APIClient {
     if (params.status) queryParams.append('status', params.status);
     if (params.country) queryParams.append('country', params.country);
     if (params.type) queryParams.append('type', params.type);
+    if (params.type_id) queryParams.append('type_id', params.type_id.toString());
     if (params.orderBy) queryParams.append('orderBy', params.orderBy);
     if (params.project) queryParams.append('project', params.project);
     if (params.popularWindow) queryParams.append('popularWindow', params.popularWindow);

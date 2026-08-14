@@ -78,8 +78,8 @@ const FloatingFixedAd = ({ position, ads }) => {
 
   const containerClass = `pointer-events-auto fixed left-1/2 z-[48] flex flex-col items-center -translate-x-1/2 px-0 transition-all ${
     isTop
-      ? "top-14 md:top-20"
-      : "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-0"
+      ? "top-[56px] md:top-[64px]"
+      : "bottom-[calc(52px+env(safe-area-inset-bottom,0px))] md:bottom-0"
   } ${
     activeAds.length > 1
       ? "w-full max-w-[728px] md:max-w-[1000px]"
@@ -120,7 +120,7 @@ const FloatingFixedAd = ({ position, ads }) => {
                     }
                   : undefined
               }
-              className={`w-full overflow-hidden bg-black/60 shadow-2xl rounded-sm ${
+              className={`w-full aspect-[728/90] overflow-hidden bg-black/90 shadow-2xl ${
                 ad.link_url ? "cursor-pointer" : ""
               }`}
             >
@@ -128,8 +128,8 @@ const FloatingFixedAd = ({ position, ads }) => {
                 src={getImageUrl(ad.image)}
                 alt={ad.image_alt || ad.title || "Iklan"}
                 title={ad.title || ad.image_alt || undefined}
-                className="w-full h-auto max-h-[120px] sm:max-h-[150px] md:max-h-[180px] object-contain block"
-                wrapperClassName="block w-full"
+                className="w-full h-full object-fill block"
+                wrapperClassName="block w-full h-full"
               />
             </div>
           );
