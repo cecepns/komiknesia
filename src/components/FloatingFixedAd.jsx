@@ -76,54 +76,65 @@ const FloatingFixedAd = ({ position, ads }) => {
     </button>
   );
 
+  const containerClass = `pointer-events-auto fixed left-1/2 z-[48] flex flex-col items-center -translate-x-1/2 px-0 transition-all ${
+    isTop
+      ? "top-14 md:top-20"
+      : "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-0"
+  } ${
+    activeAds.length > 1
+      ? "w-full max-w-[728px] md:max-w-[1000px]"
+      : "w-full max-w-[728px]"
+  }`;
+
+  const adsWrapperClass =
+    activeAds.length > 1
+      ? "grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-0 w-full justify-items-center"
+      : "flex flex-col gap-0 w-full items-center";
+
   return (
-    <div
-      className={`pointer-events-auto fixed left-1/2 z-[48] flex w-[min(100vw,728px)] max-w-full -translate-x-1/2 flex-col gap-0 items-center px-0 ${
-        isTop
-          ? "top-14 md:top-20"
-          : "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-0"
-      }`}
-    >
+    <div className={containerClass}>
       {!isTop && closeBtn}
 
-      {activeAds.map((ad, index) => {
-        const adId = getAdId(ad, index);
-        const openLink = () => {
-          if (ad.link_url) {
-            window.open(ad.link_url, "_blank", "noopener,noreferrer");
-          }
-        };
-
-        return (
-          <div
-            key={adId}
-            role={ad.link_url ? "button" : undefined}
-            tabIndex={ad.link_url ? 0 : undefined}
-            onClick={ad.link_url ? openLink : undefined}
-            onKeyDown={
-              ad.link_url
-                ? (e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      openLink();
-                    }
-                  }
-                : undefined
+      <div className={adsWrapperClass}>
+        {activeAds.map((ad, index) => {
+          const adId = getAdId(ad, index);
+          const openLink = () => {
+            if (ad.link_url) {
+              window.open(ad.link_url, "_blank", "noopener,noreferrer");
             }
-            className={`w-full overflow-hidden bg-black/60 shadow-2xl ${
-              ad.link_url ? "cursor-pointer" : ""
-            }`}
-          >
-            <LazyImage
-              src={getImageUrl(ad.image)}
-              alt={ad.image_alt || ad.title || "Iklan"}
-              title={ad.title || ad.image_alt || undefined}
-              className="w-full h-auto max-h-[120px] sm:max-h-[150px] md:max-h-[180px] object-contain block"
-              wrapperClassName="block w-full"
-            />
-          </div>
-        );
-      })}
+          };
+
+          return (
+            <div
+              key={adId}
+              role={ad.link_url ? "button" : undefined}
+              tabIndex={ad.link_url ? 0 : undefined}
+              onClick={ad.link_url ? openLink : undefined}
+              onKeyDown={
+                ad.link_url
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openLink();
+                      }
+                    }
+                  : undefined
+              }
+              className={`w-full overflow-hidden bg-black/60 shadow-2xl rounded-sm ${
+                ad.link_url ? "cursor-pointer" : ""
+              }`}
+            >
+              <LazyImage
+                src={getImageUrl(ad.image)}
+                alt={ad.image_alt || ad.title || "Iklan"}
+                title={ad.title || ad.image_alt || undefined}
+                className="w-full h-auto max-h-[120px] sm:max-h-[150px] md:max-h-[180px] object-contain block"
+                wrapperClassName="block w-full"
+              />
+            </div>
+          );
+        })}
+      </div>
 
       {isTop && closeBtn}
     </div>
