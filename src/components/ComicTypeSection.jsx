@@ -123,7 +123,7 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
             <div
               key={manga.id}
               onClick={() => navigate(`/komik/${manga.slug}`)}
-              className={`bg-[#0f172a] rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border border-gray-800/80 hover:border-red-900/50 ${
+              className={`bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer ${
                 cardLayout === "horizontal"
                   ? "flex flex-row gap-3 p-3 sm:gap-4 sm:p-4"
                   : "flex flex-col"
@@ -161,11 +161,11 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
               >
                 {!!manga.hot && (
                   <div
-                    className={`max-w-fit rounded-full bg-red-600/90 px-2 py-0.5 backdrop-blur-sm ${
+                    className={`max-w-fit rounded-full bg-red-500/90 px-2 py-1 backdrop-blur-sm ${
                       cardLayout === "vertical" ? "mb-1" : "mb-0"
                     }`}
                   >
-                    <span className="text-[10px] font-bold text-white">HOT</span>
+                    <span className="text-xs font-bold text-white">HOT</span>
                   </div>
                 )}
                 <div
@@ -181,8 +181,8 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
                     className="block w-full"
                   >
                     <h3
-                      className={`font-bold line-clamp-2 text-white transition-colors hover:text-red-400 ${
-                        cardLayout === "vertical" ? "text-sm" : "text-sm sm:text-base"
+                      className={`font-bold line-clamp-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${
+                        cardLayout === "vertical" ? "text-xs md:text-sm" : "text-sm sm:text-base"
                       }`}
                     >
                       {manga.title}

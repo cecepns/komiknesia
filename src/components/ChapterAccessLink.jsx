@@ -15,12 +15,12 @@ export function getChapterAccessLinkClassName({
     : 'relative flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs text-left transition-all sm:px-3';
 
   const unlocked = compact
-    ? 'chapter-border-anim chapter-border-unlocked bg-slate-50 text-slate-800 dark:bg-primary-800 dark:text-white'
-    : 'chapter-border-anim chapter-border-unlocked bg-gray-100 text-gray-700 dark:bg-primary-800 dark:text-white';
+    ? 'chapter-border-anim chapter-border-unlocked bg-[#0f0f14] text-slate-200 dark:bg-black dark:text-white'
+    : 'chapter-border-anim chapter-border-unlocked bg-[#0f0f14] text-gray-200 dark:bg-black dark:text-white';
 
   const lockedCls = compact
-    ? 'chapter-border-anim chapter-border-locked bg-slate-900 text-amber-50 dark:bg-[#0b1f3a] dark:text-amber-50'
-    : 'chapter-border-anim chapter-border-locked bg-slate-900 text-gray-100 dark:bg-[#0b1f3a] dark:text-gray-100';
+    ? 'chapter-border-anim chapter-border-locked bg-black text-amber-50 dark:bg-black dark:text-amber-50'
+    : 'chapter-border-anim chapter-border-locked bg-black text-gray-100 dark:bg-black dark:text-gray-100';
 
   return [base, locked ? lockedCls : unlocked, className].filter(Boolean).join(' ');
 }
@@ -110,18 +110,16 @@ const ChapterAccessLink = ({
           <>
             <span className="relative z-10 flex min-w-0 items-center gap-2 font-semibold">
               <span
-                className={`h-2 w-2 shrink-0 rounded-full ${
-                  locked
+                className={`h-2 w-2 shrink-0 rounded-full ${locked
                     ? 'bg-amber-400 shadow-[0_0_6px_#f59e0b]'
                     : 'bg-red-600 shadow-[0_0_6px_#dc2626]'
-                }`}
+                  }`}
               />
               <span
-                className={`truncate ${
-                  locked
+                className={`truncate ${locked
                     ? 'text-amber-300'
                     : 'text-gray-700 dark:text-white'
-                }`}
+                  }`}
               >
                 {label}
               </span>
@@ -134,11 +132,10 @@ const ChapterAccessLink = ({
             </span>
             {meta ? (
               <span
-                className={`relative z-10 shrink-0 pl-2 text-[11px] md:text-xs ${
-                  locked
+                className={`relative z-10 shrink-0 pl-2 text-[11px] md:text-xs ${locked
                     ? 'text-amber-200/75 dark:text-amber-200/70'
                     : 'text-gray-500 dark:text-gray-400'
-                }`}
+                  }`}
               >
                 {meta}
               </span>
