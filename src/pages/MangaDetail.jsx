@@ -292,9 +292,36 @@ const MangaDetail = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedChapters = filteredChapters.slice(startIndex, endIndex);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchChapter, sortOrder]);
+  const getPaginationItems = (current, total) => {
+    if (total <= 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const items = [];
+    items.push(1);
+
+    if (current > 3) {
+      items.push('ellipsis-1');
+    }
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) {
+      if (!items.includes(i)) {
+        items.push(i);
+      }
+    }
+
+    if (current < total - 2) {
+      items.push('ellipsis-2');
+    }
+
+    if (!items.includes(total)) {
+      items.push(total);
+    }
+
+    return items;
+  };
 
   const handleDownloadChapterPdf = async (chapter, event) => {
     event?.stopPropagation?.();
@@ -442,7 +469,7 @@ const MangaDetail = () => {
           {/* ======================================================== */}
           {/* DESKTOP LAYOUT (lg:grid grid-cols-12 gap-6) */}
           {/* ======================================================== */}
-          <div className="hidden lg:grid grid-cols-12 gap-6 mb-8">
+          <div className="hidden lg:grid grid-cols-12 gap-6 mb-8 items-stretch">
             {/* Left Card: Poster & Action Buttons (col-span-4) */}
             <div className="col-span-4 bg-white/[0.04] border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md shadow-2xl">
               {/* Blurred Poster Background */}
@@ -1016,7 +1043,7 @@ const MangaDetail = () => {
                 })}
               </div>
 
-              {/* Pagination */}
+              {/* Pagination (Max 4-5 buttons + ellipsis + last page) */}
               {filteredChapters.length > 0 && totalPages > 1 && (
                 <div className="mt-8 flex justify-center items-center gap-2">
                   <button
@@ -1027,19 +1054,28 @@ const MangaDetail = () => {
                     <ChevronLeft className="h-5 w-5" />
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setCurrentPage(p)}
-                      className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all ${
-                        currentPage === p
-                          ? 'bg-red-600 text-white shadow-md'
-                          : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
+                  {getPaginationItems(currentPage, totalPages).map((item) => {
+                    if (typeof item === 'string') {
+                      return (
+                        <span key={item} className="px-2 text-xs font-bold text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    return (
+                      <button
+                        key={item}
+                        onClick={() => setCurrentPage(item)}
+                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                          currentPage === item
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
 
                   <button
                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
@@ -1133,7 +1169,7 @@ const MangaDetail = () => {
 
           {/* Comment Section */}
           <div className="mt-12">
-            <CommentSection mangaSlug={slug} />
+            <CommentSection mangaId={manga?.id} externalSlug={slug} />
           </div>
         </div>
       </main>

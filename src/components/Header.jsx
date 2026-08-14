@@ -47,13 +47,14 @@ const mobileSideNavItems = [
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchDesktopRef = useRef(null);
   const searchMobileRef = useRef(null);
 
@@ -294,19 +295,16 @@ const Header = () => {
                 )}
               </div>
 
-              {/* Theme Toggle + Account */}
+              {/* Search Toggle + Account */}
               <div className="flex items-center gap-3 flex-shrink-0">
                 <button
                   type="button"
-                  onClick={toggleTheme}
+                  onClick={() => setMobileSearchOpen((prev) => !prev)}
                   className={headerIconButtonClass}
-                  aria-label={theme === "light" ? "Mode gelap" : "Mode terang"}
+                  aria-label="Cari Manga"
+                  title="Cari Manga"
                 >
-                  {theme === "light" ? (
-                    <Moon className="h-5 w-5" aria-hidden />
-                  ) : (
-                    <Sun className="h-5 w-5" aria-hidden />
-                  )}
+                  <Search className="h-5 w-5 text-gray-300" aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -332,42 +330,44 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Search — mobile, selalu tampil di luar menu toggle */}
-          <div className="lg:hidden pb-3 relative" ref={searchMobileRef}>
-            <div className="flex gap-2 items-stretch">
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="text"
-                  placeholder="Cari manga..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleSearchSubmit}
-                  onFocus={() =>
-                    searchQuery.length >= 2 && setShowResults(true)
-                  }
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={clearSearch}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                  >
-                    <X className="h-4 w-4 text-gray-400" />
-                  </button>
-                )}
+          {/* Search — mobile, hanya tampil saat tombol Search diklik */}
+          {mobileSearchOpen && (
+            <div className="lg:hidden pb-3 relative" ref={searchMobileRef}>
+              <div className="flex gap-2 items-stretch">
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="text"
+                    placeholder="Cari manga..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearchSubmit}
+                    onFocus={() =>
+                      searchQuery.length >= 2 && setShowResults(true)
+                    }
+                    autoFocus
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    >
+                      <X className="h-4 w-4 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={submitFullSearch}
+                  disabled={!searchQuery.trim()}
+                  className="flex-shrink-0 p-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none text-white font-bold shadow-md transition-colors flex items-center justify-center"
+                  aria-label="Cari"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={submitFullSearch}
-                disabled={!searchQuery.trim()}
-                className="flex-shrink-0 p-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none text-white font-bold shadow-md transition-colors flex items-center justify-center"
-                aria-label="Cari"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            </div>
 
             {showResults && (
               <div className="absolute top-full mt-2 w-full bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
@@ -410,6 +410,7 @@ const Header = () => {
               </div>
             )}
           </div>
+        )}
         </div>
       </header>
 

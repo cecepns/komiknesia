@@ -3,30 +3,20 @@ import { useState, useEffect } from 'react';
 const THEME_KEY = 'komiknesia-theme';
 
 export function getStoredTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  if (saved === 'light' || saved === 'dark') return saved;
   return 'dark';
 }
 
-export function applyTheme(theme) {
-  if (theme === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
+export function applyTheme() {
+  document.documentElement.classList.add('dark');
 }
 
 export const useTheme = () => {
-  const [theme, setTheme] = useState(getStoredTheme);
-
   useEffect(() => {
-    localStorage.setItem(THEME_KEY, theme);
-    applyTheme(theme);
-  }, [theme]);
+    localStorage.setItem(THEME_KEY, 'dark');
+    applyTheme();
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
+  const toggleTheme = () => {};
 
-  return { theme, toggleTheme };
+  return { theme: 'dark', toggleTheme };
 };
