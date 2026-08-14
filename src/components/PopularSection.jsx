@@ -102,6 +102,22 @@ const PopularSection = () => {
     setActiveIndex(index);
   }, []);
 
+  // Auto slide interval (every 4 seconds)
+  useEffect(() => {
+    if (manga.length <= 1) return;
+    const timer = setInterval(() => {
+      if (!isDraggingRef.current) {
+        setActiveIndex((prev) => {
+          const nextIdx = (prev + 1) % manga.length;
+          scrollToCard(nextIdx);
+          return nextIdx;
+        });
+      }
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [manga.length, scrollToCard]);
+
   // Mouse Drag handlers
   const handleMouseDown = (e) => {
     if (!scrollRef.current) return;
@@ -205,7 +221,7 @@ const PopularSection = () => {
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
-          className="flex items-center gap-4 sm:gap-6 overflow-x-auto py-8 px-[28vw] sm:px-[36vw] md:px-[40vw] h-[370px] sm:h-[410px] md:h-[450px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center gap-4 sm:gap-6 overflow-x-auto py-8 px-[calc(50vw-90px)] sm:px-[calc(50vw-100px)] md:px-[calc(50vw-110px)] h-[370px] sm:h-[410px] md:h-[450px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
         >
           {manga.map((item, index) => {
             const isActive = index === activeIndex;
@@ -222,10 +238,10 @@ const PopularSection = () => {
                     scrollToCard(index);
                   }
                 }}
-                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[310px] sm:h-[350px] md:h-[380px] ${
+                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[310px] sm:h-[350px] md:h-[380px] w-[48vw] max-w-[180px] sm:w-[200px] md:w-[220px] ${
                   isActive
-                    ? "w-[54vw] max-w-[220px] sm:w-[220px] md:w-[250px] z-10 scale-105 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/50 opacity-100 cursor-pointer"
-                    : "w-[30vw] max-w-[130px] sm:w-[160px] md:w-[185px] z-0 scale-90 opacity-60 hover:opacity-85 border-white/10 cursor-pointer"
+                    ? "-translate-y-3.5 z-10 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/60 opacity-100 cursor-pointer"
+                    : "translate-y-0 z-0 opacity-60 hover:opacity-85 border-white/10 cursor-pointer"
                 }`}
               >
                 {/* Cover */}

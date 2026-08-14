@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageCircle, Send, Loader2, Reply, Smile, Trash2 } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Reply, Smile, Trash2, Eye, EyeOff, Image as ImageIcon, Film } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient, getImageUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import vipProfileBanner from '../assets/gif/banner-vip.gif';
+import { toast } from 'react-toastify';
 
 const STICKER_MESSAGE_PREFIX = 'KN_STICKER:';
 
@@ -41,13 +42,128 @@ function isVipUser(entity) {
   return expiresAt.getTime() >= Date.now();
 }
 
+function SpoilerBlock({ content }) {
+  const [revealed, setRevealed] = useState(false);
+
+  if (!revealed) {
+    return (
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+          setRevealed(true);
+        }}
+        className="my-1.5 inline-flex items-center gap-1.5 rounded-xl bg-red-950/80 border border-red-700/60 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900 transition-colors cursor-pointer select-none shadow-md"
+        title="Klik untuk membuka spoiler"
+      >
+        <EyeOff className="h-3.5 w-3.5 text-red-400 shrink-0" />
+        <span>SPOILER (Klik untuk membuka)</span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      onClick={(e) => {
+        e.stopPropagation();
+        setRevealed(false);
+      }}
+      className="my-1.5 block rounded-xl bg-white/[0.05] border-l-4 border-red-500 p-3 text-sm text-gray-200 cursor-pointer hover:bg-white/[0.08] transition-colors"
+      title="Klik untuk menyembunyikan spoiler"
+    >
+      <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-400 mb-1 flex items-center gap-1 select-none">
+        <Eye className="h-3 w-3" /> SPOILER (Klik untuk tutup)
+      </span>
+      <span>{content}</span>
+    </span>
+  );
+}
+
+function parseFormattedText(text, keyPrefix = 'fmt') {
+  if (!text) return null;
+
+  const regex = /\[(img|b|i|s)\]([\s\S]*?)\[\/\1\]/gi;
+  const elements = [];
+  let lastIdx = 0;
+  let m;
+
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > lastIdx) {
+      elements.push(text.slice(lastIdx, m.index));
+    }
+    const tag = m[1].toLowerCase();
+    const val = m[2];
+    const key = `${keyPrefix}-${m.index}`;
+
+    if (tag === 'b') {
+      elements.push(<strong key={key} className="font-bold text-white">{val}</strong>);
+    } else if (tag === 'i') {
+      elements.push(<em key={key} className="italic">{val}</em>);
+    } else if (tag === 's') {
+      elements.push(<del key={key} className="line-through text-gray-400">{val}</del>);
+    } else if (tag === 'img') {
+      elements.push(
+        <div key={key} className="my-2 max-w-sm rounded-xl overflow-hidden border border-white/10 bg-black/50 shadow-md">
+          <img
+            src={getImageUrl(val.trim())}
+            alt="Gambar Komentar"
+            className="w-full h-auto max-h-72 object-contain block"
+            loading="lazy"
+          />
+        </div>
+      );
+    }
+    lastIdx = regex.lastIndex;
+  }
+
+  if (lastIdx < text.length) {
+    elements.push(text.slice(lastIdx));
+  }
+
+  return (
+    <span key={keyPrefix} className="whitespace-pre-wrap break-words">
+      {elements}
+    </span>
+  );
+}
+
+function parseBBCode(text) {
+  if (typeof text !== 'string') return text;
+
+  const spoilerRegex = /\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = spoilerRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(parseFormattedText(text.slice(lastIndex, match.index), `txt-${lastIndex}`));
+    }
+    const innerContent = match[1];
+    parts.push(
+      <SpoilerBlock
+        key={`spoiler-${match.index}`}
+        content={parseFormattedText(innerContent, `sp-inner-${match.index}`)}
+      />
+    );
+    lastIndex = spoilerRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(parseFormattedText(text.slice(lastIndex), `txt-${lastIndex}`));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
+
 function renderCommentBody(text) {
-  const imagePath = parseStickerMessage(text);
-  if (imagePath) {
+  if (typeof text !== 'string') return null;
+
+  const stickerPath = parseStickerMessage(text);
+  if (stickerPath) {
     return (
       <div className="mt-1">
         <img
-          src={getImageUrl(imagePath)}
+          src={getImageUrl(stickerPath)}
           alt="Stiker"
           className="max-h-40 max-w-[min(100%,220px)] rounded-lg object-contain bg-black/30"
           loading="lazy"
@@ -55,7 +171,8 @@ function renderCommentBody(text) {
       </div>
     );
   }
-  return <p className="text-gray-300 text-sm mt-1 whitespace-pre-wrap break-words">{text}</p>;
+
+  return <div className="text-gray-300 text-sm mt-1">{parseBBCode(text)}</div>;
 }
 
 function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUser }) {
@@ -108,13 +225,13 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
   };
 
   return (
-    <div className="flex gap-3 py-3 border-b border-primary-800 last:border-0">
+    <div className="flex gap-3 py-4 border-b border-white/10 last:border-0">
       {!isVipComment && (
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-700 flex items-center justify-center overflow-hidden">
+        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
           {avatarUrl ? (
             <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-lg font-bold text-primary-300">
+            <span className="text-sm font-bold text-gray-300">
               {(comment.username || 'U').charAt(0).toUpperCase()}
             </span>
           )}
@@ -123,7 +240,7 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
       <div className="flex-1 min-w-0">
         {isVipComment ? (
           <div className="mb-2">
-            <div className="relative h-14 md:h-32 overflow-hidden rounded-xl">
+            <div className="relative h-14 md:h-28 overflow-hidden rounded-xl">
               <img
                 src={vipProfileBanner}
                 alt=""
@@ -136,16 +253,16 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
                     {avatarUrl ? (
                       <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-primary-700 flex items-center justify-center">
-                        <span className="text-sm font-bold text-primary-200">
+                      <div className="w-full h-full bg-red-600 flex items-center justify-center">
+                        <span className="text-sm font-bold text-white">
                           {(comment.username || 'U').charAt(0).toUpperCase()}
                         </span>
                       </div>
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-white text-sm md:text-base truncate">{displayName}</p>
-                    <span className="text-[11px] md:text-xs text-gray-200">
+                    <p className="font-bold text-white text-sm md:text-base truncate">{displayName}</p>
+                    <span className="text-[10px] md:text-xs text-gray-200">
                       {comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : ''}
                     </span>
                   </div>
@@ -166,7 +283,7 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
           </div>
         ) : (
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-gray-200">{comment.username}</span>
+            <span className="font-bold text-white text-sm">{comment.username}</span>
             <span className="text-xs text-gray-500">
               {comment.created_at ? new Date(comment.created_at).toLocaleString('id-ID') : ''}
             </span>
@@ -175,10 +292,10 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
+                className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-lg bg-red-600/80 text-white hover:bg-red-600 disabled:opacity-50"
                 aria-label="Hapus komentar"
               >
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
               </button>
             )}
           </div>
@@ -189,7 +306,7 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
             <button
               type="button"
               onClick={() => setShowReplyForm((v) => !v)}
-              className="mt-2 text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+              className="mt-2 text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1"
             >
               <Reply className="h-3 w-3" />
               Balas
@@ -201,13 +318,13 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
                   value={replyBody}
                   onChange={(e) => setReplyBody(e.target.value)}
                   placeholder="Tulis balasan..."
-                  className="flex-1 px-3 py-2 rounded-lg bg-primary-800 border border-primary-700 text-gray-100 text-sm placeholder-gray-500"
+                  className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-100 text-sm placeholder-gray-500"
                   autoFocus
                 />
                 <button
                   type="submit"
                   disabled={!replyBody.trim() || submitting}
-                  className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg text-white text-sm flex items-center gap-1"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl text-white font-bold text-sm flex items-center gap-1"
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
@@ -216,105 +333,28 @@ function CommentItem({ comment, onReply, getImageUrl, isAuthenticated, currentUs
           </>
         )}
         {comment.replies && comment.replies.length > 0 && (
-          <div className="mt-3 pl-4 border-l-2 border-primary-700 space-y-2">
+          <div className="mt-3 pl-4 border-l-2 border-white/10 space-y-2">
             {comment.replies.map((reply) => (
               <div key={reply.id} className="flex gap-2 py-2">
                 {!isVipUser(reply) && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center overflow-hidden">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
                     {reply.profile_image ? (
                       <img src={getImageUrl(reply.profile_image)} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-sm font-bold text-primary-300">
+                      <span className="text-xs font-bold text-gray-300">
                         {(reply.username || 'U').charAt(0).toUpperCase()}
                       </span>
                     )}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  {isVipUser(reply) ? (
-                    <div className="mb-2">
-                      <div className="relative h-12 md:h-16 overflow-hidden rounded-lg">
-                        <img
-                          src={vipProfileBanner}
-                          alt=""
-                          aria-hidden="true"
-                          className="h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-between gap-2 px-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="h-7 w-7 md:h-9 md:w-9 rounded-full overflow-hidden bg-white shrink-0">
-                              {reply.profile_image ? (
-                                <img src={getImageUrl(reply.profile_image)} alt={reply.username} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full bg-primary-700 flex items-center justify-center">
-                                  <span className="text-xs font-bold text-primary-200">
-                                    {(reply.username || 'U').charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-medium text-white text-xs truncate">{reply.name || reply.username || 'User'}</p>
-                              <span className="text-[10px] text-gray-200">
-                                {reply.created_at ? new Date(reply.created_at).toLocaleString('id-ID') : ''}
-                              </span>
-                            </div>
-                          </div>
-                          {currentUser && reply.user_id === currentUser.id && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteCommentById(reply.id);
-                              }}
-                              disabled={deleting}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
-                              aria-label="Hapus balasan"
-                            >
-                              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-gray-300 text-sm">{reply.username}</span>
-                      <span className="text-xs text-gray-500">
-                        {reply.created_at ? new Date(reply.created_at).toLocaleString('id-ID') : ''}
-                      </span>
-                      {currentUser && reply.user_id === currentUser.id && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteCommentById(reply.id);
-                          }}
-                          disabled={deleting}
-                          className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
-                          aria-label="Hapus balasan"
-                        >
-                          {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  <div className="text-gray-400 text-sm mt-0.5 whitespace-pre-wrap break-words">{renderCommentBody(reply.body)}</div>
-                  {isAuthenticated && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowReplyForm(true);
-                        // optional: prefill mention
-                        if (!replyBody) {
-                          setReplyBody(`@${reply.username} `);
-                        }
-                      }}
-                      className="mt-1 text-[11px] text-purple-400 hover:text-purple-300"
-                    >
-                      Balas
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-white text-xs">{reply.username}</span>
+                    <span className="text-[10px] text-gray-500">
+                      {reply.created_at ? new Date(reply.created_at).toLocaleString('id-ID') : ''}
+                    </span>
+                  </div>
+                  {renderCommentBody(reply.body)}
                 </div>
               </div>
             ))}
@@ -337,6 +377,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
   const [stickers, setStickers] = useState([]);
   const [stickersLoading, setStickersLoading] = useState(false);
   const [stickersError, setStickersError] = useState('');
+  const textareaRef = useRef(null);
   const stickerToggleRef = useRef(null);
   const stickerTrayRef = useRef(null);
 
@@ -372,7 +413,6 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
     fetchComments();
   }, [fetchComments]);
 
-  // Reset to first page when target changes
   useEffect(() => {
     setPage(1);
   }, [mangaId, chapterId, externalSlug, scope]);
@@ -405,6 +445,44 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [stickerPickerOpen]);
+
+  const insertBbCode = (openTag, closeTag = openTag) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setBody((prev) => `${prev}[${openTag}][/${closeTag}]`);
+      return;
+    }
+
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const selectedText = body.slice(start, end);
+    const replacement = `[${openTag}]${selectedText}[/${closeTag}]`;
+    const newBody = body.slice(0, start) + replacement + body.slice(end);
+
+    setBody(newBody);
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + openTag.length + 2 + selectedText.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  const handleUploadImageFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imgUrl = ev.target.result;
+        insertBbCode(`img]${imgUrl}[/img`, '');
+        toast.success('Foto disisipkan');
+      } catch {
+        toast.error('Foto terlalu besar');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -443,96 +521,168 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
   };
 
   return (
-    <div className="bg-primary-900 rounded-lg p-6 md:p-8 md:min-h-[560px]">
-      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-        <MessageCircle className="h-5 w-5" />
-        Komentar
+    <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-md">
+      <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+        <MessageCircle className="h-5 w-5 text-red-500" />
+        KOMENTAR
       </h3>
-      {isAuthenticated ? (
-        <form onSubmit={handleSubmit} className="mb-6 space-y-2">
-          {stickerPickerOpen && (
-            <div
-              ref={stickerTrayRef}
-              className="rounded-xl border border-primary-700 bg-primary-950/60 p-2"
-              role="region"
-              aria-label="Pilih stiker komentar"
-            >
-              <p className="px-1 pb-2 text-xs font-semibold text-gray-400">Stiker</p>
-              <div className="max-h-40 overflow-y-auto">
-                {stickersLoading ? (
-                  <div className="py-4 text-center text-xs text-gray-500">Memuat stiker...</div>
-                ) : stickersError ? (
-                  <div className="py-4 px-2 text-center text-xs text-red-400">{stickersError}</div>
-                ) : stickers.length === 0 ? (
-                  <div className="py-4 text-center text-xs text-gray-500">Belum ada stiker.</div>
-                ) : (
-                  <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
-                    {stickers.map((sticker) => (
-                      <button
-                        key={sticker.id}
-                        type="button"
-                        disabled={submitting}
-                        onClick={() => handlePickSticker(sticker.image_path)}
-                        title={sticker.name || 'Stiker'}
-                        className="aspect-square rounded-lg bg-primary-800/70 border border-primary-700 p-1.5 hover:bg-primary-700 disabled:opacity-50 transition-colors"
-                      >
-                        <img
-                          src={getImageUrl(sticker.image_path)}
-                          alt={sticker.name || ''}
-                          className="h-full w-full object-contain"
-                          loading="lazy"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+
+      {/* Main Comment Box */}
+      <form onSubmit={handleSubmit} className="mb-6">
+        {stickerPickerOpen && (
+          <div
+            ref={stickerTrayRef}
+            className="mb-3 rounded-2xl border border-white/10 bg-black/80 p-3 shadow-2xl"
+            role="region"
+            aria-label="Pilih stiker komentar"
+          >
+            <p className="px-1 pb-2 text-xs font-bold text-gray-400">Stiker & GIF</p>
+            <div className="max-h-40 overflow-y-auto">
+              {stickersLoading ? (
+                <div className="py-4 text-center text-xs text-gray-500">Memuat stiker...</div>
+              ) : stickersError ? (
+                <div className="py-4 px-2 text-center text-xs text-red-400">{stickersError}</div>
+              ) : stickers.length === 0 ? (
+                <div className="py-4 text-center text-xs text-gray-500">Belum ada stiker.</div>
+              ) : (
+                <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
+                  {stickers.map((sticker) => (
+                    <button
+                      key={sticker.id}
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handlePickSticker(sticker.image_path)}
+                      title={sticker.name || 'Stiker'}
+                      className="aspect-square rounded-xl bg-white/5 border border-white/10 p-1.5 hover:bg-white/10 disabled:opacity-50 transition-colors"
+                    >
+                      <img
+                        src={getImageUrl(sticker.image_path)}
+                        alt={sticker.name || ''}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <input
-              type="text"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Tulis komentar..."
-              className="flex-1 px-4 py-3 rounded-lg bg-primary-800 border border-primary-700 text-gray-100 placeholder-gray-500"
-            />
-            <button
-              ref={stickerToggleRef}
-              type="button"
-              onClick={() => setStickerPickerOpen((open) => !open)}
-              disabled={submitting}
-              className="px-3 py-3 bg-primary-800 hover:bg-primary-700 disabled:opacity-50 rounded-lg text-gray-200 border border-primary-700 transition-colors"
-              title={stickerPickerOpen ? 'Tutup panel stiker' : 'Buka stiker'}
-              aria-expanded={stickerPickerOpen}
-            >
-              <Smile className="h-5 w-5" />
-            </button>
-            <button
-              type="submit"
-              disabled={!body.trim() || submitting}
-              className="px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg text-white font-medium flex items-center gap-2"
-            >
-              {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-              Kirim
-            </button>
           </div>
-        </form>
-      ) : (
-        <p className="text-gray-400 text-sm mb-4">
-          <Link to="/akun" className="text-primary-400 hover:text-primary-300 underline">
-            Login
-          </Link>{' '}
-          untuk mengomentari. Anda hanya dapat melihat komentar saat belum login.
-        </p>
-      )}
+        )}
+
+        <div className="bg-[#121218] border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all">
+          <textarea
+            ref={textareaRef}
+            rows={4}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            maxLength={1000}
+            placeholder={isAuthenticated ? "Silakan ketik komentar Anda..." : "Silakan login untuk bergabung dalam diskusi"}
+            disabled={!isAuthenticated || submitting}
+            className="w-full bg-transparent p-4 text-gray-100 placeholder-gray-500 focus:outline-none resize-y text-sm font-sans"
+          />
+
+          {/* Bottom Control Bar matching User Design */}
+          <div className="bg-[#191922] border-t border-white/10 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+            {/* Formatting Toolbar */}
+            <div className="flex items-center gap-1 text-gray-400">
+              <button
+                type="button"
+                onClick={() => insertBbCode('b')}
+                disabled={!isAuthenticated || submitting}
+                className="px-2 py-1 text-sm font-black hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-30"
+                title="Tebal (Bold)"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => insertBbCode('i')}
+                disabled={!isAuthenticated || submitting}
+                className="px-2 py-1 text-sm italic font-serif hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-30"
+                title="Cetak Miring (Italic)"
+              >
+                I
+              </button>
+              <button
+                type="button"
+                onClick={() => insertBbCode('s')}
+                disabled={!isAuthenticated || submitting}
+                className="px-2 py-1 text-sm line-through hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-30"
+                title="Coretan (Strikethrough)"
+              >
+                S
+              </button>
+              <button
+                type="button"
+                onClick={() => insertBbCode('spoiler')}
+                disabled={!isAuthenticated || submitting}
+                className="p-1.5 hover:text-red-400 hover:bg-white/10 rounded transition-colors disabled:opacity-30"
+                title="Sembunyikan Spoiler"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+
+              <div className="h-4 w-[1px] bg-white/20 mx-1" />
+
+              {/* Upload Image */}
+              <label
+                htmlFor="comment-img-upload"
+                className={`p-1.5 hover:text-sky-400 hover:bg-white/10 rounded transition-colors ${
+                  !isAuthenticated || submitting ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+                title="Unggah Foto"
+              >
+                <ImageIcon className="h-4 w-4" />
+              </label>
+              <input
+                type="file"
+                id="comment-img-upload"
+                accept="image/*"
+                disabled={!isAuthenticated || submitting}
+                className="hidden"
+                onChange={handleUploadImageFile}
+              />
+
+              {/* GIF / Sticker Picker */}
+              <button
+                ref={stickerToggleRef}
+                type="button"
+                onClick={() => setStickerPickerOpen((open) => !open)}
+                disabled={!isAuthenticated || submitting}
+                className="p-1.5 hover:text-amber-400 hover:bg-white/10 rounded transition-colors disabled:opacity-30"
+                title="Stiker & GIF"
+              >
+                <Film className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Counter & Submit Button */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-gray-500">
+                {body.length}/1000
+              </span>
+
+              <button
+                type="submit"
+                disabled={!body.trim() || submitting || !isAuthenticated}
+                className="px-5 py-2 bg-[#7e3844] hover:bg-red-600 disabled:opacity-40 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+              >
+                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                KIRIM
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      {/* Comment List */}
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-red-600" />
         </div>
       ) : comments.length === 0 ? (
-        <div className="text-center py-8 border-2 border-dashed border-primary-700 rounded-lg">
-          <p className="text-gray-400">Belum ada komentar.</p>
+        <div className="text-center py-8 border border-dashed border-white/10 rounded-2xl">
+          <p className="text-gray-400 text-sm">Belum ada komentar. Jadi yang pertama berkomentar!</p>
         </div>
       ) : (
         <>
@@ -549,11 +699,11 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
             ))}
           </div>
           {hasMore && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={() => setPage((p) => p + 1)}
-                className="px-4 py-2 text-sm bg-primary-800 hover:bg-primary-700 rounded-lg text-primary-100 border border-primary-700"
+                className="px-5 py-2 text-xs font-bold bg-white/5 hover:bg-white/10 rounded-xl text-gray-300 border border-white/10"
               >
                 Tampilkan komentar berikutnya
               </button>

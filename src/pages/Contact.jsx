@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Mail, MessageCircle, FileText, Loader2 } from 'lucide-react';
+import { Mail, Send, FileText, Loader2 } from 'lucide-react';
 import { apiClient } from '../utils/api';
 
 const Contact = () => {
@@ -23,136 +23,118 @@ const Contact = () => {
     }
   };
 
-  const formatWhatsAppNumber = (number) => {
-    if (!number) return '';
-    const cleaned = number.replace(/\D/g, '');
-    if (cleaned.startsWith('62')) {
-      return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)}-${cleaned.slice(5, 9)}-${cleaned.slice(9)}`;
-    }
-    return number;
-  };
+  const telegramUrl = contactInfo?.telegram || 'https://t.me/KomikNesiaOfficial';
+  const emailAddress = contactInfo?.email || 'admin@komiknesia.net';
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Memuat informasi kontak...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!contactInfo) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400 text-lg">
-            Informasi kontak belum tersedia
-          </p>
+          <Loader2 className="h-12 w-12 animate-spin text-red-600 mx-auto mb-4" />
+          <p className="text-gray-400">Memuat informasi kontak...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-primary-950 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-black text-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <Helmet>
         <title>Hubungi Kami | KomikNesia</title>
-        <meta name="description" content="Hubungi tim KomikNesia melalui email atau WhatsApp. Kami siap membantu menjawab pertanyaan dan mendengarkan saran Anda." />
+        <meta name="description" content="Hubungi tim KomikNesia melalui email atau Telegram. Kami siap membantu menjawab pertanyaan dan mendengarkan saran Anda." />
       </Helmet>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          <h1 className="text-4xl font-extrabold text-white mb-4">
             Hubungi Kami
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
+          <p className="text-lg text-gray-400">
             Kami siap membantu menjawab pertanyaan dan mendengarkan saran Anda
           </p>
         </div>
 
         {/* Contact Info Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 md:p-12">
+        <div className="bg-white/[0.05] border border-white/10 rounded-2xl shadow-2xl p-8 md:p-12 backdrop-blur-md">
           {/* Description */}
-          {contactInfo.description && (
+          {contactInfo?.description && (
             <div className="mb-8 text-center">
-              <FileText className="h-8 w-8 text-primary-600 dark:text-primary-400 mx-auto mb-4" />
-              <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed whitespace-pre-line">
+              <FileText className="h-8 w-8 text-red-500 mx-auto mb-4" />
+              <p className="text-gray-300 text-lg leading-relaxed whitespace-pre-line">
                 {contactInfo.description}
               </p>
             </div>
           )}
 
-          {/* Contact Methods */}
+          {/* Contact Methods: Email & Telegram */}
           <div className="grid md:grid-cols-2 gap-6">
             {/* Email */}
             <a
-              href={`mailto:${contactInfo.email}`}
-              className="group flex items-start gap-4 p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-lg transition-all duration-300"
+              href={`mailto:${emailAddress}`}
+              className="group flex items-start gap-4 p-6 bg-white/[0.04] border border-white/10 hover:border-red-500/50 rounded-xl hover:shadow-xl transition-all duration-300"
             >
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
                   <Mail className="h-6 w-6 text-white" />
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                <h3 className="text-lg font-semibold text-white mb-1">
                   Email
                 </h3>
-                <p className="text-blue-600 dark:text-blue-400 font-medium group-hover:underline break-all">
-                  {contactInfo.email}
+                <p className="text-red-400 font-medium group-hover:underline break-all">
+                  {emailAddress}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-400 mt-1">
                   Kirim email kepada kami
                 </p>
               </div>
             </a>
 
-            {/* WhatsApp */}
+            {/* Telegram */}
             <a
-              href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}`}
+              href={telegramUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-start gap-4 p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-lg transition-all duration-300"
+              className="group flex items-start gap-4 p-6 bg-white/[0.04] border border-white/10 hover:border-sky-500/50 rounded-xl hover:shadow-xl transition-all duration-300"
             >
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <MessageCircle className="h-6 w-6 text-white" />
+                <div className="w-12 h-12 bg-sky-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
+                  <Send className="h-6 w-6 text-white" />
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                  WhatsApp
+                <h3 className="text-lg font-semibold text-white mb-1">
+                  Telegram
                 </h3>
-                <p className="text-green-600 dark:text-green-400 font-medium group-hover:underline break-words">
-                  {formatWhatsAppNumber(contactInfo.whatsapp)}
+                <p className="text-sky-400 font-medium group-hover:underline break-words">
+                  @KomikNesiaOfficial
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Chat langsung dengan kami
+                <p className="text-sm text-gray-400 mt-1">
+                  Chat Telegram dengan kami
                 </p>
               </div>
             </a>
           </div>
 
           {/* Quick Actions */}
-          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-8 pt-8 border-t border-white/10">
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href={`mailto:${contactInfo.email}?subject=Pertanyaan tentang KomikNesia`}
-                className="inline-flex items-center justify-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+                href={`mailto:${emailAddress}?subject=Pertanyaan tentang KomikNesia`}
+                className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg transition-all"
               >
                 <Mail className="h-5 w-5 mr-2" />
                 Kirim Email
               </a>
               <a
-                href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}?text=Halo, saya ingin bertanya tentang KomikNesia`}
+                href={telegramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+                className="inline-flex items-center justify-center px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold shadow-lg transition-all"
               >
-                <MessageCircle className="h-5 w-5 mr-2" />
-                Chat WhatsApp
+                <Send className="h-5 w-5 mr-2" />
+                Chat Telegram
               </a>
             </div>
           </div>
@@ -160,7 +142,7 @@ const Contact = () => {
 
         {/* Additional Info */}
         <div className="mt-8 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
+          <p className="text-gray-400 text-sm">
             Kami biasanya merespons dalam waktu 24 jam pada hari kerja
           </p>
         </div>
@@ -170,7 +152,3 @@ const Contact = () => {
 };
 
 export default Contact;
-
-
-
-
