@@ -8,6 +8,7 @@ import { useAds } from "../hooks/useAds";
 import { apiClient, getImageUrl } from "../utils/api";
 import { getChapterTimeAgo } from "../utils/chapterTime";
 import ChapterAccessLink from "../components/ChapterAccessLink";
+import LiveChatWidget from "../components/LiveChatWidget";
 
 const VALID_TYPES = ["manhwa", "manga", "manhua"];
 
@@ -246,6 +247,9 @@ const Populer = () => {
             <AdBanner ads={popularFooterAds} layout="grid" columns={2} />
           </div>
         )}
+
+        {/* Live Chat Widget */}
+        <LiveChatWidget />
       </div>
     </div>
   );

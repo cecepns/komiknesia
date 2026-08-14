@@ -248,12 +248,12 @@ const Akun = () => {
 
       <div className="relative z-10 mx-auto max-w-md px-4 py-14 md:py-24">
         {isAuthenticated ? (
-          <div className="rounded-3xl border border-sky-200/80 bg-white/95 p-6 shadow-[0_7px_0_0_#38bdf8] backdrop-blur-sm dark:border-cyan-200/25 dark:bg-[#0b355f]/95 dark:shadow-[0_7px_0_0_#facc15] sm:p-8">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md shadow-2xl sm:p-8">
             <div className="mb-6 text-center">
-              <h1 className="text-2xl font-extrabold tracking-tight text-[#163a5f] dark:text-cyan-50 sm:text-3xl">
+              <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
                 Profil
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-sky-900/75 dark:text-cyan-100/80">
+              <p className="mt-2 text-sm leading-relaxed text-gray-400">
                 Kelola foto, data akun, dan keamanan password.
               </p>
             </div>
@@ -476,17 +476,17 @@ const Akun = () => {
           </div>
         ) : (
           /* Login / Register */
-          <div className="rounded-3xl border border-sky-200/80 bg-white/95 p-6 shadow-[0_7px_0_0_#38bdf8] backdrop-blur-sm dark:border-cyan-200/25 dark:bg-[#0b355f]/95 dark:shadow-[0_7px_0_0_#facc15] sm:p-8">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md shadow-2xl sm:p-8">
             <div className="mb-6 text-center">
-              <h1 className="text-2xl font-extrabold tracking-tight text-[#163a5f] dark:text-cyan-50 sm:text-3xl">
+              <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
                 Akun
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-sky-900/75 dark:text-cyan-100/80">
+              <p className="mt-2 text-sm leading-relaxed text-gray-400">
                 Masuk dengan akun yang ada atau daftar akun baru.
               </p>
             </div>
 
-            <div className="mb-6 flex gap-1 rounded-2xl border border-slate-200/90 bg-slate-100/80 p-1 dark:border-red-900/30 dark:bg-gray-800/80">
+            <div className="mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -531,7 +531,7 @@ const Akun = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
                     placeholder="Username atau email"
                     required
                     disabled={loading}
@@ -550,7 +550,7 @@ const Akun = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
                     placeholder="••••••••"
                     required
                     disabled={loading}
@@ -594,7 +594,7 @@ const Akun = () => {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
                     placeholder="Nama lengkap"
                     required
                     disabled={loading}
@@ -613,7 +613,7 @@ const Akun = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
                     placeholder="username_unik"
                     required
                     minLength={3}
@@ -633,7 +633,7 @@ const Akun = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
                     placeholder="email@contoh.com"
                     disabled={loading}
                     autoComplete="email"
@@ -651,7 +651,7 @@ const Akun = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/25 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100 dark:placeholder:text-gray-400 dark:focus:border-red-500 dark:focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
                     placeholder="••••••••"
                     required
                     disabled={loading}
