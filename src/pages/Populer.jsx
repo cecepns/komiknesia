@@ -87,7 +87,7 @@ const Populer = () => {
   }, [fetchPopularManga]);
 
   return (
-    <div className="min-h-screen pb-20 pt-4 bg-gray-50 dark:bg-primary-950">
+    <div className="min-h-screen pb-20 pt-4 bg-black text-gray-100 dark:bg-black dark:text-gray-100">
       <Helmet>
         <title>Populer - Komiknesia</title>
         <meta name="description" content="Komik Populer Manhwa, Manga, dan Manhua di Komiknesia." />
@@ -117,7 +117,7 @@ const Populer = () => {
         </div>
 
         {/* Category Tabs (Red Theme UI) */}
-        <div className="mb-6 flex items-center justify-start gap-2 border-b border-gray-200 pb-3 dark:border-primary-800">
+        <div className="mb-6 flex items-center justify-start gap-2 border-b border-gray-200 pb-3 dark:border-white/10">
           {[
             { id: "manhwa", label: "Manhwa" },
             { id: "manga", label: "Manga" },
@@ -131,8 +131,8 @@ const Populer = () => {
                 onClick={() => setType(id)}
                 className={`rounded-xl border transition-all duration-200 px-4 py-2.5 text-xs font-bold sm:text-sm ${
                   isActive
-                    ? "border-red-500/50 bg-red-600 text-white shadow-[0_4px_0_0_#991b1b] dark:border-red-400/40 dark:bg-red-600 dark:text-white dark:shadow-[0_4px_0_0_#991b1b]"
-                    : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-red-900/60 dark:bg-[#0b1628] dark:text-gray-200 dark:shadow-[0_3px_0_0_#7f1d1d] dark:hover:border-red-600/80 dark:hover:bg-[#0f1d35]"
+                    ? "border-red-500/50 bg-red-600 text-white shadow-md dark:border-red-400/40 dark:bg-red-600 dark:text-white"
+                    : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-gray-100 dark:border-white/10 dark:bg-black dark:text-gray-200 hover:dark:bg-white/5"
                 }`}
               >
                 {label}
@@ -150,7 +150,7 @@ const Populer = () => {
             </p>
           </div>
         ) : mangaList.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center dark:border-primary-800 dark:bg-primary-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center dark:border-white/10 dark:bg-white/[0.04]">
             <p className="text-gray-500 dark:text-gray-400">
               Tidak ada data komik untuk kategori {activeType}.
             </p>
@@ -161,7 +161,7 @@ const Populer = () => {
               <div
                 key={manga.id}
                 onClick={() => navigate(`/komik/${manga.slug}`)}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-primary-800 dark:bg-primary-900 cursor-pointer"
+                className="bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex flex-col"
               >
                 {/* Cover Image */}
                 <div className="relative aspect-[3/4] overflow-hidden">
@@ -188,7 +188,7 @@ const Populer = () => {
 
                 {/* Info */}
                 <div className="flex flex-1 flex-col justify-between p-3">
-                  <h3 className="line-clamp-2 text-xs font-bold text-gray-900 transition-colors group-hover:text-red-600 dark:text-gray-100 dark:group-hover:text-red-400 sm:text-sm">
+                  <h3 className="line-clamp-2 text-xs font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors sm:text-sm">
                     {manga.title}
                   </h3>
 
