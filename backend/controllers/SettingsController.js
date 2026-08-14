@@ -91,7 +91,7 @@ const show = async (req, res) => {
   try {
     const payload = await settingsPublicCache.wrap('public', async () => {
       const [rows] = await db.execute(
-        "SELECT `key`, `value` FROM settings WHERE `key` IN ('popup_ads_interval_minutes', 'home_popup_interval_minutes', 'popup_ads_initial_delay_minutes', 'popup_ads_unlock_seconds', 'redirect_script_urls', 'cdn_domain', 'quick_links')"
+        "SELECT `key`, `value` FROM settings WHERE `key` IN ('popup_ads_interval_minutes', 'home_popup_interval_minutes', 'popup_ads_initial_delay_minutes', 'popup_ads_unlock_seconds', 'redirect_script_urls', 'cdn_domain', 'quick_links', 'hero_banners')"
       );
       const map = Object.fromEntries((rows || []).map((r) => [r.key, r.value]));
       const popupAds = parseInt(map.popup_ads_interval_minutes, 10);
@@ -123,6 +123,18 @@ const show = async (req, res) => {
         }
       }
 
+      let heroBanners = [];
+      if (typeof map.hero_banners === 'string' && map.hero_banners.trim()) {
+        try {
+          const parsed = JSON.parse(map.hero_banners);
+          if (Array.isArray(parsed)) {
+            heroBanners = parsed;
+          }
+        } catch {
+          heroBanners = [];
+        }
+      }
+
       return {
         popup_ads_interval_minutes:
           Number.isFinite(popupAds) && POPUP_INTERVAL_OPTIONS.includes(popupAds) ? popupAds : 20,
@@ -141,6 +153,7 @@ const show = async (req, res) => {
         redirect_script_urls: redirectScriptUrls,
         cdn_domain: map.cdn_domain || 'https://cdn.komiknesia.net',
         quick_links: quickLinks,
+        hero_banners: heroBanners,
       };
     });
     res.json(payload);
@@ -167,6 +180,7 @@ const update = async (req, res) => {
       redirect_script_urls,
       cdn_domain,
       quick_links,
+      hero_banners,
     } = req.body;
 
     const setIntervalKey = (key, value, allowed) => {
@@ -220,6 +234,13 @@ const update = async (req, res) => {
       await db.execute(
         'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
         ['quick_links', JSON.stringify(quick_links), JSON.stringify(quick_links)]
+      );
+    }
+
+    if (hero_banners !== undefined && Array.isArray(hero_banners)) {
+      await db.execute(
+        'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
+        ['hero_banners', JSON.stringify(hero_banners), JSON.stringify(hero_banners)]
       );
     }
 

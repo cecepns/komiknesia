@@ -22,13 +22,16 @@ const QuickLinksManager = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   
   const [form, setForm] = useState({
+    id: '',
     title: '',
     subtitle: '',
     href: '',
     icon: 'ExternalLink',
     badge: '',
     is_active: true,
-    is_internal: false
+    is_internal: false,
+    is_landing: true,
+    is_web_app: true,
   });
 
   useEffect(() => {
@@ -70,15 +73,20 @@ const QuickLinksManager = () => {
       return;
     }
 
+    const customId = form.id.trim();
+    const generatedId = customId || (editingIndex !== null && links[editingIndex]?.id ? links[editingIndex].id : `link_${Date.now()}`);
+
     const newLink = {
-      id: editingIndex !== null && links[editingIndex]?.id ? links[editingIndex].id : `link_${Date.now()}`,
+      id: generatedId,
       title: form.title.trim(),
       subtitle: form.subtitle.trim(),
       href: form.href.trim(),
       icon: form.icon,
       badge: form.badge.trim() || undefined,
       is_active: form.is_active,
-      is_internal: form.is_internal
+      is_internal: form.is_internal,
+      is_landing: form.is_landing,
+      is_web_app: form.is_web_app,
     };
 
     let updated = [];
@@ -96,13 +104,16 @@ const QuickLinksManager = () => {
   const resetForm = () => {
     setEditingIndex(null);
     setForm({
+      id: '',
       title: '',
       subtitle: '',
       href: '',
       icon: 'ExternalLink',
       badge: '',
       is_active: true,
-      is_internal: false
+      is_internal: false,
+      is_landing: true,
+      is_web_app: true,
     });
   };
 
@@ -110,13 +121,16 @@ const QuickLinksManager = () => {
     const item = links[index];
     setEditingIndex(index);
     setForm({
+      id: item.id || '',
       title: item.title || '',
       subtitle: item.subtitle || '',
       href: item.href || '',
       icon: item.icon || 'ExternalLink',
       badge: item.badge || '',
       is_active: item.is_active !== undefined ? item.is_active : true,
-      is_internal: !!item.is_internal
+      is_internal: !!item.is_internal,
+      is_landing: item.is_landing !== undefined ? !!item.is_landing : true,
+      is_web_app: item.is_web_app !== undefined ? !!item.is_web_app : true,
     });
   };
 
@@ -173,6 +187,19 @@ const QuickLinksManager = () => {
 
         <form onSubmit={handleAddOrUpdate} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Key / ID Link (Opsional, misal: download_app / discord)
+              </label>
+              <input
+                type="text"
+                value={form.id}
+                onChange={(e) => setForm(prev => ({ ...prev, id: e.target.value }))}
+                placeholder="download_app"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm"
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Judul Link *
@@ -242,7 +269,7 @@ const QuickLinksManager = () => {
               />
             </div>
 
-            <div className="flex items-center space-x-6 pt-6">
+            <div className="flex flex-wrap items-center gap-6 pt-4">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -251,6 +278,26 @@ const QuickLinksManager = () => {
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Aktif</span>
+              </label>
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_landing}
+                  onChange={(e) => setForm(prev => ({ ...prev, is_landing: e.target.checked }))}
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Tampil di Landing Page</span>
+              </label>
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_web_app}
+                  onChange={(e) => setForm(prev => ({ ...prev, is_web_app: e.target.checked }))}
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Tampil di Web App (Home)</span>
               </label>
 
               <label className="flex items-center space-x-2 cursor-pointer">
@@ -302,7 +349,7 @@ const QuickLinksManager = () => {
             </div>
           ) : (
             links.map((item, index) => (
-              <div key={item.id || index} className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-gray-750">
+              <div key={item.id || index} className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center space-x-4">
                   <div className="flex flex-col space-y-1">
                     <button
@@ -324,16 +371,26 @@ const QuickLinksManager = () => {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-gray-900 dark:text-gray-100">
                         {item.title}
                       </span>
+                      {item.id && (
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-mono">
+                          ID: {item.id}
+                        </span>
+                      )}
                       <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-mono">
                         {item.icon}
                       </span>
-                      {item.badge && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-amber-400 text-amber-900 font-bold">
-                          {item.badge}
+                      {item.is_landing !== false && (
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-semibold">
+                          Landing
+                        </span>
+                      )}
+                      {item.is_web_app !== false && (
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold">
+                          Web App
                         </span>
                       )}
                       {!item.is_active && (

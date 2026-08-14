@@ -18,6 +18,7 @@ const AdminLayout = ({ children }) => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/admin/dashboard' },
     { id: 'categories', label: 'Kategori', icon: List, path: '/admin/categories' },
     { id: 'manga', label: 'Manga', icon: BookOpen, path: '/admin/manga' },
+    { id: 'banners', label: 'Banner Slider', icon: ImageIcon, path: '/admin/banners' },
     { id: 'quick-links', label: 'Quick Links', icon: Link2, path: '/admin/quick-links' },
     { id: 'ikiru-sync', label: 'Ikiru Sync', icon: CloudDownload, path: '/admin/ikiru-sync' },
     { id: 'apkomik-sync', label: 'Apkomik Sync', icon: CloudDownload, path: '/admin/apkomik-sync' },

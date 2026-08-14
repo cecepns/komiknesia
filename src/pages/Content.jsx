@@ -384,10 +384,11 @@ const Content = () => {
         <button
           key={i}
           onClick={() => setPage(i)}
-          className={`px-3 md:px-4 py-2 rounded-lg text-sm md:text-base ${currentPage === i
-              ? "bg-blue-500 text-white"
+          className={`px-3 md:px-4 py-2 rounded-lg text-sm md:text-base ${
+            currentPage === i
+              ? "bg-red-600 text-white font-bold shadow-md"
               : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
-            }`}
+          }`}
         >
           {i}
         </button>,
@@ -490,7 +491,7 @@ const Content = () => {
             </div>
             <button
               onClick={clearAllFilters}
-              className="hidden items-center gap-2 rounded-xl border border-sky-500/50 bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_0_0_#facc15] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#facc15] active:translate-y-px active:shadow-[0_2px_0_0_#facc15] md:inline-flex dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15] dark:hover:shadow-[0_5px_0_0_#facc15] dark:active:shadow-[0_2px_0_0_#facc15] dark:hover:brightness-110"
+              className="hidden items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-md transition-all hover:bg-red-700 md:inline-flex"
             >
               <X className="h-5 w-5 shrink-0" />
               <span className="hidden md:inline">Clear All</span>
@@ -503,13 +504,13 @@ const Content = () => {
         {/* Mobile Control Bar (View Mode Toggle & Filter Trigger) */}
         <div className="lg:hidden mb-4 flex items-center justify-between">
           {/* View Mode Toggle Pill */}
-          <div className="bg-[#141622] border border-white/10 rounded-2xl p-1 flex items-center gap-1 shadow-md">
+          <div className="bg-[#141622] rounded-2xl p-1 flex items-center gap-1 shadow-md">
             <button
               type="button"
               onClick={() => setViewMode("grid")}
               className={`p-2 rounded-xl transition-all ${
                 viewMode === "grid"
-                  ? "bg-sky-600 dark:bg-[#0b355f] text-white shadow-[0_2px_0_0_#facc15]"
+                  ? "bg-red-600 text-white shadow-md"
                   : "text-gray-400 hover:text-white"
               }`}
               title="Grid View"
@@ -521,7 +522,7 @@ const Content = () => {
               onClick={() => setViewMode("list")}
               className={`p-2 rounded-xl transition-all ${
                 viewMode === "list"
-                  ? "bg-sky-600 dark:bg-[#0b355f] text-white shadow-[0_2px_0_0_#facc15]"
+                  ? "bg-red-600 text-white shadow-md"
                   : "text-gray-400 hover:text-white"
               }`}
               title="List View"
@@ -534,12 +535,12 @@ const Content = () => {
           <button
             type="button"
             onClick={() => setShowMobileFilterModal(true)}
-            className="relative bg-[#141622] border border-white/10 p-3 rounded-2xl text-sky-400 hover:text-sky-300 transition-colors shadow-md flex items-center justify-center"
+            className="relative bg-[#141622] p-3 rounded-2xl text-red-500 hover:text-red-400 transition-colors shadow-md flex items-center justify-center"
             title="Filter"
           >
             <Filter className="h-5 w-5" />
             {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-[#141622]">
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-[#141622]">
                 {activeFilterCount}
               </span>
             )}
@@ -549,11 +550,11 @@ const Content = () => {
         {/* Mobile Bottom Sheet Filter Modal */}
         {showMobileFilterModal && (
           <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 lg:hidden"
+            className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 lg:hidden"
             role="dialog"
             aria-modal="true"
           >
-            <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-[#13141f] border border-white/10 max-h-[85vh] flex flex-col shadow-2xl text-white overflow-hidden">
+            <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-[#13141f] max-h-[85vh] flex flex-col shadow-2xl text-white overflow-hidden">
               {/* Modal Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                 <h3 className="text-base font-bold tracking-wider uppercase text-white">Filter</h3>
@@ -588,10 +589,10 @@ const Content = () => {
                         key={status}
                         type="button"
                         onClick={() => setStatusFilter(status)}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                           selectedStatus === status
-                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
-                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
                         }`}
                       >
                         {status}
@@ -609,10 +610,10 @@ const Content = () => {
                         key={type.value}
                         type="button"
                         onClick={() => setTypeFilter(type.value)}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                           selectedType === type.value
-                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
-                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
                         }`}
                       >
                         {type.label}
@@ -630,10 +631,10 @@ const Content = () => {
                         key={opt.value}
                         type="button"
                         onClick={() => setProjectFilter(opt.value)}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                           selectedProject === opt.value
-                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
-                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
                         }`}
                       >
                         {opt.label}
@@ -651,10 +652,10 @@ const Content = () => {
                         key={opt.value}
                         type="button"
                         onClick={() => setSourceFilter(opt.value)}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                           selectedSource === opt.value
-                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
-                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
                         }`}
                       >
                         {opt.label}
@@ -672,10 +673,10 @@ const Content = () => {
                         key={order}
                         type="button"
                         onClick={() => setOrderFilter(order)}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                           selectedOrder === order
-                            ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
-                            : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
                         }`}
                       >
                         {order}
@@ -700,8 +701,8 @@ const Content = () => {
                             onClick={() => toggleGenre(genre.id)}
                             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                               isSelected
-                                ? 'border border-sky-500/50 bg-sky-600 text-white shadow-[0_3px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15]'
-                                : 'bg-[#1e202e] text-gray-300 border border-white/10 hover:bg-[#252839]'
+                                ? 'bg-red-600 text-white shadow-md font-bold'
+                                : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
                             }`}
                           >
                             {genre.name}
@@ -713,12 +714,12 @@ const Content = () => {
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="p-4 border-t border-white/10 bg-[#141522]">
+              {/* Modal Footer (Added extra bottom padding so it sits above BottomNavigation) */}
+              <div className="p-4 pb-20 sm:pb-4 border-t border-white/10 bg-[#141522]">
                 <button
                   type="button"
                   onClick={() => setShowMobileFilterModal(false)}
-                  className="w-full py-3 bg-sky-600 hover:bg-sky-500 dark:bg-[#0b355f] text-white font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-[0_4px_0_0_#facc15] dark:shadow-[0_4px_0_0_#facc15]"
+                  className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-md"
                 >
                   Terapkan Filter
                 </button>
@@ -731,13 +732,14 @@ const Content = () => {
           {/* Filters Sidebar - Desktop Only */}
           <div className="hidden lg:block lg:w-80">
             <div className="sticky top-24 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-[0_6px_0_0_#e2e8f0] dark:border-cyan-200/15 dark:bg-primary-900 dark:shadow-[0_6px_0_0_rgba(250,204,21,0.22)]">
+              {/* Clear All button inside header */}
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   Filter
                 </h3>
                 <button
                   onClick={clearAllFilters}
-                  className="inline-flex items-center justify-center rounded-lg border border-sky-500/50 bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_3px_0_0_#facc15] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#facc15] active:translate-y-px active:shadow-[0_2px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_3px_0_0_#facc15] dark:hover:shadow-[0_4px_0_0_#facc15] dark:hover:brightness-110"
+                  className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-md transition-all hover:bg-red-700"
                 >
                   Clear All
                 </button>
@@ -752,13 +754,12 @@ const Content = () => {
                   {statusOptions.map((status) => (
                     <button
                       key={status}
-                      onClick={() => {
-                        setStatusFilter(status);
-                      }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedStatus === status
-                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
-                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                        }`}
+                      onClick={() => setStatusFilter(status)}
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                        selectedStatus === status
+                          ? "bg-red-600 text-white shadow-md"
+                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                      }`}
                     >
                       {status}
                     </button>
@@ -776,13 +777,12 @@ const Content = () => {
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => {
-                        setProjectFilter(opt.value);
-                      }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedProject === opt.value
-                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
-                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                        }`}
+                      onClick={() => setProjectFilter(opt.value)}
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                        selectedProject === opt.value
+                          ? "bg-red-600 text-white shadow-md"
+                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                      }`}
                     >
                       {opt.label}
                     </button>
@@ -800,13 +800,12 @@ const Content = () => {
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => {
-                        setSourceFilter(opt.value);
-                      }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedSource === opt.value
-                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
-                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                        }`}
+                      onClick={() => setSourceFilter(opt.value)}
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                        selectedSource === opt.value
+                          ? "bg-red-600 text-white shadow-md"
+                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                      }`}
                     >
                       {opt.label}
                     </button>
@@ -823,13 +822,12 @@ const Content = () => {
                   {typeOptions.map((type) => (
                     <button
                       key={type.value}
-                      onClick={() => {
-                        setTypeFilter(type.value);
-                      }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedType === type.value
-                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
-                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                        }`}
+                      onClick={() => setTypeFilter(type.value)}
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                        selectedType === type.value
+                          ? "bg-red-600 text-white shadow-md"
+                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                      }`}
                     >
                       {type.label}
                     </button>
@@ -846,13 +844,12 @@ const Content = () => {
                   {orderOptions.map((order) => (
                     <button
                       key={order}
-                      onClick={() => {
-                        setOrderFilter(order);
-                      }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${selectedOrder === order
-                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_4px_0_0_#facc15] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#facc15]"
-                          : "border-slate-200 bg-slate-50 text-slate-700 shadow-[0_3px_0_0_#e2e8f0] hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_#cbd5e1] active:translate-y-px active:shadow-[0_2px_0_0_#e2e8f0] dark:border-primary-600 dark:bg-primary-800 dark:text-gray-200 dark:shadow-[0_3px_0_0_#1e3a5f] dark:hover:bg-primary-800"
-                        }`}
+                      onClick={() => setOrderFilter(order)}
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                        selectedOrder === order
+                          ? "bg-red-600 text-white shadow-md"
+                          : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
+                      }`}
                     >
                       {order}
                     </button>
@@ -880,7 +877,7 @@ const Content = () => {
                           type="checkbox"
                           checked={selectedGenres.includes(genre.id)}
                           onChange={() => toggleGenre(genre.id)}
-                          className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
+                          className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
                         />
                         <span className="text-sm text-gray-700 dark:text-gray-300">
                           {genre.name}
@@ -903,10 +900,10 @@ const Content = () => {
               selectedOrder !== "Update" ||
               selectedProject !== "all" ||
               selectedSource !== "all") && (
-                <div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_4px_0_0_#e2e8f0] dark:border-primary-700 dark:bg-primary-900 dark:shadow-[0_4px_0_0_rgba(56,189,248,0.18)]">
+                <div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-primary-700 dark:bg-primary-900">
                   <div className="flex flex-wrap gap-2">
                     {searchQuery && (
-                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                      <span className="inline-flex items-center space-x-2 px-3 py-1 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 rounded-full text-sm font-semibold border border-red-200 dark:border-red-900/40">
                         <span>
                           Pencarian: {'"'}
                           {searchQuery}
@@ -914,7 +911,7 @@ const Content = () => {
                         </span>
                         <button
                           onClick={clearSearch}
-                          className="hover:text-blue-900 dark:hover:text-blue-100"
+                          className="hover:text-red-900 dark:hover:text-red-100"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -925,12 +922,12 @@ const Content = () => {
                       return genre ? (
                         <span
                           key={genreId}
-                          className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
+                          className="inline-flex items-center space-x-2 px-3 py-1 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 rounded-full text-sm font-semibold border border-red-200 dark:border-red-900/40"
                         >
                           <span>{genre.name}</span>
                           <button
                             onClick={() => toggleGenre(genreId)}
-                            className="hover:text-blue-900 dark:hover:text-blue-100"
+                            className="hover:text-red-900 dark:hover:text-red-100"
                           >
                             <X className="h-4 w-4" />
                           </button>

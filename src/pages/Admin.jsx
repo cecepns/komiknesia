@@ -7,6 +7,7 @@ import AdsManager from './admin/AdsManager';
 import FeaturedManager from './admin/FeaturedManager';
 import ContactManager from './admin/ContactManager';
 import QuickLinksManager from './admin/QuickLinksManager';
+import BannerManager from './admin/BannerManager';
 import IkiruSync from './admin/IkiruSync';
 import ApkomikSync from './admin/ApkomikSync';
 import UserManager from './admin/UserManager';
@@ -23,6 +24,7 @@ const Admin = () => {
         <Route path="categories" element={<CategoryManager />} />
         <Route path="manga" element={<MangaManager />} />
         <Route path="quick-links" element={<QuickLinksManager />} />
+        <Route path="banners" element={<BannerManager />} />
         <Route path="ads" element={<AdsManager />} />
         <Route path="featured" element={<FeaturedManager />} />
         <Route path="contact" element={<ContactManager />} />

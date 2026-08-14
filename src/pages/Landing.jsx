@@ -166,8 +166,8 @@ const Landing = () => {
     apiClient.getSettings()
       .then((s) => {
         if (s && Array.isArray(s.quick_links) && s.quick_links.length > 0) {
-          const activeOnly = s.quick_links.filter(item => item.is_active !== false);
-          if (activeOnly.length > 0) setCtaItems(activeOnly);
+          const landingLinks = s.quick_links.filter(item => item.is_active !== false && item.is_landing !== false);
+          if (landingLinks.length > 0) setCtaItems(landingLinks);
         }
       })
       .catch((err) => console.error("Error loading quick links for Landing:", err));

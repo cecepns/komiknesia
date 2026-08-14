@@ -20,18 +20,19 @@ import Logo from "../assets/logo.png";
 import LazyImage from "./LazyImage";
 import { useAuth } from "../contexts/AuthContext";
 
-/** Tombol header — latar sky/cyan (seperti Content); bayangan offset merah */
+/** Tombol header — tema merah tanpa border */
 const contentBtnTrans = "transition-all duration-200";
 
-const contentFilterActive = `rounded-xl border ${contentBtnTrans} border-sky-500/50 bg-sky-600 text-white shadow-[0_7px_0_0_#DC2626] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#DC2626]`;
+const contentFilterActive = `rounded-xl ${contentBtnTrans} bg-red-600 text-white shadow-md`;
+const contentFilterInactive = `rounded-xl ${contentBtnTrans} bg-transparent text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5`;
 
-/** Nav desktop — sama gaya dengan tombol tema (dipakai juga di halaman lain, mis. genre di MangaDetail) */
-export const headerNavLinkClass = `inline-flex items-center justify-center ${contentFilterActive} px-4 py-2.5 text-sm font-semibold hover:brightness-[1.03] dark:hover:brightness-110`;
+/** Nav desktop — gaya link tanpa border */
+export const headerNavLinkClass = `inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200`;
 
 /** Tema, menu mobile, akun */
-const headerIconButtonClass = `flex items-center justify-center ${contentFilterActive} p-2.5 text-sm font-semibold hover:brightness-[1.03] dark:hover:brightness-110`;
+const headerIconButtonClass = `flex items-center justify-center rounded-xl p-2 text-sm font-semibold transition-all duration-200 bg-transparent text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10`;
 
-const mobileAccountButtonClass = `w-full flex items-center justify-center ${contentFilterActive} px-4 py-3 text-sm font-semibold hover:brightness-[1.03] dark:hover:brightness-110`;
+const mobileAccountButtonClass = `w-full flex items-center justify-center rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200 bg-red-600 text-white shadow-md hover:bg-red-700`;
 
 const mobileSideNavItems = [
   { path: "/", label: "Home", icon: Home },
@@ -174,57 +175,36 @@ const Header = () => {
             </div>
 
             {/* Navigation Links - Hidden on small screens */}
-            <nav className="hidden lg:flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => handleNavigate("/")}
-                className={headerNavLinkClass}
-              >
-                Home
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/jadwal")}
-                className={headerNavLinkClass}
-              >
-                Jadwal
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/premium")}
-                className={`${headerNavLinkClass} gap-1.5`}
-              >
-                <Crown className="h-4 w-4 shrink-0 text-amber-300 fill-amber-400" aria-hidden />
-                Premium
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/library")}
-                className={headerNavLinkClass}
-              >
-                Library
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/leaderboard")}
-                className={headerNavLinkClass}
-              >
-                Leaderboard
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/content")}
-                className={headerNavLinkClass}
-              >
-                Genre
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/contact")}
-                className={headerNavLinkClass}
-              >
-                Kontak
-              </button>
+            <nav className="hidden lg:flex items-center gap-1.5">
+              {[
+                { path: "/", label: "Home" },
+                { path: "/jadwal", label: "Jadwal" },
+                { path: "/premium", label: "Premium", icon: Crown },
+                { path: "/library", label: "Library" },
+                { path: "/leaderboard", label: "Leaderboard" },
+                { path: "/content", label: "Genre" },
+                { path: "/contact", label: "Kontak" },
+              ].map((item) => {
+                const active = isNavActive(item.path);
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    onClick={() => handleNavigate(item.path)}
+                    className={`${headerNavLinkClass} ${
+                      active
+                        ? "bg-red-600 text-white shadow-md"
+                        : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10"
+                    } ${Icon ? "gap-1.5" : ""}`}
+                  >
+                    {Icon && (
+                      <Icon className="h-4 w-4 shrink-0 text-amber-300 fill-amber-400" aria-hidden />
+                    )}
+                    {item.label}
+                  </button>
+                );
+              })}
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -382,9 +362,10 @@ const Header = () => {
                 type="button"
                 onClick={submitFullSearch}
                 disabled={!searchQuery.trim()}
-                className="flex-shrink-0 px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:pointer-events-none text-white text-sm font-medium transition-colors"
+                className="flex-shrink-0 p-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none text-white font-bold shadow-md transition-colors flex items-center justify-center"
+                aria-label="Cari"
               >
-                Cari
+                <Search className="h-4 w-4" />
               </button>
             </div>
 
@@ -472,10 +453,11 @@ const Header = () => {
                     <button
                       type="button"
                       onClick={() => handleNavigate(item.path)}
-                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${active
-                          ? "border-sky-500/50 bg-sky-600 text-white shadow-[0_5px_0_0_#c61737] dark:border-cyan-400/40 dark:bg-[#0b355f] dark:text-cyan-50"
-                          : "border-transparent text-gray-700 hover:border-gray-200 hover:bg-gray-50 dark:text-gray-200 dark:hover:border-white/10 dark:hover:bg-white/5"
-                        }`}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${
+                        active
+                          ? "bg-red-600 text-white shadow-md font-bold"
+                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/5"
+                      }`}
                     >
                       <Icon
                         className={`h-5 w-5 shrink-0 ${item.accent ? "text-amber-300 fill-amber-400" : ""

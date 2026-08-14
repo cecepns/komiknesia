@@ -13,6 +13,7 @@ import {
 import ProjectSection from "../components/ProjectSection";
 import UpdateSection from "../components/UpdateSection";
 import PopularSection from "../components/PopularSection";
+import HeroBannerSection from "../components/HeroBannerSection";
 import FeaturedBanner from "../components/FeaturedBanner";
 import "../styles/featured-banner.css";
 import { Link, useNavigate } from "react-router-dom";
@@ -96,6 +97,8 @@ const Home = () => {
     }
   };
 
+  const [heroBanners, setHeroBanners] = useState([]);
+
   useEffect(() => {
     fetchBannerManga();
   }, []);
@@ -111,6 +114,14 @@ const Home = () => {
       setBannerLoading(false);
     }
   };
+
+  useEffect(() => {
+    apiClient.getSettings().then((s) => {
+      if (s && Array.isArray(s.hero_banners) && s.hero_banners.length > 0) {
+        setHeroBanners(s.hero_banners);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Fetch ads by type
   const { ads: homeTopAds } = useAds("home-top");
@@ -134,8 +145,8 @@ const Home = () => {
           setHomePopupIntervalMinutes(v);
         }
         if (s && Array.isArray(s.quick_links) && s.quick_links.length > 0) {
-          const activeOnly = s.quick_links.filter(item => item.is_active !== false);
-          if (activeOnly.length > 0) setQuickLinks(activeOnly);
+          const webAppLinks = s.quick_links.filter(item => item.is_active !== false && item.is_web_app !== false);
+          if (webAppLinks.length > 0) setQuickLinks(webAppLinks);
         }
       })
       .catch(() => {})
@@ -305,17 +316,13 @@ const Home = () => {
    
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Featured Slider */}
+        {/* Hero Slider Banner */}
         <div
           className="mb-12"
           data-aos="fade-up"
           data-aos-delay="100"
         >
-          <FeaturedBanner
-            items={bannerManga}
-            loading={bannerLoading}
-            onReadLatest={handleReadLatest}
-          />
+          <HeroBannerSection banners={heroBanners.length > 0 ? heroBanners : bannerManga} />
         </div>
 
         {/* Simple Link Badges Section per Client Feedback */}
