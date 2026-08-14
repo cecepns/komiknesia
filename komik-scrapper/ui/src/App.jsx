@@ -338,6 +338,10 @@ function App() {
     setCronTasks(prev => prev.map(t => t.id === id ? { ...t, enabled: !t.enabled } : t));
   };
 
+  const updateTaskField = (id, field, value) => {
+    setCronTasks(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
+  };
+
   useEffect(() => {
     if (logEndRef.current) {
       logEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -653,28 +657,64 @@ function App() {
                     background: task.enabled ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.01)', 
                     border: '1px solid var(--glass-border)', 
                     borderRadius: 8,
-                    opacity: task.enabled ? 1 : 0.5
+                    opacity: task.enabled ? 1 : 0.55
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
                       <input 
                         type="checkbox" 
                         checked={task.enabled} 
                         onChange={() => toggleTaskEnabled(task.id)}
                         style={{ width: 'auto', margin: 0 }}
                       />
-                      <strong style={{ fontSize: '1rem', color: '#f0f6fc' }}>{task.name}</strong>
+                      <input 
+                        type="text" 
+                        value={task.name}
+                        onChange={(e) => updateTaskField(task.id, 'name', e.target.value)}
+                        style={{ background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 4, padding: '0.2rem 0.5rem', color: '#f0f6fc', fontWeight: 'bold', fontSize: '0.95rem' }}
+                      />
                     </div>
-                    <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.6rem', borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: '#c9d1d9' }}>
-                      Setiap {task.intervalMinutes} menit
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#c9d1d9' }}>
+                      <span>Interval:</span>
+                      <input 
+                        type="number" 
+                        value={task.intervalMinutes}
+                        onChange={(e) => updateTaskField(task.id, 'intervalMinutes', parseInt(e.target.value) || 1)}
+                        style={{ width: '60px', padding: '0.2rem 0.4rem', borderRadius: 4, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#58a6ff', textAlign: 'center' }}
+                      />
+                      <span>menit</span>
+                    </div>
                   </div>
 
-                  <div style={{ fontSize: '0.85rem', color: '#8b949e', marginLeft: '1.75rem' }}>
-                    <div><strong>URL:</strong> <code style={{ color: '#58a6ff' }}>{task.url}</code></div>
-                    <div><strong>Limit Chapter:</strong> {task.chapterLimit === 9999 ? 'Full Chapter (Semua)' : `${task.chapterLimit} Chapter Terakhir`}</div>
-                    <div style={{ marginTop: '0.35rem', color: '#c9d1d9' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginLeft: '1.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', minWidth: '45px', color: '#8b949e' }}>URL:</label>
+                      <input 
+                        type="text" 
+                        value={task.url}
+                        onChange={(e) => updateTaskField(task.id, 'url', e.target.value)}
+                        placeholder="https://..."
+                        style={{ flex: 1, padding: '0.3rem 0.6rem', borderRadius: 4, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#79c0ff', fontSize: '0.85rem', fontFamily: 'monospace' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', minWidth: '45px', color: '#8b949e' }}>Limit:</label>
+                      <select 
+                        value={task.chapterLimit}
+                        onChange={(e) => updateTaskField(task.id, 'chapterLimit', parseInt(e.target.value))}
+                        style={{ padding: '0.3rem 0.6rem', borderRadius: 4, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#c9d1d9', fontSize: '0.85rem' }}
+                      >
+                        <option value={1}>1 Chapter Terakhir</option>
+                        <option value={3}>3 Chapter Terakhir</option>
+                        <option value={5}>5 Chapter Terakhir</option>
+                        <option value={10}>10 Chapter Terakhir</option>
+                        <option value={9999}>Full Chapter (Semua)</option>
+                      </select>
+                    </div>
+
+                    <div style={{ marginTop: '0.25rem', fontSize: '0.8rem', color: '#c9d1d9' }}>
                       <span>Terakhir Jalan: {task.lastRun || '-'}</span> | <span style={{ color: '#3fb950' }}>Jadwal Berikutnya: {task.nextRun || '-'}</span>
                     </div>
                   </div>

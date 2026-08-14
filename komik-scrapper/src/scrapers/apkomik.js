@@ -61,7 +61,14 @@ function resolveMangaTarget(rawValue, fallbackBaseUrl = BASE_URL) {
 }
 
 async function scrapeMangaDetail(slug, baseUrl = BASE_URL) {
-  const mangaUrl = `${baseUrl}/manga/${slug}/`;
+  let cleanBaseUrl = baseUrl;
+  if (cleanBaseUrl.startsWith('http://') || cleanBaseUrl.startsWith('https://')) {
+    try {
+      const parsed = new URL(cleanBaseUrl);
+      cleanBaseUrl = `${parsed.protocol}//${parsed.host}`;
+    } catch {}
+  }
+  const mangaUrl = `${cleanBaseUrl}/manga/${slug}/`;
   const $ = await fetchHtml(mangaUrl);
 
   const title = cleanText($('.entry-title').first().text()) || cleanText($('h1').first().text()) || slug.replace(/-/g, ' ');

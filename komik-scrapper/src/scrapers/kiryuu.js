@@ -128,7 +128,14 @@ function parseIkiruMangaRating($) {
 }
 
 async function scrapeMangaDetail(slug, baseUrl = BASE_URL) {
-  const mangaUrl = `${baseUrl}/manga/${slug}/`;
+  let cleanBaseUrl = baseUrl;
+  if (cleanBaseUrl.startsWith('http://') || cleanBaseUrl.startsWith('https://')) {
+    try {
+      const parsed = new URL(cleanBaseUrl);
+      cleanBaseUrl = `${parsed.protocol}//${parsed.host}`;
+    } catch {}
+  }
+  const mangaUrl = `${cleanBaseUrl}/manga/${slug}/`;
   const $ = await fetchHtml(mangaUrl);
 
   const titleEl = $('[itemprop="name"]').first();
