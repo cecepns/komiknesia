@@ -335,7 +335,7 @@ const Home = () => {
           {quickLinks.map((item) => {
             const isDownloadApp = item.id === 'download_app' || item.icon === 'Download' || item.icon === 'Smartphone' || item.title.toLowerCase().includes('download');
 
-            const btnCls = "inline-flex items-center gap-1.5 rounded-lg border border-gray-800 bg-[#0f172a]/90 px-2 py-1.5 shadow-sm transition-all hover:scale-105 hover:border-gray-700 hover:bg-[#1e293b] md:px-2.5 md:py-1.5";
+            const btnCls = "inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-2 py-1.5 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10 md:px-2.5 md:py-1.5";
             const txtCls = "text-[11px] font-semibold text-white sm:text-xs truncate";
             const iconCls = "";
 

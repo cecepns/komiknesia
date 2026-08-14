@@ -33,12 +33,16 @@ const PopularSection = () => {
   const [manga, setManga] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const isInitialScrolledRef = useRef(false);
 
   const scrollRef = useRef(null);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
   const dragDistanceRef = useRef(0);
+
+  // Repeat manga 3 times for true 360-degree infinite looping without empty gaps
+  const displayItems = manga.length > 0 ? [...manga, ...manga, ...manga] : [];
 
   const fetchPopularManga = useCallback(async () => {
     try {
@@ -48,7 +52,7 @@ const PopularSection = () => {
       const items = response.data || [];
       setManga(items);
       if (items.length > 0) {
-        setActiveIndex(0);
+        setActiveIndex(items.length); // Start at middle clone set
       }
     } catch (error) {
       console.error("Error fetching popular manga:", error);
@@ -62,9 +66,38 @@ const PopularSection = () => {
     fetchPopularManga();
   }, [fetchPopularManga]);
 
-  // Update active index based on scroll position
-  const updateActiveIndexOnScroll = useCallback(() => {
+  // Smooth scroll to card at index
+  const scrollToCard = useCallback((index, smooth = true) => {
     if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    const children = Array.from(container.children);
+    if (!children[index]) return;
+    const targetCard = children[index];
+    const containerWidth = container.clientWidth;
+    const cardLeft = targetCard.offsetLeft;
+    const cardWidth = targetCard.offsetWidth;
+    const targetScroll = cardLeft - containerWidth / 2 + cardWidth / 2;
+
+    container.scrollTo({
+      left: Math.max(0, targetScroll),
+      behavior: smooth ? "smooth" : "auto",
+    });
+    setActiveIndex(index);
+  }, []);
+
+  // Initial scroll alignment on middle clone set
+  useEffect(() => {
+    if (manga.length > 0 && scrollRef.current && !isInitialScrolledRef.current) {
+      isInitialScrolledRef.current = true;
+      setTimeout(() => {
+        scrollToCard(manga.length, false);
+      }, 50);
+    }
+  }, [manga.length, scrollToCard]);
+
+  // Update active index based on scroll position & handle seamless infinite bounds jump
+  const updateActiveIndexOnScroll = useCallback(() => {
+    if (!scrollRef.current || manga.length === 0) return;
     const container = scrollRef.current;
     const containerCenter = container.scrollLeft + container.clientWidth / 2;
     const children = Array.from(container.children);
@@ -81,26 +114,27 @@ const PopularSection = () => {
     });
 
     setActiveIndex(closestIndex);
-  }, []);
 
-  // Smooth scroll to card at index
-  const scrollToCard = useCallback((index) => {
-    if (!scrollRef.current) return;
-    const container = scrollRef.current;
-    const children = Array.from(container.children);
-    if (!children[index]) return;
-    const targetCard = children[index];
-    const containerWidth = container.clientWidth;
-    const cardLeft = targetCard.offsetLeft;
-    const cardWidth = targetCard.offsetWidth;
-    const targetScroll = cardLeft - containerWidth / 2 + cardWidth / 2;
-
-    container.scrollTo({
-      left: Math.max(0, targetScroll),
-      behavior: "smooth",
-    });
-    setActiveIndex(index);
-  }, []);
+    // Seamless infinite reset when entering prefix or suffix sets
+    const total = manga.length;
+    if (closestIndex < total) {
+      const targetIndex = closestIndex + total;
+      const targetCard = children[targetIndex];
+      if (targetCard) {
+        const targetScroll = targetCard.offsetLeft - container.clientWidth / 2 + targetCard.offsetWidth / 2;
+        container.scrollLeft = targetScroll;
+        setActiveIndex(targetIndex);
+      }
+    } else if (closestIndex >= 2 * total) {
+      const targetIndex = closestIndex - total;
+      const targetCard = children[targetIndex];
+      if (targetCard) {
+        const targetScroll = targetCard.offsetLeft - container.clientWidth / 2 + targetCard.offsetWidth / 2;
+        container.scrollLeft = targetScroll;
+        setActiveIndex(targetIndex);
+      }
+    }
+  }, [manga.length]);
 
   // Auto slide interval (every 4 seconds)
   useEffect(() => {
@@ -108,8 +142,8 @@ const PopularSection = () => {
     const timer = setInterval(() => {
       if (!isDraggingRef.current) {
         setActiveIndex((prev) => {
-          const nextIdx = (prev + 1) % manga.length;
-          scrollToCard(nextIdx);
+          const nextIdx = prev + 1;
+          scrollToCard(nextIdx, true);
           return nextIdx;
         });
       }
@@ -146,14 +180,12 @@ const PopularSection = () => {
 
   const handlePrev = () => {
     if (manga.length === 0) return;
-    const nextIdx = activeIndex > 0 ? activeIndex - 1 : manga.length - 1;
-    scrollToCard(nextIdx);
+    scrollToCard(activeIndex - 1, true);
   };
 
   const handleNext = () => {
     if (manga.length === 0) return;
-    const nextIdx = activeIndex < manga.length - 1 ? activeIndex + 1 : 0;
-    scrollToCard(nextIdx);
+    scrollToCard(activeIndex + 1, true);
   };
 
   if (loading) {
@@ -213,7 +245,7 @@ const PopularSection = () => {
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        {/* Horizontal Drag/Scroll Container - Fixed height container to prevent desktop layout glitch */}
+        {/* Horizontal Drag/Scroll Container */}
         <div
           ref={scrollRef}
           onScroll={updateActiveIndexOnScroll}
@@ -223,19 +255,19 @@ const PopularSection = () => {
           onMouseMove={handleMouseMove}
           className="flex items-center gap-4 sm:gap-6 overflow-x-auto py-8 px-[calc(50vw-90px)] sm:px-[calc(50vw-100px)] md:px-[calc(50vw-110px)] h-[370px] sm:h-[410px] md:h-[450px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
         >
-          {manga.map((item, index) => {
+          {displayItems.map((item, index) => {
             const isActive = index === activeIndex;
             const latestCh = item?.lastChapters?.[0];
 
             return (
               <div
-                key={item.id}
+                key={`${item.id}-${index}`}
                 onClick={() => {
                   if (dragDistanceRef.current > 10) return;
                   if (isActive) {
                     navigate(`/komik/${item.slug}`);
                   } else {
-                    scrollToCard(index);
+                    scrollToCard(index, true);
                   }
                 }}
                 className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[310px] sm:h-[350px] md:h-[380px] w-[48vw] max-w-[180px] sm:w-[200px] md:w-[220px] ${

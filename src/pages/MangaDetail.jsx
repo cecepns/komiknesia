@@ -1057,7 +1057,7 @@ const MangaDetail = () => {
                   href={discordInviteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex w-full items-center gap-3.5 rounded-2xl border border-slate-700/90 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-white/[0.08]"
+                  className="group flex w-full items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-white/20 hover:bg-white/[0.08]"
                 >
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-inner">
                     <img src={discordIcon} alt="" className="h-6 w-6" />
@@ -1073,7 +1073,7 @@ const MangaDetail = () => {
                   href={donateUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex w-full items-center gap-3.5 rounded-2xl border border-slate-700/90 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-slate-600 hover:bg-white/[0.08]"
+                  className="group flex w-full items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-white/20 hover:bg-white/[0.08]"
                 >
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-inner">
                     <Heart className="h-5 w-5" />
