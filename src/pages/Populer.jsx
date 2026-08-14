@@ -193,15 +193,14 @@ const Populer = () => {
                   </h3>
 
                   {manga.lastChapters?.length > 0 ? (
-                    <div className="mt-2 space-y-1">
+                    <div className="mt-2 space-y-1.5">
                       {manga.lastChapters.slice(0, 2).map((ch) => (
                         <ChapterAccessLink
                           key={ch.slug}
                           chapter={ch}
                           to={`/view/${ch.slug}`}
                           onClick={(e) => e.stopPropagation()}
-                          compact
-                          label={`Ch. ${ch.number || "N/A"}`}
+                          label={`Chapter ${ch.number || "N/A"}`}
                           meta={getChapterTimeAgo(ch) || null}
                         />
                       ))}

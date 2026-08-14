@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import LazyImage from "./LazyImage";
@@ -34,6 +34,12 @@ const PopularSection = () => {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
 
+  const scrollRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const dragDistanceRef = useRef(0);
+
   const fetchPopularManga = useCallback(async () => {
     try {
       setLoading(true);
@@ -56,14 +62,82 @@ const PopularSection = () => {
     fetchPopularManga();
   }, [fetchPopularManga]);
 
+  // Update active index based on scroll position
+  const updateActiveIndexOnScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    const containerCenter = container.scrollLeft + container.clientWidth / 2;
+    const children = Array.from(container.children);
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    children.forEach((child, index) => {
+      const childCenter = child.offsetLeft + child.offsetWidth / 2;
+      const distance = Math.abs(childCenter - containerCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    setActiveIndex(closestIndex);
+  }, []);
+
+  // Smooth scroll to card at index
+  const scrollToCard = useCallback((index) => {
+    if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    const children = Array.from(container.children);
+    if (!children[index]) return;
+    const targetCard = children[index];
+    const containerWidth = container.clientWidth;
+    const cardLeft = targetCard.offsetLeft;
+    const cardWidth = targetCard.offsetWidth;
+    const targetScroll = cardLeft - containerWidth / 2 + cardWidth / 2;
+
+    container.scrollTo({
+      left: Math.max(0, targetScroll),
+      behavior: "smooth",
+    });
+    setActiveIndex(index);
+  }, []);
+
+  // Mouse Drag handlers
+  const handleMouseDown = (e) => {
+    if (!scrollRef.current) return;
+    isDraggingRef.current = true;
+    dragDistanceRef.current = 0;
+    startXRef.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeftRef.current = scrollRef.current.scrollLeft;
+  };
+
+  const handleMouseLeave = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDraggingRef.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    dragDistanceRef.current = Math.abs(walk);
+    scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
   const handlePrev = () => {
     if (manga.length === 0) return;
-    setActiveIndex((prev) => (prev > 0 ? prev - 1 : manga.length - 1));
+    const nextIdx = activeIndex > 0 ? activeIndex - 1 : manga.length - 1;
+    scrollToCard(nextIdx);
   };
 
   const handleNext = () => {
     if (manga.length === 0) return;
-    setActiveIndex((prev) => (prev < manga.length - 1 ? prev + 1 : 0));
+    const nextIdx = activeIndex < manga.length - 1 ? activeIndex + 1 : 0;
+    scrollToCard(nextIdx);
   };
 
   if (loading) {
@@ -87,18 +161,8 @@ const PopularSection = () => {
     return null;
   }
 
-  const prevIdx = (activeIndex - 1 + manga.length) % manga.length;
-  const currIdx = activeIndex;
-  const nextIdx = (activeIndex + 1) % manga.length;
-
-  const visibleCards = [
-    { item: manga[prevIdx], position: "left", index: prevIdx },
-    { item: manga[currIdx], position: "center", index: currIdx },
-    { item: manga[nextIdx], position: "right", index: nextIdx },
-  ];
-
   return (
-    <div className="mb-12">
+    <div className="mb-12 relative">
       {/* Centered Pill Header Badge "Popular Today" */}
       <div className="flex justify-center mb-6">
         <div className="inline-flex items-center gap-2 rounded-full border border-pink-500/30 bg-[#12121a] px-5 py-2 shadow-lg shadow-pink-950/20 backdrop-blur-md">
@@ -111,75 +175,89 @@ const PopularSection = () => {
         </div>
       </div>
 
-      {/* Perfectly Centered 3-Card Spotlight Carousel */}
-      <div className="w-full max-w-4xl mx-auto flex items-center justify-center gap-2 sm:gap-4 md:gap-6 py-4 px-2 overflow-hidden">
-        {visibleCards.map(({ item, position }) => {
-          const isCenter = position === "center";
-          const latestCh = item?.lastChapters?.[0];
+      {/* Slider Container with Left & Right Arrow Buttons */}
+      <div className="relative w-full max-w-7xl mx-auto px-2 sm:px-6">
+        {/* Left Arrow Button */}
+        <button
+          type="button"
+          onClick={handlePrev}
+          className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/80 text-white shadow-2xl border border-white/20 hover:bg-red-600 hover:scale-110 active:scale-95 transition-all"
+          aria-label="Previous"
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </button>
 
-          return (
-            <div
-              key={`${item.id}-${position}`}
-              onClick={() => {
-                if (isCenter) {
-                  navigate(`/komik/${item.slug}`);
-                } else if (position === "left") {
-                  handlePrev();
-                } else {
-                  handleNext();
-                }
-              }}
-              className={`relative shrink-0 cursor-pointer overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none ${
-                isCenter
-                  ? "w-[54vw] max-w-[215px] sm:w-[220px] md:w-[245px] z-10 scale-105 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/50 opacity-100"
-                  : "w-[28vw] max-w-[125px] sm:w-[155px] md:w-[180px] z-0 scale-90 opacity-55 hover:opacity-85 border-white/10"
-              }`}
-            >
-              {/* Cover */}
-              <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-950">
-                <LazyImage
-                  src={getImageUrl(item.cover)}
-                  alt={item.title}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  wrapperClassName="h-full w-full"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e26] via-transparent to-transparent opacity-60" />
+        {/* Right Arrow Button */}
+        <button
+          type="button"
+          onClick={handleNext}
+          className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/80 text-white shadow-2xl border border-white/20 hover:bg-red-600 hover:scale-110 active:scale-95 transition-all"
+          aria-label="Next"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </button>
 
-                {/* Arrow Button Overlays on Side Cards */}
-                {position === "left" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
-                    <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/75 text-white shadow-xl border border-white/15">
-                      <ChevronLeft className="h-5 w-5" />
-                    </div>
-                  </div>
-                )}
-                {position === "right" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
-                    <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/75 text-white shadow-xl border border-white/15">
-                      <ChevronRight className="h-5 w-5" />
-                    </div>
-                  </div>
-                )}
-              </div>
+        {/* Horizontal Drag/Scroll Container */}
+        <div
+          ref={scrollRef}
+          onScroll={updateActiveIndexOnScroll}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className="flex items-center gap-4 sm:gap-6 overflow-x-auto py-6 px-[28vw] sm:px-[36vw] md:px-[40vw] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
+        >
+          {manga.map((item, index) => {
+            const isActive = index === activeIndex;
+            const latestCh = item?.lastChapters?.[0];
 
-              {/* Card Footer Info */}
-              <div className="p-2.5 sm:p-3.5 flex flex-col justify-between bg-[#1e1e26] min-h-[85px] sm:min-h-[95px]">
-                <div>
-                  <h3 className={`font-bold line-clamp-1 leading-snug transition-colors ${isCenter ? 'text-white text-xs sm:text-sm md:text-base' : 'text-gray-300 text-[11px] sm:text-xs'}`}>
-                    {item.title}
-                  </h3>
-                  <p className="text-[10px] sm:text-[11px] text-gray-400 mt-0.5 sm:mt-1">
-                    Chapter {latestCh?.number || "N/A"}
-                  </p>
+            return (
+              <div
+                key={item.id}
+                onClick={() => {
+                  if (dragDistanceRef.current > 10) return;
+                  if (isActive) {
+                    navigate(`/komik/${item.slug}`);
+                  } else {
+                    scrollToCard(index);
+                  }
+                }}
+                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center ${
+                  isActive
+                    ? "w-[54vw] max-w-[220px] sm:w-[220px] md:w-[250px] z-10 scale-105 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/50 opacity-100 cursor-pointer"
+                    : "w-[30vw] max-w-[130px] sm:w-[160px] md:w-[185px] z-0 scale-90 opacity-60 hover:opacity-85 border-white/10 cursor-pointer"
+                }`}
+              >
+                {/* Cover */}
+                <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-950">
+                  <LazyImage
+                    src={getImageUrl(item.cover)}
+                    alt={item.title}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    wrapperClassName="h-full w-full"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e26] via-transparent to-transparent opacity-60" />
                 </div>
 
-                <div className="mt-1.5 pt-1.5 border-t border-white/5 flex items-center justify-between">
-                  <RatingStars rating={item.rating} />
+                {/* Card Footer Info */}
+                <div className="p-2.5 sm:p-3.5 flex flex-col justify-between bg-[#1e1e26] min-h-[85px] sm:min-h-[95px]">
+                  <div>
+                    <h3 className={`font-bold line-clamp-1 leading-snug transition-colors ${isActive ? 'text-white text-xs sm:text-sm md:text-base' : 'text-gray-300 text-[11px] sm:text-xs'}`}>
+                      {item.title}
+                    </h3>
+                    <p className="text-[10px] sm:text-[11px] text-gray-400 mt-0.5 sm:mt-1">
+                      Chapter {latestCh?.number || "N/A"}
+                    </p>
+                  </div>
+
+                  <div className="mt-1.5 pt-1.5 border-t border-white/5 flex items-center justify-between">
+                    <RatingStars rating={item.rating} />
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
