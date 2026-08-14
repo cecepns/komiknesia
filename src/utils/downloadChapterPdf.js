@@ -1,4 +1,4 @@
-import { API_BASE_URL, getImageUrl } from './api';
+import { API_BASE_URL, apiClient, getImageUrl } from './api';
 
 /**
  * Downloads a full chapter as a PDF file containing all page images.
@@ -10,15 +10,28 @@ import { API_BASE_URL, getImageUrl } from './api';
 export async function downloadChapterPdf({ slug, mangaTitle = 'Komik', chapterNumber = '' }) {
   if (!slug) throw new Error('Slug chapter tidak valid');
 
-  // 1. Fetch chapter detail
-  const res = await fetch(`${API_BASE_URL}/chapter/${encodeURIComponent(slug)}`);
+  // 1. Fetch chapter detail using correct endpoint /chapters/slug/:slug
+  const token = apiClient.getAuthToken();
+  const res = await fetch(`${API_BASE_URL}/chapters/slug/${encodeURIComponent(slug)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
   if (!res.ok) {
-    throw new Error('Gagal mengambil data chapter dari server');
+    let message = 'Gagal mengambil data chapter dari server';
+    try {
+      const errData = await res.json();
+      if (errData?.error || errData?.message) {
+        message = errData.error || errData.message;
+      }
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
   }
 
   const json = await res.json();
   const data = json.data || {};
-  const images = data.images || data.pages || data.content || [];
+  const images = data.images || data.pages || data.content?.images || [];
 
   if (!images || images.length === 0) {
     throw new Error('Tidak ada gambar di chapter ini');
