@@ -1,9 +1,9 @@
 import { API_BASE_URL, apiClient, getImageUrl } from './api';
 
 /**
- * Downloads a full chapter as a PDF file.
- * Priority 1: Backend PDF stream endpoint (if deployed on BE).
- * Priority 2: Client-side jsPDF with weserv.nl CORS proxy image loader.
+ * Downloads a full chapter strictly as a PDF file.
+ * Priority 1: Backend PDF stream endpoint (if available on BE).
+ * Priority 2: Client-side jsPDF with CORS proxy image candidate cascade.
  * @param {Object} options
  * @param {string} options.slug - Chapter slug
  * @param {string} [options.mangaTitle] - Manga title
@@ -16,40 +16,39 @@ export async function downloadChapterPdf({ slug, mangaTitle = 'Komik', chapterNu
   const cleanTitle = (mangaTitle || 'Komik').replace(/[^a-zA-Z0-9\s_-]/g, '').trim();
   const pdfFilename = `${cleanTitle}_Chapter_${chapterNumber || '1'}.pdf`;
 
-  // 1. Try Backend PDF Endpoint (Check if content-type is actual PDF, not HTML 404)
+  // 1. Try Backend PDF Endpoint (Must be actual PDF content-type)
   const pdfEndpoint = `${API_BASE_URL}/chapters/slug/${encodeURIComponent(slug)}/download-pdf`;
   try {
     const res = await fetch(pdfEndpoint, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const contentType = res.headers.get('content-type') || '';
-    if (res.ok && (contentType.includes('application/pdf') || contentType.includes('octet-stream'))) {
+    if (res.ok && (contentType.includes('application/pdf') || contentType.includes('pdf'))) {
       const blob = await res.blob();
       triggerFileDownload(blob, pdfFilename);
       return;
     }
   } catch (err) {
-    console.warn('Backend PDF endpoint unavailable:', err);
+    console.warn('Backend PDF endpoint error:', err);
   }
 
-  // 2. Try Backend ZIP Endpoint (Check if content-type is zip)
-  const zipEndpoint = `${API_BASE_URL}/chapters/slug/${encodeURIComponent(slug)}/download`;
+  // 2. Try Backend PDF Format Query Endpoint
+  const pdfFormatEndpoint = `${API_BASE_URL}/chapters/slug/${encodeURIComponent(slug)}/download?format=pdf`;
   try {
-    const res = await fetch(zipEndpoint, {
+    const res = await fetch(pdfFormatEndpoint, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const contentType = res.headers.get('content-type') || '';
-    if (res.ok && (contentType.includes('application/zip') || contentType.includes('octet-stream'))) {
+    if (res.ok && (contentType.includes('application/pdf') || contentType.includes('pdf'))) {
       const blob = await res.blob();
-      const zipFilename = `${cleanTitle}_Chapter_${chapterNumber || '1'}.zip`;
-      triggerFileDownload(blob, zipFilename);
+      triggerFileDownload(blob, pdfFilename);
       return;
     }
   } catch (err) {
-    console.warn('Backend ZIP download unavailable:', err);
+    console.warn('Backend PDF format query error:', err);
   }
 
-  // 3. Fallback: Generate PDF on Client-side via jsPDF + weserv.nl CORS Image Proxy
+  // 3. Fallback: Always generate a PDF file on Client-side via jsPDF
   await downloadClientJsPdf({ slug, mangaTitle, chapterNumber, token });
 }
 
@@ -83,17 +82,25 @@ async function downloadClientJsPdf({ slug, mangaTitle, chapterNumber, token }) {
 
   const { jsPDF } = await import('jspdf');
 
-  // Load single image via weserv.nl CORS proxy & convert to JPEG Data URL
+  // Load image via candidate cascade to convert to JPEG Data URL
   const loadImageDataUrl = (url) => {
     return new Promise((resolve, reject) => {
       const fullUrl = getImageUrl(url);
       if (!fullUrl) return reject(new Error('URL gambar tidak valid'));
 
-      // Proxy candidates (weserv.nl adds Access-Control-Allow-Origin: * to CDN images)
-      const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(fullUrl)}`;
-      const backupProxyUrl = `https://proxy.cdnesia.my.id/?url=${encodeURIComponent(fullUrl)}`;
+      const candidates = [
+        `https://images.weserv.nl/?url=${encodeURIComponent(fullUrl)}`,
+        `https://proxy.cdnesia.my.id/?url=${encodeURIComponent(fullUrl)}`,
+        `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(fullUrl)}`,
+        fullUrl,
+      ];
 
-      const tryLoadImage = (src, isFallback = false) => {
+      const tryNextCandidate = (index) => {
+        if (index >= candidates.length) {
+          return reject(new Error('Gagal memuat gambar'));
+        }
+
+        const src = candidates[index];
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
@@ -110,18 +117,16 @@ async function downloadClientJsPdf({ slug, mangaTitle, chapterNumber, token }) {
               height: canvas.height,
             });
           } catch (e) {
-            if (!isFallback) tryLoadImage(backupProxyUrl, true);
-            else reject(e);
+            tryNextCandidate(index + 1);
           }
         };
         img.onerror = () => {
-          if (!isFallback) tryLoadImage(backupProxyUrl, true);
-          else reject(new Error(`Gagal memuat gambar chapter`));
+          tryNextCandidate(index + 1);
         };
         img.src = src;
       };
 
-      tryLoadImage(proxyUrl);
+      tryNextCandidate(0);
     });
   };
 
