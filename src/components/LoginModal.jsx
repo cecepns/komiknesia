@@ -139,12 +139,18 @@ const LoginModal = ({ open, onClose, onSuccess, title, description }) => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-modal-title"
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
     >
       <button
         type="button"
         className="fixed inset-0 bg-black/80 backdrop-blur-sm"
         aria-label="Tutup"
-        onClick={onClose}
+        onClick={(e) => { e.stopPropagation(); onClose?.(); }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       />
 
       <div className="relative z-[1] flex min-h-[100dvh] min-h-full items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
@@ -152,7 +158,9 @@ const LoginModal = ({ open, onClose, onSuccess, title, description }) => {
           <div className="relative overflow-visible rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-md sm:p-8">
           <button
             type="button"
-            onClick={onClose}
+            onClick={(e) => { e.stopPropagation(); onClose?.(); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             className="absolute right-4 top-4 rounded-xl border border-white/10 bg-white/5 p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Tutup"
           >

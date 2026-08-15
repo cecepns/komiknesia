@@ -79,10 +79,18 @@ const ChapterAccessLink = ({
     });
   }, []);
 
+  /* Block ALL event types from reaching parent card containers */
+  const stopAllPropagation = (e) => {
+    e.stopPropagation();
+    if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
+  };
+
   const handleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
+
     if (locked) {
-      e.preventDefault();
-      e.stopPropagation();
       setLoginOpen(true);
       return;
     }
@@ -97,64 +105,82 @@ const ChapterAccessLink = ({
 
   const labelNode = label ?? children;
 
-  return (
-    <>
-      <Link
-        ref={elRef}
-        to={to}
-        onClick={handleClick}
-        className={linkClassName}
-        style={{ '--border-angle': '0deg' }}
-        {...rest}
+  if (locked) {
+    return (
+      /* This wrapper div blocks ALL event types from bubbling to parent card onClick */
+      <div
+        onClick={stopAllPropagation}
+        onMouseDown={stopAllPropagation}
+        onMouseUp={stopAllPropagation}
+        onPointerDown={stopAllPropagation}
+        onPointerUp={stopAllPropagation}
+        onTouchStart={stopAllPropagation}
+        onTouchEnd={stopAllPropagation}
       >
-        {label != null || meta != null ? (
-          <>
-            <span className="relative z-10 flex min-w-0 items-center gap-2 font-semibold">
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${locked
-                    ? 'bg-amber-400 shadow-[0_0_6px_#f59e0b]'
-                    : 'bg-red-600 shadow-[0_0_6px_#dc2626]'
-                  }`}
-              />
-              <span
-                className={`truncate ${locked
-                    ? 'text-amber-300'
-                    : 'text-gray-700 dark:text-white'
-                  }`}
-              >
-                {label}
+        <button
+          type="button"
+          ref={elRef}
+          onClick={handleClick}
+          className={linkClassName}
+          style={{ '--border-angle': '0deg' }}
+          {...rest}
+        >
+          {label != null || meta != null ? (
+            <>
+              <span className="relative z-10 flex min-w-0 items-center gap-2 font-semibold">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
+                <span className="truncate text-amber-300">{label}</span>
+                {showLockIcon ? (
+                  <Lock className="h-3.5 w-3.5 shrink-0 text-amber-400 dark:text-amber-300" aria-hidden />
+                ) : null}
               </span>
-              {locked && showLockIcon ? (
-                <Lock
-                  className="h-3.5 w-3.5 shrink-0 text-amber-400 dark:text-amber-300"
-                  aria-hidden
-                />
+              {meta ? (
+                <span className="relative z-10 shrink-0 pl-2 text-[11px] md:text-xs text-amber-200/75 dark:text-amber-200/70">
+                  {meta}
+                </span>
               ) : null}
+            </>
+          ) : (
+            labelNode
+          )}
+        </button>
+        <LoginModal
+          open={loginOpen}
+          onClose={() => setLoginOpen(false)}
+          onSuccess={() => {
+            setLoginOpen(false);
+            if (to) navigate(to);
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      ref={elRef}
+      to={to}
+      onClick={handleClick}
+      className={linkClassName}
+      style={{ '--border-angle': '0deg' }}
+      {...rest}
+    >
+      {label != null || meta != null ? (
+        <>
+          <span className="relative z-10 flex min-w-0 items-center gap-2 font-semibold">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-red-600 shadow-[0_0_6px_#dc2626]" />
+            <span className="truncate text-gray-700 dark:text-white">{label}</span>
+          </span>
+          {meta ? (
+            <span className="relative z-10 shrink-0 pl-2 text-[11px] md:text-xs text-gray-500 dark:text-gray-400">
+              {meta}
             </span>
-            {meta ? (
-              <span
-                className={`relative z-10 shrink-0 pl-2 text-[11px] md:text-xs ${locked
-                    ? 'text-amber-200/75 dark:text-amber-200/70'
-                    : 'text-gray-500 dark:text-gray-400'
-                  }`}
-              >
-                {meta}
-              </span>
-            ) : null}
-          </>
-        ) : (
-          labelNode
-        )}
-      </Link>
-      <LoginModal
-        open={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        onSuccess={() => {
-          setLoginOpen(false);
-          if (to) navigate(to);
-        }}
-      />
-    </>
+          ) : null}
+        </>
+      ) : (
+        labelNode
+      )}
+    </Link>
   );
 };
 
