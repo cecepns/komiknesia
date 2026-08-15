@@ -89,7 +89,7 @@ const Populer = () => {
   }, [fetchPopularManga]);
 
   return (
-    <div className="min-h-screen pb-20 pt-4 bg-black text-gray-100 dark:bg-black dark:text-gray-100">
+    <div className="min-h-screen pb-20 pt-1 bg-black text-gray-100 dark:bg-black dark:text-gray-100">
       <Helmet>
         <title>Populer - Komiknesia</title>
         <meta name="description" content="Komik Populer Manhwa, Manga, dan Manhua di Komiknesia." />
@@ -98,13 +98,13 @@ const Populer = () => {
       <div className="container mx-auto px-4 max-w-7xl">
         {/* Top Ads */}
         {popularTopAds && popularTopAds.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-2">
             <AdBanner ads={popularTopAds} layout="grid" columns={2} />
           </div>
         )}
 
         {/* Title */}
-        <div className="mb-6 flex items-center space-x-3">
+        <div className="mb-3 flex items-center space-x-3">
           <div className="bg-gradient-to-r from-red-600 to-rose-500 p-2.5 rounded-xl shadow-lg shadow-red-500/20">
             <Flame className="h-6 w-6 text-white" />
           </div>

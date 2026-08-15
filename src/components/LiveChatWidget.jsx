@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle, Send, Smile, X } from "lucide-react";
+import { MessageCircle, Send, Smile, X, Eye, EyeOff, Image as ImageIcon, Film } from "lucide-react";
 import { io } from "socket.io-client";
 import { API_BASE_URL_WITHOUT_API, apiClient, getImageUrl } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useScrollHide } from "../hooks/useScrollHide";
 import vipProfileBanner from "../assets/gif/banner-vip.gif";
+import { toast } from "react-toastify";
 
 function getInitials(name, username) {
   const source = String(name || username || "U").trim();
@@ -84,6 +85,119 @@ function isVipUser(message) {
   return expiresAt.getTime() >= Date.now();
 }
 
+function SpoilerBlock({ content }) {
+  const [revealed, setRevealed] = useState(false);
+
+  if (!revealed) {
+    return (
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+          setRevealed(true);
+        }}
+        className="my-1.5 inline-flex items-center gap-1.5 rounded-xl bg-red-950/80 border border-red-700/60 px-2.5 py-1 text-xs font-bold text-red-300 hover:bg-red-900 transition-colors cursor-pointer select-none shadow-md"
+        title="Klik untuk membuka spoiler"
+      >
+        <EyeOff className="h-3.5 w-3.5 text-red-400 shrink-0" />
+        <span>SPOILER (Klik untuk membuka)</span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      onClick={(e) => {
+        e.stopPropagation();
+        setRevealed(false);
+      }}
+      className="my-1.5 block rounded-xl bg-white/[0.05] border-l-4 border-red-500 p-2.5 text-xs sm:text-sm text-gray-200 cursor-pointer hover:bg-white/[0.08] transition-colors"
+      title="Klik untuk menyembunyikan spoiler"
+    >
+      <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-400 mb-1 flex items-center gap-1 select-none">
+        <Eye className="h-3 w-3" /> SPOILER (Klik untuk tutup)
+      </span>
+      <span>{content}</span>
+    </span>
+  );
+}
+
+function parseFormattedText(text, keyPrefix = 'fmt') {
+  if (!text) return null;
+
+  const regex = /\[(img|b|i|s)\]([\s\S]*?)\[\/\1\]/gi;
+  const elements = [];
+  let lastIdx = 0;
+  let m;
+
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > lastIdx) {
+      elements.push(text.slice(lastIdx, m.index));
+    }
+    const tag = m[1].toLowerCase();
+    const val = m[2];
+    const key = `${keyPrefix}-${m.index}`;
+
+    if (tag === 'b') {
+      elements.push(<strong key={key} className="font-bold text-white">{val}</strong>);
+    } else if (tag === 'i') {
+      elements.push(<em key={key} className="italic">{val}</em>);
+    } else if (tag === 's') {
+      elements.push(<del key={key} className="line-through text-gray-400">{val}</del>);
+    } else if (tag === 'img') {
+      elements.push(
+        <div key={key} className="my-1.5 max-w-xs rounded-xl overflow-hidden border border-white/10 bg-black/50 shadow-md">
+          <img
+            src={getImageUrl(val.trim())}
+            alt="Gambar Chat"
+            className="w-full h-auto max-h-60 object-contain block"
+            loading="lazy"
+          />
+        </div>
+      );
+    }
+    lastIdx = regex.lastIndex;
+  }
+
+  if (lastIdx < text.length) {
+    elements.push(text.slice(lastIdx));
+  }
+
+  return (
+    <span key={keyPrefix} className="whitespace-pre-wrap break-words">
+      {elements}
+    </span>
+  );
+}
+
+function parseBBCode(text) {
+  if (typeof text !== 'string') return text;
+
+  const spoilerRegex = /\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = spoilerRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(parseFormattedText(text.slice(lastIndex, match.index), `txt-${lastIndex}`));
+    }
+    const innerContent = match[1];
+    parts.push(
+      <SpoilerBlock
+        key={`spoiler-${match.index}`}
+        content={parseFormattedText(innerContent, `sp-inner-${match.index}`)}
+      />
+    );
+    lastIndex = spoilerRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(parseFormattedText(text.slice(lastIndex), `txt-${lastIndex}`));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
+
 function renderChatMessageBody(text) {
   const imagePath = parseStickerMessage(text);
   if (imagePath) {
@@ -99,7 +213,7 @@ function renderChatMessageBody(text) {
       </div>
     );
   }
-  return <p className="mt-1 text-gray-300 break-words">{text}</p>;
+  return <div className="mt-1 text-gray-300 text-xs sm:text-sm">{parseBBCode(text)}</div>;
 }
 
 const LiveChatWidget = () => {
@@ -111,6 +225,7 @@ const LiveChatWidget = () => {
   const [chatError, setChatError] = useState("");
   const [brokenAvatarIds, setBrokenAvatarIds] = useState(() => new Set());
   const chatListRef = useRef(null);
+  const textareaRef = useRef(null);
   const socketRef = useRef(null);
   const stickerToggleRef = useRef(null);
   const stickerTrayRef = useRef(null);
@@ -120,6 +235,44 @@ const LiveChatWidget = () => {
   const [stickers, setStickers] = useState([]);
   const [stickersLoading, setStickersLoading] = useState(false);
   const [stickersError, setStickersError] = useState("");
+
+  const insertBbCode = (openTag, closeTag = openTag) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setChatInput((prev) => `${prev}[${openTag}][/${closeTag}]`);
+      return;
+    }
+
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const selectedText = chatInput.slice(start, end);
+    const replacement = `[${openTag}]${selectedText}[/${closeTag}]`;
+    const newChatInput = chatInput.slice(0, start) + replacement + chatInput.slice(end);
+
+    setChatInput(newChatInput);
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + openTag.length + 2 + selectedText.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  const handleUploadImageFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imgUrl = ev.target.result;
+        insertBbCode(`img]${imgUrl}[/img`, '');
+        toast.success('Foto disisipkan');
+      } catch {
+        toast.error('Foto terlalu besar');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     if (!chatOpen) setStickerPickerOpen(false);
@@ -206,8 +359,8 @@ const LiveChatWidget = () => {
       const message = String(rawMessage || "").trim();
       if (!message || !user || chatSending) return;
 
-      if (message.length > 300) {
-        setChatError("Pesan terlalu panjang (maksimal 300 karakter)");
+      if (message.length > 3000) {
+        setChatError("Pesan terlalu panjang (maksimal 3000 karakter)");
         return;
       }
 
@@ -250,10 +403,6 @@ const LiveChatWidget = () => {
     const path = String(imagePath || "").trim();
     if (!path) return;
     const message = `${STICKER_MESSAGE_PREFIX}${path}`;
-    if (message.length > 300) {
-      setChatError("Path stiker terlalu panjang");
-      return;
-    }
     setStickerPickerOpen(false);
     await sendChatMessage(message);
   };
@@ -346,7 +495,7 @@ const LiveChatWidget = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-3 pl-3">
+                      <div className="flex items-start gap-3 pl-1">
                         <div className="h-10 w-10 rounded-full overflow-hidden shrink-0">
                           {hasImage ? (
                             <img
@@ -424,12 +573,58 @@ const LiveChatWidget = () => {
                 </div>
               </div>
             )}
+
+            {/* BBCode formatting toolbar */}
+            <div className="flex items-center gap-1 pb-1 border-b border-white/10">
+              <button
+                type="button"
+                onClick={() => insertBbCode('b')}
+                className="px-2 py-1 rounded bg-white/5 hover:bg-white/15 text-xs font-bold text-gray-300"
+                title="Teks Tebal [b]"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => insertBbCode('i')}
+                className="px-2 py-1 rounded bg-white/5 hover:bg-white/15 text-xs italic font-serif text-gray-300"
+                title="Teks Miring [i]"
+              >
+                I
+              </button>
+              <button
+                type="button"
+                onClick={() => insertBbCode('s')}
+                className="px-2 py-1 rounded bg-white/5 hover:bg-white/15 text-xs line-through text-gray-300"
+                title="Coret [s]"
+              >
+                S
+              </button>
+              <button
+                type="button"
+                onClick={() => insertBbCode('spoiler')}
+                className="px-2 py-1 rounded bg-white/5 hover:bg-white/15 text-[10px] font-semibold text-red-400 flex items-center gap-1"
+                title="Tambah Spoiler [spoiler]"
+              >
+                <Eye className="h-3 w-3" /> Spoiler
+              </button>
+              <label className="px-2 py-1 rounded bg-white/5 hover:bg-white/15 text-[10px] font-semibold text-gray-300 cursor-pointer flex items-center gap-1">
+                <ImageIcon className="h-3 w-3 text-blue-400" /> Gambar
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUploadImageFile}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
             <textarea
+              ref={textareaRef}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               rows={3}
-              maxLength={300}
-              placeholder="Tulis pesan…"
+              placeholder="Tulis pesan..."
               className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 resize-y min-h-[4.5rem]"
             />
             <div className="flex items-center justify-between gap-2 pt-1">

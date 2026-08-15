@@ -476,12 +476,12 @@ const MangaDetail = () => {
 
             <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
               {/* Poster Image */}
-              <div className="w-44 shrink-0 overflow-hidden rounded-2xl shadow-2xl border border-white/15">
+              <div className="w-40 sm:w-44 aspect-[3/4] shrink-0 overflow-hidden rounded-2xl shadow-2xl border border-white/15">
                 <LazyImage
                   src={getImageUrl(manga.cover)}
                   alt={manga.title}
-                  className="aspect-[3/4] w-full object-cover"
-                  wrapperClassName="block w-full"
+                  className="w-full h-full object-cover block"
+                  wrapperClassName="block w-full h-full"
                 />
               </div>
 
@@ -687,22 +687,21 @@ const MangaDetail = () => {
                       </div>
                     </div>
 
-                    {/* Rating Box */}
-                    <div className="md:col-span-4 bg-[#121218] border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center text-center shadow-xl w-full">
-                      <span className="text-4xl font-extrabold text-white tabular-nums mb-1">
-                        {manga.rating ? Number(manga.rating).toFixed(1) : '8.8'}
-                      </span>
-                      <div className="flex items-center gap-1 text-amber-400 mb-3">
-                        <Star className="h-4 w-4 fill-amber-400" />
-                        <Star className="h-4 w-4 fill-amber-400" />
-                        <Star className="h-4 w-4 fill-amber-400" />
-                        <Star className="h-4 w-4 fill-amber-400" />
-                        <Star className="h-4 w-4 text-amber-400/40" />
+                    {/* Rating & Views Box */}
+                    <div className="md:col-span-4 bg-[#121218] border border-white/10 rounded-2xl p-3 sm:p-4 flex items-center justify-center gap-4 text-center shadow-xl w-full">
+                      <div className="flex items-center gap-2">
+                        <Star className="h-5 w-5 fill-amber-400 text-amber-400 shrink-0" />
+                        <span className="text-lg sm:text-xl font-black text-white tabular-nums">
+                          {manga.rating ? Number(manga.rating).toFixed(1) : '8.8'}
+                        </span>
                       </div>
-                      <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-0.5">VIEWS</span>
-                      <span className="text-sm font-extrabold text-sky-400 tabular-nums">
-                        {(Number(manga.total_views) || 0).toLocaleString('id-ID')}
-                      </span>
+                      <div className="h-6 w-px bg-white/15" />
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-5 w-5 text-red-500 shrink-0" />
+                        <span className="text-base sm:text-lg font-bold text-red-500 tabular-nums">
+                          {(Number(manga.total_views) || 0).toLocaleString('id-ID')}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

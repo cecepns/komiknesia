@@ -347,8 +347,8 @@ const Content = () => {
         onClick={() => setPage(currentPage - 1)}
         disabled={currentPage === 1}
         className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${currentPage === 1
-            ? "bg-gray-200 dark:bg-primary-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
-            : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
+          ? "bg-gray-200 dark:bg-primary-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+          : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
           }`}
       >
         <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
@@ -384,11 +384,10 @@ const Content = () => {
         <button
           key={i}
           onClick={() => setPage(i)}
-          className={`px-3 md:px-4 py-2 rounded-lg text-sm md:text-base ${
-            currentPage === i
+          className={`px-3 md:px-4 py-2 rounded-lg text-sm md:text-base ${currentPage === i
               ? "bg-red-600 text-white font-bold shadow-md"
               : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
-          }`}
+            }`}
         >
           {i}
         </button>,
@@ -425,8 +424,8 @@ const Content = () => {
         onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
         className={`px-2 md:px-3 py-2 rounded-lg text-sm md:text-base ${currentPage === totalPages
-            ? "bg-gray-200 dark:bg-primary-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
-            : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
+          ? "bg-gray-200 dark:bg-primary-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+          : "bg-white dark:bg-primary-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary-600"
           }`}
       >
         <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
@@ -455,7 +454,7 @@ const Content = () => {
       </Helmet>
 
       {/* Ads Section - Top — Layout sudah menyediakan Header + pt-16 di main */}
-      <div className="container mx-auto px-4 pt-5 pb-2 md:pt-8">
+      <div className="container mx-auto px-4 pt-1 pb-1 md:pt-3">
         <AdBanner
           ads={comicTopAds}
           layout="grid"
@@ -465,7 +464,7 @@ const Content = () => {
 
       {/* Page Header */}
       <div className="bg-white dark:bg-transparent border-b border-gray-200 dark:border-white/10 shadow-md dark:shadow-none top-20 z-40">
-        <div className="container mx-auto px-4 py-6 md:py-10">
+        <div className="container mx-auto px-4 py-2 md:py-4">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -500,19 +499,18 @@ const Content = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 pb-8 pt-4 md:pt-8">
+      <div className="container mx-auto px-4 pb-8 pt-2 md:pt-4">
         {/* Mobile Control Bar (View Mode Toggle & Filter Trigger) */}
-        <div className="lg:hidden mb-4 flex items-center justify-between">
+        <div className="lg:hidden mb-2 flex items-center justify-between">
           {/* View Mode Toggle Pill */}
           <div className="bg-[#141622] rounded-2xl p-1 flex items-center gap-1 shadow-md">
             <button
               type="button"
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-xl transition-all ${
-                viewMode === "grid"
+              className={`p-2 rounded-xl transition-all ${viewMode === "grid"
                   ? "bg-red-600 text-white shadow-md"
                   : "text-gray-400 hover:text-white"
-              }`}
+                }`}
               title="Grid View"
             >
               <LayoutGrid className="h-5 w-5" />
@@ -520,11 +518,10 @@ const Content = () => {
             <button
               type="button"
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-xl transition-all ${
-                viewMode === "list"
+              className={`p-2 rounded-xl transition-all ${viewMode === "list"
                   ? "bg-red-600 text-white shadow-md"
                   : "text-gray-400 hover:text-white"
-              }`}
+                }`}
               title="List View"
             >
               <List className="h-5 w-5" />
@@ -589,11 +586,10 @@ const Content = () => {
                         key={status}
                         type="button"
                         onClick={() => setStatusFilter(status)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          selectedStatus === status
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedStatus === status
                             ? 'bg-red-600 text-white shadow-md'
                             : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
-                        }`}
+                          }`}
                       >
                         {status}
                       </button>
@@ -610,11 +606,10 @@ const Content = () => {
                         key={type.value}
                         type="button"
                         onClick={() => setTypeFilter(type.value)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          selectedType === type.value
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedType === type.value
                             ? 'bg-red-600 text-white shadow-md'
                             : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
-                        }`}
+                          }`}
                       >
                         {type.label}
                       </button>
@@ -631,11 +626,10 @@ const Content = () => {
                         key={opt.value}
                         type="button"
                         onClick={() => setProjectFilter(opt.value)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          selectedProject === opt.value
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedProject === opt.value
                             ? 'bg-red-600 text-white shadow-md'
                             : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
-                        }`}
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -652,11 +646,10 @@ const Content = () => {
                         key={opt.value}
                         type="button"
                         onClick={() => setSourceFilter(opt.value)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          selectedSource === opt.value
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedSource === opt.value
                             ? 'bg-red-600 text-white shadow-md'
                             : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
-                        }`}
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -673,11 +666,10 @@ const Content = () => {
                         key={order}
                         type="button"
                         onClick={() => setOrderFilter(order)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          selectedOrder === order
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedOrder === order
                             ? 'bg-red-600 text-white shadow-md'
                             : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
-                        }`}
+                          }`}
                       >
                         {order}
                       </button>
@@ -699,11 +691,10 @@ const Content = () => {
                             key={genre.id}
                             type="button"
                             onClick={() => toggleGenre(genre.id)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                              isSelected
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${isSelected
                                 ? 'bg-red-600 text-white shadow-md font-bold'
                                 : 'bg-[#1e202e] text-gray-300 hover:bg-[#252839]'
-                            }`}
+                              }`}
                           >
                             {genre.name}
                           </button>
@@ -755,11 +746,10 @@ const Content = () => {
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
-                        selectedStatus === status
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${selectedStatus === status
                           ? "bg-red-600 text-white shadow-md"
                           : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
-                      }`}
+                        }`}
                     >
                       {status}
                     </button>
@@ -778,11 +768,10 @@ const Content = () => {
                       key={opt.value}
                       type="button"
                       onClick={() => setProjectFilter(opt.value)}
-                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
-                        selectedProject === opt.value
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${selectedProject === opt.value
                           ? "bg-red-600 text-white shadow-md"
                           : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
-                      }`}
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -801,11 +790,10 @@ const Content = () => {
                       key={opt.value}
                       type="button"
                       onClick={() => setSourceFilter(opt.value)}
-                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
-                        selectedSource === opt.value
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${selectedSource === opt.value
                           ? "bg-red-600 text-white shadow-md"
                           : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
-                      }`}
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -823,11 +811,10 @@ const Content = () => {
                     <button
                       key={type.value}
                       onClick={() => setTypeFilter(type.value)}
-                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
-                        selectedType === type.value
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${selectedType === type.value
                           ? "bg-red-600 text-white shadow-md"
                           : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
-                      }`}
+                        }`}
                     >
                       {type.label}
                     </button>
@@ -845,11 +832,10 @@ const Content = () => {
                     <button
                       key={order}
                       onClick={() => setOrderFilter(order)}
-                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
-                        selectedOrder === order
+                      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${selectedOrder === order
                           ? "bg-red-600 text-white shadow-md"
                           : "bg-gray-100 dark:bg-primary-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-primary-700"
-                      }`}
+                        }`}
                     >
                       {order}
                     </button>
@@ -1099,13 +1085,13 @@ const Content = () => {
                           />
 
                           {/* Rating Badge */}
-                          {manga.rating > 0 && (
+                          {/* {manga.rating > 0 && (
                             <div className="absolute top-2 left-2 h-8 w-8 rounded-full bg-yellow-500/95 text-white shadow-lg backdrop-blur-sm flex items-center justify-center">
                               <span className="text-[11px] font-bold leading-none">
                                 {Number(manga.rating).toFixed(1)}
                               </span>
                             </div>
-                          )}
+                          )} */}
                         </div>
 
                         {/* Info Section */}

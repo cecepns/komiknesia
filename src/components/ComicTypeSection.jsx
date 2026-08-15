@@ -123,11 +123,10 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
             <div
               key={manga.id}
               onClick={() => navigate(`/komik/${manga.slug}`)}
-              className={`bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer ${
-                cardLayout === "horizontal"
+              className={`bg-white dark:bg-white/[0.06] dark:border dark:border-white/10 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer ${cardLayout === "horizontal"
                   ? "flex flex-row gap-3 p-3 sm:gap-4 sm:p-4"
                   : "flex flex-col"
-              }`}
+                }`}
             >
               <div
                 className={
@@ -143,13 +142,13 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
                   wrapperClassName="w-full h-full"
                 />
 
-                {manga.rating > 0 && (
+                {/* {manga.rating > 0 && (
                   <div className="absolute top-2 left-2 h-8 w-8 rounded-full bg-yellow-500/95 text-white shadow-lg backdrop-blur-sm flex items-center justify-center">
                     <span className="text-[11px] font-bold leading-none">
                       {Number(manga.rating).toFixed(1)}
                     </span>
                   </div>
-                )}
+                )} */}
               </div>
 
               <div
@@ -161,9 +160,8 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
               >
                 {!!manga.hot && (
                   <div
-                    className={`max-w-fit rounded-full bg-red-500/90 px-2 py-1 backdrop-blur-sm ${
-                      cardLayout === "vertical" ? "mb-1" : "mb-0"
-                    }`}
+                    className={`max-w-fit rounded-full bg-red-500/90 px-2 py-1 backdrop-blur-sm ${cardLayout === "vertical" ? "mb-1" : "mb-0"
+                      }`}
                   >
                     <span className="text-xs font-bold text-white">HOT</span>
                   </div>
@@ -181,9 +179,8 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
                     className="block w-full"
                   >
                     <h3
-                      className={`font-bold line-clamp-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${
-                        cardLayout === "vertical" ? "text-xs md:text-sm" : "text-sm sm:text-base"
-                      }`}
+                      className={`font-bold line-clamp-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${cardLayout === "vertical" ? "text-xs md:text-sm" : "text-sm sm:text-base"
+                        }`}
                     >
                       {manga.title}
                     </h3>
@@ -217,9 +214,8 @@ const ComicTypeSection = ({ title, type, targetUrl }) => {
                   </div>
                 ) : (
                   <div
-                    className={`text-xs text-gray-500 ${
-                      cardLayout === "vertical" ? "mb-1 mt-auto" : ""
-                    }`}
+                    className={`text-xs text-gray-500 ${cardLayout === "vertical" ? "mb-1 mt-auto" : ""
+                      }`}
                   >
                     Chapter N/A
                   </div>

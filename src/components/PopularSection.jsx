@@ -210,7 +210,7 @@ const PopularSection = () => {
   }
 
   return (
-    <div className="mb-12 relative min-h-[440px] sm:min-h-[490px] md:min-h-[520px]">
+    <div className="lg:mb-12 relative min-h-[440px] sm:min-h-[490px] md:min-h-[520px]">
       {/* Centered Pill Header Badge "Popular Today" */}
       <div className="flex justify-center mb-6">
         <div className="inline-flex items-center gap-2 rounded-full border border-pink-500/30 bg-[#12121a] px-5 py-2 shadow-lg shadow-pink-950/20 backdrop-blur-md">
@@ -270,11 +270,10 @@ const PopularSection = () => {
                     scrollToCard(index, true);
                   }
                 }}
-                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[310px] sm:h-[350px] md:h-[380px] w-[48vw] max-w-[180px] sm:w-[200px] md:w-[220px] ${
-                  isActive
-                    ? "-translate-y-3.5 z-10 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/60 opacity-100 cursor-pointer"
-                    : "translate-y-0 z-0 opacity-60 hover:opacity-85 border-white/10 cursor-pointer"
-                }`}
+                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[310px] sm:h-[350px] md:h-[380px] w-[48vw] max-w-[180px] sm:w-[200px] md:w-[220px] ${isActive
+                  ? "-translate-y-3.5 z-10 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/60 opacity-100 cursor-pointer"
+                  : "translate-y-0 z-0 opacity-60 hover:opacity-85 border-white/10 cursor-pointer"
+                  }`}
               >
                 {/* Cover */}
                 <div className="relative aspect-[3/4] w-full flex-1 overflow-hidden bg-gray-950">

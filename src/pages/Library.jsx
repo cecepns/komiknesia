@@ -330,14 +330,14 @@ const Library = () => {
       </Helmet>
       {/* Library Top Ads - 6 ads */}
       {libraryTopAds.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 mb-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 mb-2">
           <AdBanner ads={libraryTopAds} layout="grid" columns={2} />
         </div>
       )}
 
       {/* Tabs */}
       <div
-        className={`sticky top-[70px] md:top-[75px] z-30 bg-white dark:bg-transparent border-b border-gray-200 dark:border-white/10 ${libraryTopAds.length === 0 ? "" : "mt-8"}`}
+        className={`sticky top-[70px] md:top-[75px] z-30 bg-white dark:bg-transparent border-b border-gray-200 dark:border-white/10 ${libraryTopAds.length === 0 ? "" : "mt-2"}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-3 gap-2 py-2 max-w-xl mx-auto">
@@ -363,7 +363,7 @@ const Library = () => {
       </div>
 
       {/* Main Content */}
-      <main className="pt-12 pb-24">
+      <main className="pt-4 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Bookmark Tab */}
           {activeTabId === "bookmark" && (

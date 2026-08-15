@@ -43,7 +43,7 @@ const Layout = ({ children }) => {
       <div className="relative z-[1] flex min-h-screen flex-col">
         <Header />
 
-        <main className="flex-1 pt-[7.75rem] pb-24 md:pb-8 lg:pt-16">{children}</main>
+        <main className="flex-1 pt-16 pb-24 md:pb-8 lg:pt-14">{children}</main>
 
         <Footer />
 
