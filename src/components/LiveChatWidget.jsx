@@ -124,7 +124,8 @@ function SpoilerBlock({ content }) {
 function parseFormattedText(text, keyPrefix = 'fmt') {
   if (!text) return null;
 
-  const regex = /\[(img|b|i|s)\]([\s\S]*?)\[\/\1\]/gi;
+  // Handles both standard [img]path[/img] and unclosed img]path or img]path[/img
+  const regex = /\[?(img|b|i|s)\]([\s\S]*?)(?:\[\/\1\]|(?=\s|$|\[(?:img|b|i|s)\]))/gi;
   const elements = [];
   let lastIdx = 0;
   let m;
@@ -134,7 +135,10 @@ function parseFormattedText(text, keyPrefix = 'fmt') {
       elements.push(text.slice(lastIdx, m.index));
     }
     const tag = m[1].toLowerCase();
-    const val = m[2];
+    let val = m[2] ? m[2].trim() : '';
+    if (tag === 'img') {
+      val = val.replace(/\[\/?img\]?/gi, '').trim();
+    }
     const key = `${keyPrefix}-${m.index}`;
 
     if (tag === 'b') {
@@ -144,16 +148,18 @@ function parseFormattedText(text, keyPrefix = 'fmt') {
     } else if (tag === 's') {
       elements.push(<del key={key} className="line-through text-gray-400">{val}</del>);
     } else if (tag === 'img') {
-      elements.push(
-        <div key={key} className="my-1.5 max-w-xs rounded-xl overflow-hidden border border-white/10 bg-black/50 shadow-md">
-          <img
-            src={getImageUrl(val.trim())}
-            alt="Gambar Chat"
-            className="w-full h-auto max-h-60 object-contain block"
-            loading="lazy"
-          />
-        </div>
-      );
+      if (val) {
+        elements.push(
+          <div key={key} className="my-1.5 max-w-xs rounded-xl overflow-hidden border border-white/10 bg-black/50 shadow-md">
+            <img
+              src={getImageUrl(val)}
+              alt="Gambar Chat"
+              className="w-full h-auto max-h-60 object-contain block"
+              loading="lazy"
+            />
+          </div>
+        );
+      }
     }
     lastIdx = regex.lastIndex;
   }

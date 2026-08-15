@@ -1156,8 +1156,9 @@ const ChapterReader = () => {
         onSuccess={async () => {
           setLoginOpen(false);
           if (pendingChapterSlug) {
-            navigate(`/view/${pendingChapterSlug}`);
+            const targetSlug = pendingChapterSlug;
             setPendingChapterSlug(null);
+            navigate(`/view/${targetSlug}`);
             return;
           }
           await fetchChapterData();

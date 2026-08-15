@@ -25,6 +25,25 @@ export const saveToHistory = (item) => {
 
     history = history.slice(0, 100);
     localStorage.setItem('mangaHistory', JSON.stringify(history));
+
+    // Also update komiknesia_history for chapter read status tracking
+    if (item.chapterSlug) {
+      try {
+        const komikHistoryRaw = localStorage.getItem('komiknesia_history');
+        let komikHistory = komikHistoryRaw ? JSON.parse(komikHistoryRaw) : [];
+        if (!komikHistory.some((h) => h.chapterSlug === item.chapterSlug)) {
+          komikHistory.unshift({
+            chapterSlug: item.chapterSlug,
+            mangaSlug: item.mangaSlug,
+            timestamp: Date.now(),
+          });
+          komikHistory = komikHistory.slice(0, 500);
+          localStorage.setItem('komiknesia_history', JSON.stringify(komikHistory));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   } catch (error) {
     console.error('Error saving history:', error);
   }

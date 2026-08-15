@@ -137,48 +137,25 @@ const MangaDetail = () => {
 
   useEffect(() => {
     try {
-      const history = JSON.parse(localStorage.getItem('komiknesia_history') || '[]');
       const readSet = new Set();
-      history.forEach((item) => {
+      
+      const kh = JSON.parse(localStorage.getItem('komiknesia_history') || '[]');
+      kh.forEach((item) => {
         if (item.chapterSlug) readSet.add(item.chapterSlug);
         if (item.slug) readSet.add(item.slug);
       });
+
+      const mh = JSON.parse(localStorage.getItem('mangaHistory') || '[]');
+      mh.forEach((item) => {
+        if (item.chapterSlug) readSet.add(item.chapterSlug);
+        if (item.slug) readSet.add(item.slug);
+      });
+
       setReadChapterSlugs(readSet);
     } catch {
       /* ignore */
     }
   }, []);
-
-  const toggleReadChapter = (chapterSlug, e) => {
-    e.stopPropagation();
-    setReadChapterSlugs((prev) => {
-      const next = new Set(prev);
-      if (next.has(chapterSlug)) {
-        next.delete(chapterSlug);
-        toast.info('Tanda dibaca dihapus');
-      } else {
-        next.add(chapterSlug);
-        toast.success('Chapter ditandai sudah dibaca');
-      }
-
-      // Persist to localStorage
-      try {
-        let history = JSON.parse(localStorage.getItem('komiknesia_history') || '[]');
-        if (next.has(chapterSlug)) {
-          if (!history.some((h) => h.chapterSlug === chapterSlug)) {
-            history.unshift({ chapterSlug, readAt: Date.now() });
-          }
-        } else {
-          history = history.filter((h) => h.chapterSlug !== chapterSlug && h.slug !== chapterSlug);
-        }
-        localStorage.setItem('komiknesia_history', JSON.stringify(history));
-      } catch {
-        /* ignore */
-      }
-
-      return next;
-    });
-  };
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -902,18 +879,18 @@ const MangaDetail = () => {
                   <div
                     key={chapter.id}
                     onClick={() => openChapter(navigate, chapter, isLatest)}
-                    className={`rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between gap-3 p-3 bg-white/[0.04] border ${
+                    className={`rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between gap-3 p-3 bg-[#0a0a0e] border ${
                       chapterLocked
                         ? 'border-amber-500/30'
-                        : 'border-white/10 hover:border-red-500/40'
+                        : 'border-white/10 hover:border-red-500/50'
                     }`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-lg bg-gray-900 border border-white/10 group/thumb">
+                      <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-lg bg-gray-950 border border-white/10 group/thumb">
                         <LazyImage
                           src={thumbUrl}
                           alt={chapter.title}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 ${isRead ? 'opacity-50' : ''}`}
                           wrapperClassName="h-full w-full"
                         />
                         <label
@@ -950,14 +927,9 @@ const MangaDetail = () => {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <h3
-                          className={`mb-1 flex items-center gap-1.5 text-sm sm:text-base transition-colors ${
-                            isRead ? 'text-gray-400/80 font-normal line-through' : 'text-white font-bold'
-                          }`}
-                        >
+                        <h3 className={`mb-1 flex items-center gap-1.5 text-sm sm:text-base transition-colors ${isRead ? 'text-gray-500 font-medium' : 'text-white font-extrabold'}`}>
                           <span className="min-w-0 truncate">{chapter.title}</span>
                           {chapterLocked && <Lock className="h-3.5 w-3.5 text-amber-400" />}
-                          {isRead && <span className="text-[10px] font-bold text-green-400 bg-green-950/60 px-1.5 py-0.5 rounded border border-green-700/40">DIBACA</span>}
                         </h3>
                         <p className="text-xs text-gray-400 mb-1">
                           {formatTimeAgo(chapter.uploadedAt)}
@@ -976,20 +948,6 @@ const MangaDetail = () => {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                      {/* Mark as Read Toggle Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => toggleReadChapter(chapter.slug, e)}
-                        className={`p-2 rounded-xl border transition-all text-xs font-bold ${
-                          isRead
-                            ? 'bg-green-600/20 border-green-500/40 text-green-400 hover:bg-green-600/30'
-                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                        }`}
-                        title={isRead ? 'Tandai belum dibaca' : 'Tandai sudah dibaca'}
-                      >
-                        <CheckCircle className={`h-4 w-4 ${isRead ? 'text-green-400 fill-green-400/20' : ''}`} />
-                      </button>
-
                       {isLatest && (
                         <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
                           NEW
@@ -1235,6 +1193,12 @@ const MangaDetail = () => {
 
       <BottomNavigation />
       <LiveChatWidget />
+
+      <LoginModal
+        open={loginOpen}
+        onClose={closeLogin}
+        onSuccess={() => handleLoginSuccess(navigate)}
+      />
     </div>
   );
 };
