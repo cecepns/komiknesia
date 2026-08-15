@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { requiresChapterLogin } from '../utils/chapterAccess';
@@ -65,6 +65,7 @@ const ChapterAccessLink = ({
   ...rest
 }) => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [loginOpen, setLoginOpen] = useState(false);
   const locked = requiresChapterLogin(chapter, isAuthenticated);
   const elRef = useRef(null);
@@ -145,7 +146,14 @@ const ChapterAccessLink = ({
           labelNode
         )}
       </Link>
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSuccess={() => {
+          setLoginOpen(false);
+          if (to) navigate(to);
+        }}
+      />
     </>
   );
 };
