@@ -6,13 +6,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 
 const labelClass =
-  'mb-2 block text-xs font-semibold uppercase tracking-wider text-sky-800/90 dark:text-cyan-100/85';
+  'mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-300';
 
 const inputClass =
-  'w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3.5 text-[15px] text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-50 dark:placeholder:text-cyan-200/40 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-400/20';
+  'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-white shadow-sm outline-none transition-all placeholder:text-gray-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/25';
 
 const primaryBtnClass =
-  'mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-600 py-3.5 text-[15px] font-semibold text-white shadow-[0_7px_0_0_#0369a1] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#0369a1] active:translate-y-0.5 active:shadow-[0_4px_0_0_#0369a1] disabled:pointer-events-none disabled:opacity-55 dark:border-cyan-200/20 dark:bg-[#0a2d52] dark:text-cyan-50 dark:shadow-[0_7px_0_0_#42a5f5] dark:hover:shadow-[0_8px_0_0_#60a5fa] dark:active:shadow-[0_4px_0_0_#3b82f6] dark:hover:brightness-110';
+  'mt-1 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-lg transition-all duration-200 hover:bg-red-500 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-55';
 
 const LoginModal = ({ open, onClose, onSuccess, title, description }) => {
   const { login, register } = useAuth();
@@ -142,23 +142,18 @@ const LoginModal = ({ open, onClose, onSuccess, title, description }) => {
     >
       <button
         type="button"
-        className="fixed inset-0 bg-slate-900/65 backdrop-blur-sm dark:bg-black/75"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm"
         aria-label="Tutup"
         onClick={onClose}
       />
 
-      <div className="pointer-events-none fixed inset-0 opacity-[0.35] dark:opacity-45" aria-hidden>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(14,165,233,0.12),transparent_42%),radial-gradient(circle_at_88%_78%,rgba(250,204,21,0.1),transparent_40%)] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(56,189,248,0.14),transparent_40%),radial-gradient(circle_at_85%_80%,rgba(250,204,21,0.08),transparent_38%)]" />
-      </div>
-
       <div className="relative z-[1] flex min-h-[100dvh] min-h-full items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
-        {/* Padding bawah ekstra agar shadow offset 7px kartu & tombol tidak terpotong */}
         <div className="relative w-full max-w-md pb-5">
-          <div className="relative overflow-visible rounded-3xl border border-sky-200/80 bg-white/95 p-6 shadow-[0_7px_0_0_#38bdf8] backdrop-blur-sm dark:border-cyan-200/25 dark:bg-[#0b355f]/95 dark:shadow-[0_7px_0_0_#facc15] sm:p-8">
+          <div className="relative overflow-visible rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-md sm:p-8">
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 rounded-xl border border-slate-200/90 bg-white/90 p-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-cyan-200/20 dark:bg-[#0a2d52]/90 dark:text-cyan-100 dark:hover:bg-[#0a2d52]"
+            className="absolute right-4 top-4 rounded-xl border border-white/10 bg-white/5 p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Tutup"
           >
             <X className="h-5 w-5" />
@@ -167,24 +162,24 @@ const LoginModal = ({ open, onClose, onSuccess, title, description }) => {
           <div className="mb-6 pr-10 text-center">
             <h2
               id="login-modal-title"
-              className="text-2xl font-extrabold tracking-tight text-[#163a5f] dark:text-cyan-50 sm:text-3xl"
+              className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl"
             >
               {title || 'Login diperlukan'}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-sky-900/75 dark:text-cyan-100/80">
+            <p className="mt-2 text-sm leading-relaxed text-gray-400">
               {description ||
                 'Chapter terbaru dapat dibaca setelah login. Setelah 2 jam dari rilis, chapter ini bisa dibaca tanpa login.'}
             </p>
           </div>
 
-          <div className="mb-6 flex gap-1 rounded-2xl border border-slate-200/90 bg-slate-100/80 p-1 dark:border-cyan-200/15 dark:bg-[#0a2d52]/60">
+          <div className="mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
             <button
               type="button"
               onClick={() => setMode('login')}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
                 mode === 'login'
-                  ? 'bg-white text-sky-800 shadow-[0_4px_0_0_#38bdf8] dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#42a5f5]'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-cyan-200/70 dark:hover:text-cyan-100'
+                  ? 'bg-red-600 text-white shadow-md font-bold'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               <LogIn className="h-4 w-4 shrink-0" />
@@ -195,8 +190,8 @@ const LoginModal = ({ open, onClose, onSuccess, title, description }) => {
               onClick={() => setMode('register')}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
                 mode === 'register'
-                  ? 'bg-white text-sky-800 shadow-[0_4px_0_0_#38bdf8] dark:bg-[#0b355f] dark:text-cyan-50 dark:shadow-[0_4px_0_0_#42a5f5]'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-cyan-200/70 dark:hover:text-cyan-100'
+                  ? 'bg-red-600 text-white shadow-md font-bold'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               <UserPlus className="h-4 w-4 shrink-0" />
@@ -238,12 +233,12 @@ const LoginModal = ({ open, onClose, onSuccess, title, description }) => {
                   autoComplete="current-password"
                 />
               </div>
-              <p className="text-center text-sm leading-relaxed text-slate-600 dark:text-cyan-100/75">
+              <p className="text-center text-sm leading-relaxed text-gray-400">
                 Lupa sandi?{' '}
                 <Link
                   to="/contact"
                   onClick={onClose}
-                  className="font-semibold text-sky-700 underline decoration-sky-600/40 underline-offset-2 transition-colors hover:text-sky-800 dark:text-cyan-300 dark:decoration-cyan-400/40 dark:hover:text-cyan-200"
+                  className="font-semibold text-red-400 underline decoration-red-500/40 underline-offset-2 transition-colors hover:text-red-300"
                 >
                   Hubungi admin
                 </Link>

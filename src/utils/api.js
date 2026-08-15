@@ -61,6 +61,10 @@ export const getImageUrl = (imagePath) => {
 
   let path = typeof imagePath === 'string' ? imagePath.replace(/\\\//g, '/').trim() : String(imagePath);
 
+  if (path.startsWith('data:')) {
+    return path;
+  }
+
   if (path.startsWith('http://') || path.startsWith('https://')) {
     try {
       const u = new URL(path);

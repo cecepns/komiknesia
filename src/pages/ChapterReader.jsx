@@ -46,7 +46,7 @@ import CommentSection from '../components/CommentSection';
 import { useAuth } from '../contexts/AuthContext';
 import { REACTION_OPTIONS, emptyReactionCounts, sumReactionCounts } from '../constants/reactions';
 import LoginModal from '../components/LoginModal';
-import { downloadChapterZip } from '../utils/downloadChapterZip';
+import { downloadChapterPdf } from '../utils/downloadChapterPdf';
 import {
   requiresChapterLogin,
   normalizeChapterImage,
@@ -73,7 +73,7 @@ const ChapterReader = () => {
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [fitToWidth, setFitToWidth] = useState(false);
   const [readerImageWidth, setReaderImageWidth] = useState(900);
-  const [downloadingZip, setDownloadingZip] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Auto Scroll States
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(false);
@@ -350,23 +350,23 @@ const ChapterReader = () => {
     setAutoScrollEnabled((prev) => !prev);
   };
 
-  // Handle Download ZIP (Backend Endpoint)
-  const handleDownloadZip = async () => {
+  // Handle Download PDF
+  const handleDownloadPdf = async () => {
     if (!chapterSlug) return;
     try {
-      setDownloadingZip(true);
-      toast.info('Menyiapkan download chapter ZIP...');
-      await downloadChapterZip({
+      setDownloadingPdf(true);
+      toast.info('Menyiapkan download chapter PDF...');
+      await downloadChapterPdf({
         slug: chapterSlug,
         mangaTitle: mangaData?.title || 'KomikNesia',
         chapterNumber: currentChapter?.number || chapterData?.number || '0',
       });
-      toast.success('Chapter berhasil diunduh!');
+      toast.success('Chapter berhasil diunduh sebagai PDF!');
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'Gagal mengunduh chapter');
+      toast.error(err.message || 'Gagal mengunduh chapter PDF');
     } finally {
-      setDownloadingZip(false);
+      setDownloadingPdf(false);
     }
   };
 
@@ -678,36 +678,36 @@ const ChapterReader = () => {
 
           {/* Bagikan chapter, Discord, Donasi, Lapor error */}
           <div className="px-4 pt-8 pb-4">
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
               <button
                 type="button"
                 onClick={() => setChapterSharePopupOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
               >
-                <Share2 className="h-4 w-4 text-red-500 shrink-0" />
-                <span className="text-xs font-semibold text-white sm:text-sm">Bagikan chapter</span>
+                <Share2 className="h-5 w-5 text-red-500 shrink-0" />
+                <span className="text-xs font-bold text-white sm:text-sm">Bagikan chapter</span>
               </button>
 
               <a
                 href={discordInviteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
               >
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]">
-                  <img src={discordIcon} alt="" className="h-3.5 w-3.5" aria-hidden />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]">
+                  <img src={discordIcon} alt="" className="h-4 w-4" aria-hidden />
                 </div>
-                <span className="text-xs font-semibold text-white sm:text-sm">Discord</span>
+                <span className="text-xs font-bold text-white sm:text-sm">Discord</span>
               </a>
 
               <a
                 href={donateUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2.5 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
               >
-                <Heart className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0" />
-                <span className="text-xs font-semibold text-white sm:text-sm">Donasi</span>
+                <Heart className="h-5 w-5 text-amber-400 fill-amber-400 shrink-0" />
+                <span className="text-xs font-bold text-white sm:text-sm">Donasi</span>
               </a>
 
               <button
@@ -722,10 +722,10 @@ const ChapterReader = () => {
                   if (title) q.set('judul', title);
                   navigate(`/contact?${q.toString()}`);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
               >
-                <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
-                <span className="text-xs font-semibold text-white sm:text-sm">Lapor komik error</span>
+                <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0" />
+                <span className="text-xs font-bold text-white sm:text-sm">Lapor error</span>
               </button>
             </div>
           </div>
@@ -890,14 +890,14 @@ const ChapterReader = () => {
             <List className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
-          {/* Download Chapter ZIP */}
+          {/* Download Chapter PDF */}
           <button
-            onClick={handleDownloadZip}
-            disabled={downloadingZip}
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
             className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 hover:text-amber-400 transition-colors text-amber-500/90"
-            title="Unduh Chapter (ZIP)"
+            title="Unduh Chapter (PDF)"
           >
-            <Download className={`h-4 w-4 sm:h-5 sm:w-5 ${downloadingZip ? 'animate-bounce' : ''}`} />
+            <Download className={`h-4 w-4 sm:h-5 sm:w-5 ${downloadingPdf ? 'animate-bounce' : ''}`} />
           </button>
 
           {/* Scroll to Comments */}

@@ -534,16 +534,7 @@ const Home = () => {
           </div>
         )}
 
-        {/* 1. Populer Section */}
-        {populerAds.length > 0 && (
-          <div className="mb-8" data-aos="fade-up" data-aos-delay="150">
-            <AdBanner
-              ads={populerAds}
-              layout="grid"
-              columns={2}
-            />
-          </div>
-        )}
+
       </div>
 
       {/* PopularSection - Full Screen Width (No Container Clipping) */}

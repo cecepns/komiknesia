@@ -130,12 +130,23 @@ async function downloadClientJsPdf({ slug, mangaTitle, chapterNumber, token }) {
     });
   };
 
+  // Standardize target PDF width (800px) so all pages have uniform page width
+  const TARGET_WIDTH = 800;
+
   const loadedPages = [];
   for (const imgPath of images) {
     try {
       const loaded = await loadImageDataUrl(imgPath);
       if (loaded && loaded.dataUrl) {
-        loadedPages.push(loaded);
+        // Calculate scaled dimensions to normalize width to TARGET_WIDTH
+        const scale = TARGET_WIDTH / loaded.width;
+        const normWidth = TARGET_WIDTH;
+        const normHeight = Math.round(loaded.height * scale);
+        loadedPages.push({
+          dataUrl: loaded.dataUrl,
+          width: normWidth,
+          height: normHeight,
+        });
       }
     } catch (err) {
       console.warn('Skipping failed page image:', err);

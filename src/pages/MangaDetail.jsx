@@ -630,23 +630,23 @@ const MangaDetail = () => {
           )}
 
           {/* 3. SECTION LINK ATAS: PREMIUM & SHARE KOMIK */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-4 sm:gap-3">
+          <div className="grid grid-cols-2 gap-2 mb-4 sm:gap-3">
             <button
               type="button"
               onClick={() => navigate('/premium')}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-amber-400/50 hover:bg-white/10"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-amber-400/50 hover:bg-white/10"
             >
-              <Crown className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0" />
-              <span className="text-xs font-semibold text-white sm:text-sm">PREMIUM</span>
+              <Crown className="h-5 w-5 text-amber-400 fill-amber-400 shrink-0" />
+              <span className="text-xs font-bold text-white sm:text-sm">PREMIUM</span>
             </button>
 
             <button
               type="button"
               onClick={() => setSharePopupOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
             >
-              <Share2 className="h-4 w-4 text-red-500 shrink-0" />
-              <span className="text-xs font-semibold text-white sm:text-sm">SHARE KOMIK</span>
+              <Share2 className="h-5 w-5 text-red-500 shrink-0" />
+              <span className="text-xs font-bold text-white sm:text-sm">SHARE KOMIK</span>
             </button>
           </div>
 
@@ -1002,27 +1002,27 @@ const MangaDetail = () => {
           </div>
 
           {/* 6. SECTION LINK BAWAH: DISCORD & DONASI */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-6 sm:gap-3">
+          <div className="grid grid-cols-2 gap-2 mt-6 sm:gap-3">
             <a
               href={discordInviteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
             >
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]">
-                <img src={discordIcon} alt="" className="h-3.5 w-3.5" aria-hidden />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]">
+                <img src={discordIcon} alt="" className="h-4 w-4" aria-hidden />
               </div>
-              <span className="text-xs font-semibold text-white sm:text-sm">Discord</span>
+              <span className="text-xs font-bold text-white sm:text-sm">Discord</span>
             </a>
 
             <a
               href={donateUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
             >
-              <Heart className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0" />
-              <span className="text-xs font-semibold text-white sm:text-sm">Donasi</span>
+              <Heart className="h-5 w-5 text-amber-400 fill-amber-400 shrink-0" />
+              <span className="text-xs font-bold text-white sm:text-sm">Donasi</span>
             </a>
           </div>
 
