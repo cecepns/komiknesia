@@ -26,6 +26,8 @@ import {
   PencilLine,
   Copy,
   X,
+  CheckCircle,
+  Check,
 } from 'lucide-react';
 import {
   WhatsappShareButton,
@@ -145,6 +147,37 @@ const MangaDetail = () => {
       /* ignore */
     }
   }, []);
+
+  const toggleReadChapter = (chapterSlug, e) => {
+    e.stopPropagation();
+    setReadChapterSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(chapterSlug)) {
+        next.delete(chapterSlug);
+        toast.info('Tanda dibaca dihapus');
+      } else {
+        next.add(chapterSlug);
+        toast.success('Chapter ditandai sudah dibaca');
+      }
+
+      // Persist to localStorage
+      try {
+        let history = JSON.parse(localStorage.getItem('komiknesia_history') || '[]');
+        if (next.has(chapterSlug)) {
+          if (!history.some((h) => h.chapterSlug === chapterSlug)) {
+            history.unshift({ chapterSlug, readAt: Date.now() });
+          }
+        } else {
+          history = history.filter((h) => h.chapterSlug !== chapterSlug && h.slug !== chapterSlug);
+        }
+        localStorage.setItem('komiknesia_history', JSON.stringify(history));
+      } catch {
+        /* ignore */
+      }
+
+      return next;
+    });
+  };
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -917,19 +950,42 @@ const MangaDetail = () => {
                       <div className="min-w-0 flex-1">
                         <h3
                           className={`mb-1 flex items-center gap-1.5 text-sm sm:text-base transition-colors ${
-                            isRead ? 'text-gray-400/80 font-normal' : 'text-white font-bold'
+                            isRead ? 'text-gray-400/80 font-normal line-through' : 'text-white font-bold'
                           }`}
                         >
                           <span className="min-w-0 truncate">{chapter.title}</span>
                           {chapterLocked && <Lock className="h-3.5 w-3.5 text-amber-400" />}
+                          {isRead && <span className="text-[10px] font-bold text-green-400 bg-green-950/60 px-1.5 py-0.5 rounded border border-green-700/40">DIBACA</span>}
                         </h3>
-                        <p className="text-xs text-gray-400">
-                          {formatTimeAgo(chapter.uploadedAt)}
-                        </p>
+                        <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                          <span>{formatTimeAgo(chapter.uploadedAt)}</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+                            <Eye className="h-3 w-3 text-gray-400" />
+                            <span>{(Number(chapter.views || chapter.view_count || manga?.total_views) || 0).toLocaleString('id-ID')}</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-red-400">
+                            <ThumbsUp className="h-3 w-3 text-red-400" />
+                            <span>{(Number(chapter.likes || chapter.reaction_count || sumReactionCounts(mangaReactionData)) || 0).toLocaleString('id-ID')}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                      {/* Mark as Read Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => toggleReadChapter(chapter.slug, e)}
+                        className={`p-2 rounded-xl border transition-all text-xs font-bold ${
+                          isRead
+                            ? 'bg-green-600/20 border-green-500/40 text-green-400 hover:bg-green-600/30'
+                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                        title={isRead ? 'Tandai belum dibaca' : 'Tandai sudah dibaca'}
+                      >
+                        <CheckCircle className={`h-4 w-4 ${isRead ? 'text-green-400 fill-green-400/20' : ''}`} />
+                      </button>
+
                       {isLatest && (
                         <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
                           NEW
