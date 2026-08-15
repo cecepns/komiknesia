@@ -90,7 +90,7 @@ export const getImageUrl = (imagePath) => {
     return `${STATIC_ORIGIN}${normalizeUploadsPathname(path)}`;
   }
 
-  return path;
+  return `${STATIC_ORIGIN}/${path}`;
 };
 
 class APIClient {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3, Star, Mail, LogOut, CloudDownload, Users, ReceiptText, Sticker, Database, Link2, Image as ImageIcon } from 'lucide-react';
+import { Hop as Home, BookOpen, List, FileText, Menu, X, ChartBar as BarChart3, Mail, LogOut, Users, ReceiptText, Sticker, Link2, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminLayout = ({ children }) => {
@@ -20,13 +20,9 @@ const AdminLayout = ({ children }) => {
     { id: 'manga', label: 'Manga', icon: BookOpen, path: '/admin/manga' },
     { id: 'banners', label: 'Banner Slider', icon: ImageIcon, path: '/admin/banners' },
     { id: 'quick-links', label: 'Quick Links', icon: Link2, path: '/admin/quick-links' },
-    { id: 'ikiru-sync', label: 'Ikiru Sync', icon: CloudDownload, path: '/admin/ikiru-sync' },
-    { id: 'apkomik-sync', label: 'Apkomik Sync', icon: CloudDownload, path: '/admin/apkomik-sync' },
-    { id: 'migration', label: 'Manga Migration', icon: Database, path: '/admin/migration' },
     { id: 'users', label: 'Users', icon: Users, path: '/admin/users' },
     { id: 'orders', label: 'Order Premium', icon: ReceiptText, path: '/admin/orders' },
     { id: 'stickers', label: 'Stiker', icon: Sticker, path: '/admin/stickers' },
-    { id: 'featured', label: 'Featured Items', icon: Star, path: '/admin/featured' },
     { id: 'ads', label: 'Iklan', icon: FileText, path: '/admin/ads' },
     { id: 'contact', label: 'Kontak', icon: Mail, path: '/admin/contact' },
   ];

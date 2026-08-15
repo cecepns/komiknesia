@@ -140,6 +140,7 @@ const BannerManager = () => {
       slug: item.slug || '',
       is_active: item.is_active !== undefined ? item.is_active : true
     });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = (index) => {
