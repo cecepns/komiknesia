@@ -95,7 +95,7 @@ const Populer = () => {
         <meta name="description" content="Komik Populer Manhwa, Manga, dan Manhua di Komiknesia." />
       </Helmet>
 
-      <div className="container mx-auto px-4 max-w-7xl">
+      <div className="container mx-auto px-4 max-w-7xl pt-4 lg:pt-10">
         {/* Top Ads */}
         {popularTopAds && popularTopAds.length > 0 && (
           <div className="mb-2">
