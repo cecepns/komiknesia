@@ -130,12 +130,15 @@ const MangaDetail = () => {
           setRecommendedLoading(true);
           const firstGenre = manga.genres?.[0]?.name;
           const res = await apiClient.getContents({
-            per_page: 12,
+            per_page: 30,
             genre: firstGenre || undefined,
-            orderBy: 'Popular',
+            orderBy: 'Update',
           });
-          if (res.status && res.data) {
-            setRecommendedManga(res.data.filter((item) => item.slug !== slug));
+          if (res.status && Array.isArray(res.data)) {
+            const filtered = res.data.filter((item) => item.slug !== slug);
+            // Fisher-Yates shuffle to randomize recommendations on each load/toggle
+            const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+            setRecommendedManga(shuffled.slice(0, 12));
           }
         } catch (err) {
           console.error('Error fetching recommended manga:', err);
