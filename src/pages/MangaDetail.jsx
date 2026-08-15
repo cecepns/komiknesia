@@ -28,6 +28,7 @@ import {
   X,
   CheckCircle,
   Check,
+  Sparkles,
 } from 'lucide-react';
 import {
   WhatsappShareButton,
@@ -338,6 +339,7 @@ const MangaDetail = () => {
         }
 
         chapterList.push({
+          ...ch,
           id: ch.id,
           content_id: ch.content_id,
           number: ch.number,
@@ -346,8 +348,8 @@ const MangaDetail = () => {
           uploadedAt: uploadedAt,
           isNew: index === 0,
           slug: ch.slug,
-          views: Number(ch.views) || 0,
-          reactionCount: Number(ch.reaction_count) || 0,
+          views: Number(ch.views || ch.view_count) || 0,
+          reaction_count: Number(ch.reaction_count || ch.reactionCount || ch.likes || ch.votes) || 0,
         });
       });
     }
@@ -957,15 +959,17 @@ const MangaDetail = () => {
                           {chapterLocked && <Lock className="h-3.5 w-3.5 text-amber-400" />}
                           {isRead && <span className="text-[10px] font-bold text-green-400 bg-green-950/60 px-1.5 py-0.5 rounded border border-green-700/40">DIBACA</span>}
                         </h3>
+                        <p className="text-xs text-gray-400 mb-1">
+                          {formatTimeAgo(chapter.uploadedAt)}
+                        </p>
                         <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                          <span>{formatTimeAgo(chapter.uploadedAt)}</span>
                           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
-                            <Eye className="h-3 w-3 text-gray-400" />
-                            <span>{(Number(chapter.views || chapter.view_count || manga?.total_views) || 0).toLocaleString('id-ID')}</span>
+                            <Eye className="h-3.5 w-3.5 text-gray-400" />
+                            <span>{(Number(chapter.views ?? chapter.view_count) || 0).toLocaleString('id-ID')} lihat</span>
                           </span>
-                          <span className="inline-flex items-center gap-1 text-[11px] text-red-400">
-                            <ThumbsUp className="h-3 w-3 text-red-400" />
-                            <span>{(Number(chapter.likes || chapter.reaction_count || sumReactionCounts(mangaReactionData)) || 0).toLocaleString('id-ID')}</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-medium">
+                            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                            <span>{(Number(chapter.reaction_count ?? chapter.reactionCount ?? chapter.likes ?? chapter.votes) || 0).toLocaleString('id-ID')} reaksi</span>
                           </span>
                         </div>
                       </div>
