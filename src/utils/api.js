@@ -51,6 +51,17 @@ export function toProxiedImageUrlIfNeeded(imagePath) {
   return imagePath;
 }
 
+let currentCdnDomain = 'https://data.cdnesia.my.id';
+
+export const setCdnDomain = (domain) => {
+  if (!domain) return;
+  let d = String(domain).trim().replace(/\/+$/, '');
+  if (!d.startsWith('http://') && !d.startsWith('https://')) {
+    d = `https://${d}`;
+  }
+  currentCdnDomain = d;
+};
+
 /**
  * Get full image URL with endpoint prefix if the path is relative
  * @param {string} imagePath - Image path (can be relative like "/uploads/..." or absolute URL)
@@ -87,10 +98,10 @@ export const getImageUrl = (imagePath) => {
   }
 
   if (path.startsWith('/')) {
-    return `${STATIC_ORIGIN}${normalizeUploadsPathname(path)}`;
+    return `${currentCdnDomain}${normalizeUploadsPathname(path)}`;
   }
 
-  return `${STATIC_ORIGIN}/${path}`;
+  return `${currentCdnDomain}/${path}`;
 };
 
 class APIClient {

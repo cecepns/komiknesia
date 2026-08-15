@@ -31,7 +31,7 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
-import { apiClient } from "../utils/api";
+import { apiClient, setCdnDomain } from "../utils/api";
 import discordIcon from "../assets/discord.svg";
 import LiveChatWidget from "../components/LiveChatWidget";
 import LoginModal from "../components/LoginModal";
@@ -142,7 +142,10 @@ const Home = () => {
     apiClient
       .getSettings()
       .then((s) => {
-        const v = s.home_popup_interval_minutes;
+        if (s && s.cdn_domain) {
+          setCdnDomain(s.cdn_domain);
+        }
+        const v = s?.home_popup_interval_minutes;
         if (Number.isFinite(v) && [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].includes(v)) {
           setHomePopupIntervalMinutes(v);
         }
