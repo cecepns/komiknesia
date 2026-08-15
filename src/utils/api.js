@@ -93,15 +93,16 @@ export const getImageUrl = (imagePath) => {
     return toProxiedImageUrlIfNeeded(path) || path;
   }
 
-  if (path.startsWith('uploads/')) {
-    path = `/${path}`;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const normalizedPath = normalizeUploadsPathname(cleanPath);
+
+  // If path is specifically for hero banners (e.g. banners/banner_xxx.png or /banners/...)
+  if (normalizedPath.startsWith('/banners/') || path.startsWith('banners/')) {
+    return `${currentCdnDomain}${normalizedPath}`;
   }
 
-  if (path.startsWith('/')) {
-    return `${currentCdnDomain}${normalizeUploadsPathname(path)}`;
-  }
-
-  return `${currentCdnDomain}/${path}`;
+  // All other relative upload assets (ads, avatars, profiles, etc.) serve from backend server
+  return `${STATIC_ORIGIN}${normalizedPath}`;
 };
 
 class APIClient {
@@ -284,6 +285,34 @@ class APIClient {
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       throw new Error(errData.error || errData.message || 'Upload banner gagal');
+    }
+    return await response.json();
+  }
+
+  async uploadImage(formData) {
+    const token = this.getAuthToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Attempt uploading to backend upload endpoint
+    const response = await fetch(`${API_BASE_URL}/comments/upload-image`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      // Fallback endpoint if comments/upload-image is at /upload
+      const fallbackResponse = await fetch(`${API_BASE_URL}/upload-image`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+      if (!fallbackResponse.ok) {
+        const errData = await fallbackResponse.json().catch(() => ({}));
+        throw new Error(errData.error || errData.message || 'Upload gambar gagal');
+      }
+      return await fallbackResponse.json();
     }
     return await response.json();
   }

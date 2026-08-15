@@ -446,17 +446,37 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [stickerPickerOpen]);
 
-  const insertBbCode = (openTag, closeTag = openTag) => {
+  const insertBbCode = (openTag, closeTag) => {
     const textarea = textareaRef.current;
+
+    // Direct text insertion if closeTag is empty string
+    if (closeTag === '') {
+      if (!textarea) {
+        setBody((prev) => `${prev}${openTag}`);
+        return;
+      }
+      const start = textarea.selectionStart || 0;
+      const end = textarea.selectionEnd || 0;
+      const newBody = body.slice(0, start) + openTag + body.slice(end);
+      setBody(newBody);
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = start + openTag.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+      return;
+    }
+
+    const tagToClose = closeTag !== undefined ? closeTag : openTag;
     if (!textarea) {
-      setBody((prev) => `${prev}[${openTag}][/${closeTag}]`);
+      setBody((prev) => `${prev}[${openTag}][/${tagToClose}]`);
       return;
     }
 
     const start = textarea.selectionStart || 0;
     const end = textarea.selectionEnd || 0;
     const selectedText = body.slice(start, end);
-    const replacement = `[${openTag}]${selectedText}[/${closeTag}]`;
+    const replacement = `[${openTag}]${selectedText}[/${tagToClose}]`;
     const newBody = body.slice(0, start) + replacement + body.slice(end);
 
     setBody(newBody);
@@ -467,21 +487,37 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
     }, 0);
   };
 
-  const handleUploadImageFile = (e) => {
+  const handleUploadImageFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const imgUrl = ev.target.result;
-        insertBbCode(`img]${imgUrl}[/img`, '');
-        toast.success('Foto disisipkan');
-      } catch {
-        toast.error('Foto terlalu besar');
+    if (!file.type.startsWith('image/')) {
+      toast.error('File harus berupa gambar');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const toastId = toast.loading('Mengunggah gambar...');
+      
+      const res = await apiClient.uploadImage(formData).catch(async () => {
+        // Fallback: try uploadBannerImage if generic upload fails
+        return await apiClient.uploadBannerImage(formData);
+      });
+
+      toast.dismiss(toastId);
+      const imgPath = res?.image || res?.url || res?.path;
+      if (imgPath) {
+        insertBbCode(`img]${imgPath}[/img`, '');
+        toast.success('Foto berhasil disisipkan');
+      } else {
+        toast.error('Gagal mendapatkan URL gambar');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Gagal mengunggah foto');
+    }
   };
 
   const handleSubmit = async (e) => {

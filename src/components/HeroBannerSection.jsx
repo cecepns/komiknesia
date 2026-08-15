@@ -47,7 +47,7 @@ const HeroBannerSection = ({ banners = [] }) => {
   return (
     <div className="relative mb-8 overflow-hidden rounded-2xl bg-gray-900 shadow-2xl">
       {/* Banner Slide Container */}
-      <div className="relative aspect-[4/3] xs:aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9] w-full min-h-[260px] max-h-[420px] overflow-hidden">
+      <div className="relative aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9] w-full min-h-[200px] max-h-[420px] overflow-hidden">
         {/* Background Image */}
         <div
           className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${isTransitioning ? "opacity-70" : "opacity-100"
