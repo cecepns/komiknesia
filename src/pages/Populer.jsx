@@ -131,11 +131,10 @@ const Populer = () => {
                 key={id}
                 type="button"
                 onClick={() => setType(id)}
-                className={`rounded-xl border transition-all duration-200 px-4 py-2.5 text-xs font-bold sm:text-sm ${
-                  isActive
-                    ? "border-red-500/50 bg-red-600 text-white shadow-md dark:border-red-400/40 dark:bg-red-600 dark:text-white"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-gray-100 dark:border-white/10 dark:bg-black dark:text-gray-200 hover:dark:bg-white/5"
-                }`}
+                className={`rounded-xl border transition-all duration-200 px-4 py-2.5 text-xs font-bold sm:text-sm ${isActive
+                  ? "border-red-500/50 bg-red-600 text-white shadow-md dark:border-red-400/40 dark:bg-red-600 dark:text-white"
+                  : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-gray-100 dark:border-white/10 dark:bg-black dark:text-gray-200 hover:dark:bg-white/5"
+                  }`}
               >
                 {label}
               </button>
@@ -175,17 +174,17 @@ const Populer = () => {
                   />
 
                   {/* Rank Badge */}
-                  <div className="absolute top-2 left-2 flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-red-600 px-1.5 text-xs font-black text-white shadow-md">
+                  {/* <div className="absolute top-2 left-2 flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-red-600 px-1.5 text-xs font-black text-white shadow-md">
                     #{idx + 1 + (page - 1) * 100}
-                  </div>
+                  </div> */}
 
                   {/* Rating Badge */}
-                  {manga.rating > 0 && (
+                  {/* {manga.rating > 0 && (
                     <div className="absolute top-2 right-2 flex items-center gap-1 rounded-lg bg-black/75 px-1.5 py-0.5 text-[11px] font-bold text-amber-400 backdrop-blur-sm">
                       <Star className="h-3 w-3 fill-amber-400" />
                       <span>{Number(manga.rating).toFixed(1)}</span>
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 {/* Info */}
