@@ -296,10 +296,7 @@ const AdPopup = () => {
           <button
             type="button"
             onClick={handleSkipAd}
-            disabled={!canClose}
-            className={`inline-flex items-center justify-center shrink-0 rounded-xl bg-red-600 px-3 sm:px-6 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-white shadow-[0_3px_0_0_#991b1b] sm:shadow-[0_4px_0_0_#991b1b] transition-all whitespace-nowrap hover:-translate-y-0.5 hover:bg-red-500 active:translate-y-0.5 ${
-              !canClose ? 'opacity-60 cursor-not-allowed' : ''
-            }`}
+            className="inline-flex items-center justify-center shrink-0 rounded-xl bg-red-600 px-3 sm:px-6 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-white shadow-[0_3px_0_0_#991b1b] sm:shadow-[0_4px_0_0_#991b1b] transition-all whitespace-nowrap hover:-translate-y-0.5 hover:bg-red-500 active:translate-y-0.5 cursor-pointer"
           >
             Skip Iklan
           </button>

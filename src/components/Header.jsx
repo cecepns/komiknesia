@@ -425,11 +425,11 @@ const Header = () => {
         />
 
         <aside
-          className={`fixed top-0 left-0 z-[100] flex h-full w-[min(19rem,88vw)] flex-col border-r border-red-600/40 bg-black shadow-2xl transition-transform duration-300 ease-out dark:border-red-600/40 dark:bg-black ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+          className={`fixed top-0 left-0 z-[100] flex h-full w-[min(19rem,88vw)] flex-col bg-black shadow-2xl transition-transform duration-300 ease-out ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
             }`}
-          style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))" }}
         >
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4 dark:border-white/10">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
             <img src={Logo} alt="Komiknesia" className="h-8 w-auto" />
             <button
               type="button"
@@ -442,7 +442,7 @@ const Header = () => {
           </div>
 
           <nav className="flex-1 overflow-y-auto overscroll-y-contain px-3 py-4 [-webkit-overflow-scrolling:touch]">
-            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
               Menu
             </p>
             <ul className="flex flex-col gap-2">
@@ -454,10 +454,10 @@ const Header = () => {
                     <button
                       type="button"
                       onClick={() => handleNavigate(item.path)}
-                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${
                         active
-                          ? "border-red-500/50 bg-red-600 text-white shadow-md font-bold"
-                          : "border-red-950/60 bg-white/5 text-gray-200 hover:border-red-600/50 hover:bg-white/10"
+                          ? "bg-red-600 text-white shadow-md font-bold"
+                          : "text-gray-200 hover:bg-white/10"
                       }`}
                     >
                       <Icon
@@ -474,7 +474,7 @@ const Header = () => {
             </ul>
           </nav>
 
-          <div className="border-t border-gray-200 p-3 dark:border-white/10">
+          <div className="border-t border-white/10 p-3">
             <button
               type="button"
               onClick={() => handleNavigate("/akun")}
