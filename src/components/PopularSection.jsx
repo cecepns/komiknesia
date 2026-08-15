@@ -224,12 +224,12 @@ const PopularSection = () => {
       </div>
 
       {/* Slider Container with Left & Right Arrow Buttons */}
-      <div className="relative w-full max-w-7xl mx-auto px-2 sm:px-6">
+      <div className="relative w-full overflow-hidden">
         {/* Left Arrow Button */}
         <button
           type="button"
           onClick={handlePrev}
-          className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/80 text-white shadow-2xl border border-white/20 hover:bg-red-600 hover:scale-110 active:scale-95 transition-all"
+          className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/80 text-white shadow-2xl border border-white/20 hover:bg-red-600 hover:scale-110 active:scale-95 transition-all"
           aria-label="Previous"
         >
           <ChevronLeft className="h-6 w-6" />
@@ -239,7 +239,7 @@ const PopularSection = () => {
         <button
           type="button"
           onClick={handleNext}
-          className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/80 text-white shadow-2xl border border-white/20 hover:bg-red-600 hover:scale-110 active:scale-95 transition-all"
+          className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/80 text-white shadow-2xl border border-white/20 hover:bg-red-600 hover:scale-110 active:scale-95 transition-all"
           aria-label="Next"
         >
           <ChevronRight className="h-6 w-6" />
@@ -253,7 +253,7 @@ const PopularSection = () => {
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
-          className="flex items-center gap-4 sm:gap-6 overflow-x-auto py-8 px-[calc(50vw-90px)] sm:px-[calc(50vw-100px)] md:px-[calc(50vw-110px)] h-[370px] sm:h-[410px] md:h-[450px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center gap-4 sm:gap-6 lg:gap-8 overflow-x-auto py-10 px-[calc(50vw-95px)] sm:px-[calc(50vw-105px)] md:px-[calc(50vw-120px)] lg:px-[calc(50vw-140px)] h-[410px] sm:h-[440px] md:h-[470px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
         >
           {displayItems.map((item, index) => {
             const isActive = index === activeIndex;
@@ -270,7 +270,7 @@ const PopularSection = () => {
                     scrollToCard(index, true);
                   }
                 }}
-                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[310px] sm:h-[350px] md:h-[380px] w-[48vw] max-w-[180px] sm:w-[200px] md:w-[220px] ${isActive
+                className={`relative shrink-0 overflow-hidden rounded-2xl bg-[#1e1e26] border transition-all duration-300 flex flex-col justify-between select-none snap-center h-[330px] sm:h-[360px] md:h-[380px] w-[52vw] max-w-[200px] sm:w-[230px] md:w-[260px] lg:w-[280px] ${isActive
                   ? "-translate-y-3.5 z-10 border-red-500/80 ring-2 ring-red-500/50 shadow-2xl shadow-red-950/60 opacity-100 cursor-pointer"
                   : "translate-y-0 z-0 opacity-60 hover:opacity-85 border-white/10 cursor-pointer"
                   }`}
@@ -280,19 +280,19 @@ const PopularSection = () => {
                   <LazyImage
                     src={getImageUrl(item.cover)}
                     alt={item.title}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
                     wrapperClassName="h-full w-full"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e26] via-transparent to-transparent opacity-60" />
                 </div>
 
                 {/* Card Footer Info */}
-                <div className="p-2.5 sm:p-3.5 flex flex-col justify-between bg-[#1e1e26] h-[85px] sm:h-[95px] shrink-0">
+                <div className="p-2.5 sm:p-3.5 lg:p-4 flex flex-col justify-between bg-[#1e1e26] h-[85px] sm:h-[95px] lg:h-[105px] shrink-0">
                   <div>
-                    <h3 className={`font-bold line-clamp-1 leading-snug transition-colors ${isActive ? 'text-white text-xs sm:text-sm md:text-base' : 'text-gray-300 text-[11px] sm:text-xs'}`}>
+                    <h3 className={`font-bold line-clamp-1 leading-snug transition-colors ${isActive ? 'text-white text-xs sm:text-sm md:text-base lg:text-lg' : 'text-gray-300 text-[11px] sm:text-xs lg:text-sm'}`}>
                       {item.title}
                     </h3>
-                    <p className="text-[10px] sm:text-[11px] text-gray-400 mt-0.5 sm:mt-1">
+                    <p className="text-[10px] sm:text-[11px] lg:text-xs text-gray-400 mt-0.5 sm:mt-1">
                       Chapter {latestCh?.number || "N/A"}
                     </p>
                   </div>

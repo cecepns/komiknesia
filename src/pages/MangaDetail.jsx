@@ -697,8 +697,8 @@ const MangaDetail = () => {
                       </div>
                       <div className="h-6 w-px bg-white/15" />
                       <div className="flex items-center gap-2">
-                        <Eye className="h-5 w-5 text-red-500 shrink-0" />
-                        <span className="text-base sm:text-lg font-bold text-red-500 tabular-nums">
+                        <Eye className="h-5 w-5 text-gray-300 shrink-0" />
+                        <span className="text-base sm:text-lg font-bold text-white tabular-nums">
                           {(Number(manga.total_views) || 0).toLocaleString('id-ID')}
                         </span>
                       </div>

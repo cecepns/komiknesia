@@ -487,9 +487,14 @@ const Home = () => {
             />
           </div>
         )}
-        <div data-aos="fade-up" data-aos-delay="175">
-          <PopularSection />
-        </div>
+      </div>
+
+      {/* PopularSection - Full Screen Width (No Container Clipping) */}
+      <div data-aos="fade-up" data-aos-delay="175" className="w-full overflow-hidden">
+        <PopularSection />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* 2. Projek Section */}
         <div data-aos="fade-up" data-aos-delay="200">
