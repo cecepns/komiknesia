@@ -25,6 +25,7 @@ import {
   MessageSquare,
   Bookmark,
   Crown,
+  Loader2,
 } from 'lucide-react';
 import {
   WhatsappShareButton,
@@ -474,10 +475,10 @@ const ChapterReader = () => {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-primary-950 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"></div>
-          <p className="text-gray-400">Loading chapter...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-red-600 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm">Memuat chapter...</p>
         </div>
       </div>
     );
@@ -516,7 +517,7 @@ const ChapterReader = () => {
   const mangaTitle = mangaData?.title || chapterData?.title || 'KomikNesia';
   const pageTitle = `${mangaTitle} Chapter ${chapterNumber} Bahasa Indonesia | KomikNesia`;
   const pageDescription = `Baca ${mangaTitle} chapter ${chapterNumber} bahasa Indonesia terbaru di KomikNesia. Episode terbaru, Update cepat, kualitas gambar jernih, dan mudah dibaca.`;
-  const chapterShareTitle = `Baca ${mangaTitle} chapter ${chapterNumber} bahasa Indonesia di KomikNesia`;
+  const chapterShareTitle = `${mangaTitle} Chapter ${chapterNumber}`;
 
   return (
     <div
@@ -677,49 +678,36 @@ const ChapterReader = () => {
 
           {/* Bagikan chapter, Discord, Donasi, Lapor error */}
           <div className="px-4 pt-8 pb-4">
-            <div className="mx-auto grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setChapterSharePopupOpen(true)}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#16171e] p-4 text-left hover:bg-white/10 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white">
-                  <Share2 className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white">Bagikan chapter</p>
-                  <p className="text-xs text-gray-400">Salin link, WA, TikTok</p>
-                </div>
+                <Share2 className="h-4 w-4 text-red-500 shrink-0" />
+                <span className="text-xs font-semibold text-white sm:text-sm">Bagikan chapter</span>
               </button>
 
               <a
                 href={discordInviteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#16171e] p-4 text-left hover:bg-white/10 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white">
-                  <img src={discordIcon} alt="" className="h-6 w-6" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]">
+                  <img src={discordIcon} alt="" className="h-3.5 w-3.5" aria-hidden />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white">Discord</p>
-                  <p className="text-xs text-gray-400">Komunitas pembaca</p>
-                </div>
+                <span className="text-xs font-semibold text-white sm:text-sm">Discord</span>
               </a>
 
               <a
                 href={donateUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#16171e] p-4 text-left hover:bg-white/10 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
-                  <Heart className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white">Donasi</p>
-                  <p className="text-xs text-gray-400">Dukung via Saweria</p>
-                </div>
+                <Heart className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0" />
+                <span className="text-xs font-semibold text-white sm:text-sm">Donasi</span>
               </a>
 
               <button
@@ -734,15 +722,10 @@ const ChapterReader = () => {
                   if (title) q.set('judul', title);
                   navigate(`/contact?${q.toString()}`);
                 }}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#16171e] p-4 text-left hover:bg-white/10 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white">Lapor komik error</p>
-                  <p className="text-xs text-gray-400">Gambar rusak / terputus</p>
-                </div>
+                <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+                <span className="text-xs font-semibold text-white sm:text-sm">Lapor komik error</span>
               </button>
             </div>
           </div>
@@ -793,10 +776,10 @@ const ChapterReader = () => {
                 type="button"
                 onClick={handlePrevChapter}
                 disabled={!hasPrevChapter}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#16171e] py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
                   hasPrevChapter
-                    ? 'hover:bg-white/10 text-white cursor-pointer'
-                    : 'text-gray-600 opacity-50 cursor-not-allowed'
+                    ? 'border-red-500/40 bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-md'
+                    : 'border-white/10 bg-[#16171e] text-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
                 <ChevronLeft className="h-5 w-5" />
@@ -807,10 +790,10 @@ const ChapterReader = () => {
                 type="button"
                 onClick={handleNextChapter}
                 disabled={!hasNextChapter}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#16171e] py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
                   hasNextChapter
-                    ? 'hover:bg-white/10 text-white cursor-pointer'
-                    : 'text-gray-600 opacity-50 cursor-not-allowed'
+                    ? 'border-red-500/40 bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-md'
+                    : 'border-white/10 bg-[#16171e] text-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
                 <span>Next Ch</span>
@@ -861,7 +844,7 @@ const ChapterReader = () => {
             disabled={!hasPrevChapter}
             className={`p-1.5 sm:p-2 rounded-full transition-colors ${
               hasPrevChapter
-                ? 'hover:bg-white/10 hover:text-white text-gray-200'
+                ? 'hover:bg-red-600/30 text-red-400 hover:text-white'
                 : 'text-gray-600 cursor-not-allowed'
             }`}
             title="Prev Chapter"
@@ -932,7 +915,7 @@ const ChapterReader = () => {
             disabled={!hasNextChapter}
             className={`p-1.5 sm:p-2 rounded-full transition-colors ${
               hasNextChapter
-                ? 'hover:bg-white/10 hover:text-white text-gray-200'
+                ? 'hover:bg-red-600/30 text-red-400 hover:text-white'
                 : 'text-gray-600 cursor-not-allowed'
             }`}
             title="Next Chapter"
@@ -1075,72 +1058,87 @@ const ChapterReader = () => {
         </div>
       )}
 
-      {/* Share Modal Popup */}
+      {/* Modal Popup Bagikan Chapter */}
       {chapterSharePopupOpen && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
+          aria-label="Bagikan Chapter Ini"
         >
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#14151c] p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">Bagikan Chapter Ini</h3>
               <button
                 type="button"
                 onClick={() => setChapterSharePopupOpen(false)}
-                className="rounded-lg p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+                className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Tutup"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="mb-4 text-xs text-gray-400">
-              Pilih platform untuk membagikan chapter komik ini.
+            <p className="mb-4 text-sm text-slate-400">
+              Pilih cara membagikan tautan chapter komik ini ke teman atau medsos kamu.
             </p>
 
-            <div className="flex flex-col gap-3 text-sm">
+            <div className="flex flex-col gap-2.5">
               <button
                 type="button"
-                onClick={() => copyChapterShareLink('default')}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10 text-white transition-colors"
+                onClick={() => {
+                  copyChapterShareLink('default');
+                }}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-700">
-                  <Copy className="h-5 w-5" />
-                </div>
-                <span>Salin Tautan</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-600">
+                  <Copy className="h-5 w-5" aria-hidden />
+                </span>
+                <span>Salin tautan</span>
               </button>
 
               <WhatsappShareButton
                 url={chapterShareUrl}
                 title={chapterShareTitle}
                 separator=" — "
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10 text-white transition-colors"
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                 resetButtonStyle={false}
                 onClick={() => setChapterSharePopupOpen(false)}
               >
-                <WhatsappIcon size={36} round />
+                <WhatsappIcon size={40} round />
                 <span>WhatsApp</span>
               </WhatsappShareButton>
 
               <TwitterShareButton
                 url={chapterShareUrl}
                 title={chapterShareTitle}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10 text-white transition-colors"
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                 resetButtonStyle={false}
                 onClick={() => setChapterSharePopupOpen(false)}
               >
-                <TwitterIcon size={36} round />
+                <TwitterIcon size={40} round />
                 <span>X (Twitter)</span>
               </TwitterShareButton>
+
+              <button
+                type="button"
+                onClick={() => copyChapterShareLink('tiktok')}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black text-lg font-bold tracking-tight text-white ring-1 ring-white/20" aria-hidden>
+                  TT
+                </span>
+                <span>TikTok</span>
+              </button>
 
               <TelegramShareButton
                 url={chapterShareUrl}
                 title={chapterShareTitle}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10 text-white transition-colors"
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
                 resetButtonStyle={false}
                 onClick={() => setChapterSharePopupOpen(false)}
               >
-                <TelegramIcon size={36} round />
+                <TelegramIcon size={40} round />
                 <span>Telegram</span>
               </TelegramShareButton>
             </div>

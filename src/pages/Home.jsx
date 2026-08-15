@@ -66,6 +66,8 @@ const Home = () => {
     };
   }, []);
 
+  const [pwaGuideOpen, setPwaGuideOpen] = useState(false);
+
   const handleInstallClick = async () => {
     if (deferredPrompt) {
       try {
@@ -80,9 +82,8 @@ const Home = () => {
         console.error("Error triggering PWA prompt:", err);
       }
     }
-    toast.info("Silakan gunakan menu browser (titik 3) -> 'Tambahkan ke Layar Utama' / 'Pasang Aplikasi'", {
-      autoClose: 5000,
-    });
+    // Tampilkan modal petunjuk visual instalasi jika native browser prompt tidak aktif
+    setPwaGuideOpen(true);
   };
 
   const copyShareLink = async (context = "default") => {
@@ -473,6 +474,62 @@ const Home = () => {
                   <span>Telegram</span>
                 </TelegramShareButton>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Petunjuk Instal PWA / Tambah ke Layar Utama */}
+        {pwaGuideOpen && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Petunjuk Pasang Aplikasi"
+          >
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Pasang Aplikasi KomikNesia</h3>
+                <button
+                  type="button"
+                  onClick={() => setPwaGuideOpen(false)}
+                  className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="Tutup"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <p className="mb-4 text-sm text-slate-300">
+                Lakukan langkah sederhana berikut di browser HP kamu untuk memasang KomikNesia ke layar utama:
+              </p>
+
+              <div className="space-y-3 text-xs text-gray-200">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <p className="font-bold text-red-400 text-sm mb-1.5">Android / Google Chrome:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                    <li>Klik ikon <strong>Titik Tiga (⋮)</strong> di kanan atas browser.</li>
+                    <li>Pilih menu <strong>"Tambahkan ke Layar Utama"</strong> atau <strong>"Install Aplikasi"</strong>.</li>
+                    <li>Tekan <strong>Tambahkan / Install</strong> untuk konfirmasi.</li>
+                  </ol>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <p className="font-bold text-amber-400 text-sm mb-1.5">iPhone / Safari iOS:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                    <li>Klik ikon <strong>Bagikan (Share)</strong> di bagian bawah layar Safari.</li>
+                    <li>Gulir ke bawah dan pilih <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</li>
+                    <li>Tekan <strong>Tambah</strong> di pojok kanan atas.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPwaGuideOpen(false)}
+                className="mt-5 flex w-full items-center justify-center rounded-xl bg-red-600 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-red-700 active:scale-98"
+              >
+                Mengerti
+              </button>
             </div>
           </div>
         )}

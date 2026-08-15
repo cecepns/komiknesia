@@ -425,7 +425,7 @@ const Header = () => {
         />
 
         <aside
-          className={`fixed top-0 left-0 z-[100] flex h-full w-[min(19rem,88vw)] flex-col border-r border-gray-200/80 bg-white shadow-2xl transition-transform duration-300 ease-out dark:border-white/10 dark:bg-[#0a1628] ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+          className={`fixed top-0 left-0 z-[100] flex h-full w-[min(19rem,88vw)] flex-col border-r border-red-600/40 bg-black shadow-2xl transition-transform duration-300 ease-out dark:border-red-600/40 dark:bg-black ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
             }`}
           style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
         >
@@ -454,10 +454,10 @@ const Header = () => {
                     <button
                       type="button"
                       onClick={() => handleNavigate(item.path)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${
+                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${
                         active
-                          ? "bg-red-600 text-white shadow-md font-bold"
-                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/5"
+                          ? "border-red-500/50 bg-red-600 text-white shadow-md font-bold"
+                          : "border-red-950/60 bg-white/5 text-gray-200 hover:border-red-600/50 hover:bg-white/10"
                       }`}
                     >
                       <Icon

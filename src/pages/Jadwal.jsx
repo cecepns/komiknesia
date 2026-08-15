@@ -61,9 +61,9 @@ function ScheduleCard({ item }) {
   return (
     <Link
       to={`/komik/${item.manga.slug}`}
-      className="group flex gap-3 rounded-xl border border-gray-200 bg-white p-3 transition hover:border-sky-400/60 hover:shadow-md dark:border-white/10 dark:bg-white/5 dark:hover:border-cyan-400/40"
+      className="group flex gap-3 rounded-xl border border-white/10 bg-white/5 p-3 transition hover:border-red-500/50 hover:bg-white/10 shadow-md"
     >
-      <div className="h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800 sm:h-20 sm:w-14">
+      <div className="h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden rounded-lg bg-gray-900 sm:h-20 sm:w-14">
         {cover ? (
           <LazyImage
             src={cover}
@@ -72,19 +72,19 @@ function ScheduleCard({ item }) {
             wrapperClassName="h-full w-full"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">No cover</div>
+          <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-500">No cover</div>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-gray-900 group-hover:text-sky-600 dark:text-gray-100 dark:group-hover:text-cyan-300">
+        <p className="line-clamp-2 text-sm font-semibold leading-snug text-gray-100 group-hover:text-red-400">
           {item.manga.title}
         </p>
-        <p className="mt-0.5 line-clamp-1 text-xs text-gray-600 dark:text-gray-400">
+        <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">
           Ch. {item.chapter_number}
           {item.title ? ` — ${item.title}` : ''}
         </p>
         {releaseTime ? (
-          <p className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-cyan-950/50 dark:text-cyan-300">
+          <p className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-red-950/60 border border-red-500/30 px-2 py-0.5 text-[11px] font-medium text-red-300">
             <Clock className="h-3 w-3 shrink-0" aria-hidden />
             {releaseTime} WIB
           </p>
@@ -101,35 +101,35 @@ function DaySection({ dayKey, dayLabel, dateLabel, items, isToday }) {
     <section
       className={`rounded-2xl border transition-colors ${
         isToday
-          ? 'border-sky-400/60 bg-sky-50/50 dark:border-cyan-400/40 dark:bg-cyan-950/15'
-          : 'border-gray-200 bg-gray-50/40 dark:border-white/10 dark:bg-white/[0.03]'
+          ? 'border-red-500/50 bg-red-950/20'
+          : 'border-white/10 bg-white/[0.03]'
       } ${isEmpty ? 'px-4 py-3 md:px-5 md:py-3.5' : 'p-4 md:p-5'}`}
     >
       <div className={`flex items-center gap-3 ${isEmpty ? '' : 'mb-4'}`}>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100 md:text-base">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-white md:text-base">
               {dayLabel}
             </h2>
             {isToday ? (
-              <span className="rounded-full bg-sky-600 px-2.5 py-0.5 text-[10px] font-semibold text-white dark:bg-cyan-600">
+              <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-md">
                 Hari ini
               </span>
             ) : null}
             {!isEmpty ? (
-              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-white/10 dark:text-gray-300">
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-gray-300 border border-white/10">
                 {items.length} chapter
               </span>
             ) : null}
           </div>
           {dateLabel ? (
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{dateLabel}</p>
+            <p className="mt-0.5 text-xs text-gray-400">{dateLabel}</p>
           ) : null}
         </div>
       </div>
 
       {isEmpty ? (
-        <p className="text-sm text-gray-400 dark:text-gray-500">Tidak ada jadwal</p>
+        <p className="text-sm text-gray-500">Tidak ada jadwal</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (
@@ -145,11 +145,11 @@ function ScheduleSkeleton() {
   return (
     <div className="space-y-3">
       {DAY_ORDER.map((day) => (
-        <div key={day} className="animate-pulse rounded-2xl border border-gray-200 p-5 dark:border-white/10">
-          <div className="mb-4 h-4 w-32 rounded bg-gray-200 dark:bg-gray-700" />
+        <div key={day} className="animate-pulse rounded-2xl border border-white/10 p-5 bg-white/5">
+          <div className="mb-4 h-4 w-32 rounded bg-white/10" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <div className="h-20 rounded-xl bg-gray-200 dark:bg-gray-700" />
-            <div className="hidden h-20 rounded-xl bg-gray-200 dark:bg-gray-700 sm:block" />
+            <div className="h-20 rounded-xl bg-white/10" />
+            <div className="hidden h-20 rounded-xl bg-white/10 sm:block" />
           </div>
         </div>
       ))}
@@ -192,7 +192,7 @@ const Jadwal = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-24 pt-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100 md:pt-20">
+    <div className="min-h-screen bg-black pb-24 pt-5 text-gray-100 md:pt-20">
       <Helmet>
         <title>Jadwal Rilis | KomikNesia</title>
         <meta
@@ -202,18 +202,18 @@ const Jadwal = () => {
       </Helmet>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl dark:border-white/20 dark:bg-white/10 dark:backdrop-blur-2xl">
-          <div className="border-b border-gray-200 px-6 py-5 dark:border-white/10">
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-2xl">
+          <div className="border-b border-white/10 px-6 py-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-gray-500 dark:text-gray-400">
+                <p className="text-xs uppercase tracking-[0.25em] text-red-500 font-bold">
                   Release Schedule
                 </p>
-                <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold md:text-3xl">
-                  <CalendarDays className="h-7 w-7 text-sky-500 dark:text-cyan-400" />
+                <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold text-white md:text-3xl">
+                  <CalendarDays className="h-7 w-7 text-red-500" />
                   Jadwal Rilis
                 </h1>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                <p className="mt-1 text-sm text-gray-400">
                   Daftar chapter terjadwal untuk minggu ini, minggu depan, dan seterusnya.
                 </p>
               </div>
@@ -223,18 +223,18 @@ const Jadwal = () => {
                   type="button"
                   onClick={() => setWeekOffset((w) => w - 1)}
                   disabled={weekOffset <= 0}
-                  className="rounded-xl border border-gray-200 p-2 hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                  className="rounded-xl border border-white/10 bg-white/5 p-2 hover:bg-white/10 text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                   aria-label="Minggu sebelumnya"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <div className="min-w-[11rem] flex-1 text-center text-sm font-medium sm:flex-none sm:min-w-[14rem]">
+                <div className="min-w-[11rem] flex-1 text-center text-sm font-semibold text-white sm:flex-none sm:min-w-[14rem]">
                   {formatWeekRange(schedule?.week_start, schedule?.week_end)}
                 </div>
                 <button
                   type="button"
                   onClick={() => setWeekOffset((w) => w + 1)}
-                  className="rounded-xl border border-gray-200 p-2 hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/10"
+                  className="rounded-xl border border-white/10 bg-white/5 p-2 hover:bg-white/10 text-white transition-colors"
                   aria-label="Minggu berikutnya"
                 >
                   <ChevronRight className="h-5 w-5" />

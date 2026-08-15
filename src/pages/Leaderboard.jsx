@@ -66,7 +66,7 @@ const Leaderboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-950 dark:text-gray-100 pt-5 md:pt-20 pb-4">
+    <div className="min-h-screen bg-black text-gray-100 pt-5 md:pt-20 pb-4">
       <Helmet>
         <title>Leaderboard | KomikNesia</title>
         <meta
@@ -76,22 +76,22 @@ const Leaderboard = () => {
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl dark:border-white/20 dark:bg-white/10 dark:backdrop-blur-2xl dark:shadow-[0_25px_80px_-25px_rgba(0,0,0,0.75)]">
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-2xl">
           <div className="p-6 md:p-8">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-gray-500 dark:text-gray-400">
+                <p className="text-xs uppercase tracking-[0.25em] text-red-500 font-bold">
                   KomikNesia Arena
                 </p>
-                <h1 className="text-2xl md:text-3xl font-bold mt-1">Leaderboard</h1>
+                <h1 className="text-2xl md:text-3xl font-extrabold mt-1 text-white">Leaderboard</h1>
               </div>
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
-                <Crown className="h-4 w-4 text-amber-500" />
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-gray-200 text-xs">
+                <Crown className="h-4 w-4 text-amber-400" />
                 Ranked by community points
               </div>
             </div>
 
-            <div className="mb-8 rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 p-3 sm:p-4 dark:border-white/15 dark:from-white/10 dark:to-white/5">
+            <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
               <div className="grid grid-cols-3 gap-2 sm:gap-3 items-end">
                 {loading
                   ? podiumSkeletonHeights.map((barHeight, index) => (
@@ -155,7 +155,7 @@ const Leaderboard = () => {
                                 ? "bg-gradient-to-b from-orange-400 to-orange-500"
                                 : isSecond
                                   ? "bg-gradient-to-b from-slate-400 to-slate-500"
-                                  : "bg-gradient-to-b from-cyan-500 to-cyan-600"
+                                  : "bg-gradient-to-b from-amber-600 to-amber-700"
                             } flex flex-col items-center justify-between py-2 sm:py-3 text-white shadow-lg`}
                           >
                             <span className="text-[10px] sm:text-xs font-semibold opacity-90">Level {player.level}</span>
@@ -167,12 +167,12 @@ const Leaderboard = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-gray-50 border border-gray-200 overflow-hidden dark:bg-gray-800/50 dark:border-gray-700">
-              <div className="px-4 md:px-5 py-3 border-b border-gray-200/80 dark:border-gray-700/70 flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-300">
-                  Total User: <strong>{totalUsers.toLocaleString()}</strong>
+            <div className="rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden shadow-xl">
+              <div className="px-4 md:px-5 py-3 border-b border-white/10 flex items-center justify-between text-sm">
+                <span className="text-gray-300">
+                  Total User: <strong className="text-white">{totalUsers.toLocaleString()}</strong>
                 </span>
-                <span className="text-gray-500 dark:text-gray-400">
+                <span className="text-gray-400">
                   Halaman {currentPage} / {totalPages}
                 </span>
               </div>
@@ -182,15 +182,15 @@ const Leaderboard = () => {
                     {[...Array(8)].map((_, idx) => (
                       <div
                         key={`list-skeleton-${idx}`}
-                        className="flex items-center gap-3 px-4 md:px-5 py-3.5 border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 animate-pulse"
+                        className="flex items-center gap-3 px-4 md:px-5 py-3.5 border-b border-white/10 last:border-b-0 animate-pulse"
                       >
-                        <div className="h-5 w-6 rounded bg-gray-300 dark:bg-gray-700" />
-                        <div className="h-9 w-9 rounded-full bg-gray-300 dark:bg-gray-700" />
+                        <div className="h-5 w-6 rounded bg-white/10" />
+                        <div className="h-9 w-9 rounded-full bg-white/10" />
                         <div className="min-w-0 flex-1 space-y-2">
-                          <div className="h-3.5 w-32 rounded bg-gray-300 dark:bg-gray-700" />
-                          <div className="h-3 w-20 rounded bg-gray-300 dark:bg-gray-700" />
+                          <div className="h-3.5 w-32 rounded bg-white/10" />
+                          <div className="h-3 w-20 rounded bg-white/10" />
                         </div>
-                        <div className="h-4 w-24 rounded bg-gray-300 dark:bg-gray-700" />
+                        <div className="h-4 w-24 rounded bg-white/10" />
                       </div>
                     ))}
                   </div>
@@ -199,11 +199,11 @@ const Leaderboard = () => {
                   <div className="p-6 text-center text-red-500">{error}</div>
                 )}
                 {!loading && leaderboardData.map((player) => {
-                  const rowClass = `flex items-center gap-3 px-4 md:px-5 py-3.5 border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 transition-colors ${
+                  const rowClass = `flex items-center gap-3 px-4 md:px-5 py-3.5 border-b border-white/10 last:border-b-0 transition-colors ${
                     player.id === user?.id
-                      ? "bg-emerald-50 ring-1 ring-emerald-300 dark:bg-emerald-900/20 dark:ring-emerald-700"
+                      ? "bg-red-950/40 ring-1 ring-red-500/50"
                       : player.rank <= 3
-                        ? "bg-amber-50/40 dark:bg-amber-900/10"
+                        ? "bg-amber-500/10"
                         : "bg-transparent"
                   }`;
 

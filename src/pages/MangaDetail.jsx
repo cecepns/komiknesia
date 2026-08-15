@@ -24,7 +24,17 @@ import {
   BookOpen,
   ThumbsUp,
   PencilLine,
+  Copy,
+  X,
 } from 'lucide-react';
+import {
+  WhatsappShareButton,
+  TelegramShareButton,
+  TwitterShareButton,
+  WhatsappIcon,
+  TelegramIcon,
+  TwitterIcon,
+} from 'react-share';
 import LazyImage from '../components/LazyImage';
 import { API_BASE_URL, apiClient, getImageUrl } from '../utils/api';
 import AdBanner from '../components/AdBanner';
@@ -40,6 +50,8 @@ import { requiresChapterLogin, isLatestChapterInList } from '../utils/chapterAcc
 import BottomNavigation from '../components/BottomNavigation';
 import LiveChatWidget from '../components/LiveChatWidget';
 
+import { REACTION_OPTIONS, emptyReactionCounts, sumReactionCounts } from '../constants/reactions';
+
 const MangaDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -52,6 +64,7 @@ const MangaDetail = () => {
   const [readlistsForPicker, setReadlistsForPicker] = useState([]);
   const [readlistsPickerLoading, setReadlistsPickerLoading] = useState(false);
   const [readlistAddSubmitting, setReadlistAddSubmitting] = useState(null);
+  const [sharePopupOpen, setSharePopupOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('chapters'); // 'chapters', 'rekomendasi'
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
@@ -67,6 +80,49 @@ const MangaDetail = () => {
   const [downloadingChapterSlug, setDownloadingChapterSlug] = useState(null);
   const [customThumbnails, setCustomThumbnails] = useState({});
   const [readChapterSlugs, setReadChapterSlugs] = useState(new Set());
+
+  const [mangaReactionData, setMangaReactionData] = useState(() => emptyReactionCounts());
+  const [selectedMangaReaction, setSelectedMangaReaction] = useState(null);
+  const [mangaReactionLoading, setMangaReactionLoading] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return undefined;
+    let cancelled = false;
+    setMangaReactionLoading(true);
+    apiClient
+      .getVotes(slug)
+      .then((res) => {
+        if (cancelled || !res?.status || !res.data) return;
+        setMangaReactionData({ ...emptyReactionCounts(), ...res.data });
+        setSelectedMangaReaction(res.userVote ?? res.userReaction ?? null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setMangaReactionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const handleMangaReaction = async (reactionType) => {
+    if (!slug) return;
+    setMangaReactionLoading(true);
+    try {
+      const result = await apiClient.submitVote(slug, reactionType);
+      if (result?.status) {
+        const refresh = await apiClient.getVotes(slug);
+        if (refresh?.status && refresh.data) {
+          setMangaReactionData({ ...emptyReactionCounts(), ...refresh.data });
+          setSelectedMangaReaction(refresh.userVote ?? refresh.userReaction ?? null);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMangaReactionLoading(false);
+    }
+  };
 
   const itemsPerPage = 10;
 
@@ -574,38 +630,23 @@ const MangaDetail = () => {
           )}
 
           {/* 3. SECTION LINK ATAS: PREMIUM & SHARE KOMIK */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-4 sm:gap-3">
             <button
               type="button"
               onClick={() => navigate('/premium')}
-              className="group flex w-full items-center gap-3.5 rounded-2xl border border-amber-500/30 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-amber-400/50 hover:bg-white/[0.08]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-amber-400/50 hover:bg-white/10"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-inner">
-                <Crown className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white">PREMIUM</p>
-                <p className="text-xs text-gray-400">Tanpa iklan dan fitur eksklusif</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-gray-500 group-hover:translate-x-0.5 transition-transform" />
+              <Crown className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0" />
+              <span className="text-xs font-semibold text-white sm:text-sm">PREMIUM</span>
             </button>
 
             <button
               type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(mangaShareUrl);
-                toast.success('Link disalin ke clipboard');
-              }}
-              className="group flex w-full items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-white/20 hover:bg-white/[0.08]"
+              onClick={() => setSharePopupOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white shadow-inner">
-                <Share2 className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white">SHARE KOMIK</p>
-                <p className="text-xs text-gray-400">Bagikan komik ini ke teman</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-gray-500 group-hover:translate-x-0.5 transition-transform" />
+              <Share2 className="h-4 w-4 text-red-500 shrink-0" />
+              <span className="text-xs font-semibold text-white sm:text-sm">SHARE KOMIK</span>
             </button>
           </div>
 
@@ -961,41 +1002,68 @@ const MangaDetail = () => {
           </div>
 
           {/* 6. SECTION LINK BAWAH: DISCORD & DONASI */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-6 sm:gap-3">
             <a
               href={discordInviteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex w-full items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-white/20 hover:bg-white/[0.08]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-inner">
-                <img src={discordIcon} alt="" className="h-6 w-6" />
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#5865F2]">
+                <img src={discordIcon} alt="" className="h-3.5 w-3.5" aria-hidden />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white">Discord</p>
-                <p className="text-xs text-gray-400">Gabung komunitas pembaca</p>
-              </div>
-              <ExternalLink className="h-4 w-4 text-gray-500 group-hover:text-white transition-colors" />
+              <span className="text-xs font-semibold text-white sm:text-sm">Discord</span>
             </a>
 
             <a
               href={donateUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex w-full items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left shadow-md transition-all hover:border-white/20 hover:bg-white/[0.08]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-2 shadow-md transition-all hover:scale-105 hover:border-white/20 hover:bg-white/10"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-inner">
-                <Heart className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white">Donasi</p>
-                <p className="text-xs text-gray-400">Dukung lewat Saweria</p>
-              </div>
-              <ExternalLink className="h-4 w-4 text-gray-500 group-hover:text-white transition-colors" />
+              <Heart className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0" />
+              <span className="text-xs font-semibold text-white sm:text-sm">Donasi</span>
             </a>
           </div>
 
-          {/* 7. COMMENT SECTION */}
+          {/* 7. REAKSI KOMIK (DI ATAS KOMENTAR) */}
+          <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md shadow-xl">
+            <div className="mb-4 text-center">
+              <h3 className="text-base sm:text-lg font-bold text-white">Reaksi Komik Ini</h3>
+              <p className="mt-0.5 text-xs text-gray-400">
+                {sumReactionCounts(mangaReactionData).toLocaleString('id-ID')} reaksi pembaca
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              {REACTION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleMangaReaction(opt.id)}
+                  disabled={mangaReactionLoading}
+                  className={`flex min-w-[4.5rem] flex-col items-center rounded-xl border px-3 py-2.5 transition-all ${
+                    selectedMangaReaction === opt.id
+                      ? 'border-red-500 bg-red-950/50 ring-2 ring-red-500/60'
+                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                  } ${mangaReactionLoading ? 'cursor-not-allowed opacity-50' : ''}`}
+                >
+                  <img
+                    src={opt.image}
+                    alt={opt.label}
+                    className="h-10 w-10 object-contain"
+                  />
+                  <span className="mt-1 text-[11px] font-medium text-gray-300">
+                    {opt.label}
+                  </span>
+                  <span className="mt-0.5 text-xs font-semibold text-gray-200">
+                    {mangaReactionData[opt.id] ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 8. COMMENT SECTION */}
           <div className="mt-8">
             <CommentSection mangaId={manga?.id} externalSlug={slug} />
           </div>
@@ -1004,6 +1072,107 @@ const MangaDetail = () => {
       </main>
 
       <LoginModal open={loginOpen} onClose={closeLogin} onSuccess={handleLoginSuccess} />
+
+      {/* Modal Popup Bagikan Komik */}
+      {sharePopupOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bagikan Komik Ini"
+        >
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 text-left shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Bagikan Komik Ini</h3>
+              <button
+                type="button"
+                onClick={() => setSharePopupOpen(false)}
+                className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Tutup"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-slate-400">
+              Pilih cara membagikan tautan komik ini ke teman atau medsos kamu.
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(mangaShareUrl);
+                    toast.success('Link disalin ke clipboard');
+                  } catch {
+                    toast.error('Gagal menyalin link');
+                  }
+                }}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-600">
+                  <Copy className="h-5 w-5" aria-hidden />
+                </span>
+                <span>Salin tautan</span>
+              </button>
+
+              <WhatsappShareButton
+                url={mangaShareUrl}
+                title={manga?.title ? manga.title : 'KomikNesia'}
+                separator=" — "
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                resetButtonStyle={false}
+                onClick={() => setSharePopupOpen(false)}
+              >
+                <WhatsappIcon size={40} round />
+                <span>WhatsApp</span>
+              </WhatsappShareButton>
+
+              <TwitterShareButton
+                url={mangaShareUrl}
+                title={manga?.title ? manga.title : 'KomikNesia'}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                resetButtonStyle={false}
+                onClick={() => setSharePopupOpen(false)}
+              >
+                <TwitterIcon size={40} round />
+                <span>X (Twitter)</span>
+              </TwitterShareButton>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(mangaShareUrl);
+                    toast.success('Link disalin ke clipboard');
+                  } catch {
+                    toast.error('Gagal menyalin link');
+                  }
+                }}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black text-lg font-bold tracking-tight text-white ring-1 ring-white/20" aria-hidden>
+                  TT
+                </span>
+                <span>TikTok</span>
+              </button>
+
+              <TelegramShareButton
+                url={mangaShareUrl}
+                title={manga?.title ? manga.title : 'KomikNesia'}
+                className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                resetButtonStyle={false}
+                onClick={() => setSharePopupOpen(false)}
+              >
+                <TelegramIcon size={40} round />
+                <span>Telegram</span>
+              </TelegramShareButton>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BottomNavigation />
       <LiveChatWidget />
     </div>
