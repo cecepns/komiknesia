@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,30 +25,34 @@ export function getChapterAccessLinkClassName({
   return [base, locked ? lockedCls : unlocked, className].filter(Boolean).join(' ');
 }
 
-/* ── Shared RAF loop for all chapter border animations ── */
+/* ── Optimised single-write RAF loop ──
+ * Sets --border-angle ONCE on <html> per frame.
+ * All .chapter-border-anim elements inherit the value via CSS cascade.
+ * Old approach: N × style.setProperty per frame (N = number of elements).
+ * New approach: 1 × style.setProperty per frame, regardless of element count.
+ */
 let rafId = null;
-let subscribers = new Set();
-let angle = 0;
+let refCount = 0;
 
 function tick(timestamp) {
-  // ~120 deg/sec → full rotation in ~3s
-  angle = (timestamp * 0.12) % 360;
-  for (const cb of subscribers) cb(angle);
+  const angle = (timestamp * 0.12) % 360;
+  document.documentElement.style.setProperty('--border-angle', `${angle}deg`);
   rafId = requestAnimationFrame(tick);
 }
 
-function subscribe(cb) {
-  subscribers.add(cb);
-  if (subscribers.size === 1) {
+function mountAnim() {
+  refCount++;
+  if (refCount === 1) {
     rafId = requestAnimationFrame(tick);
   }
-  return () => {
-    subscribers.delete(cb);
-    if (subscribers.size === 0 && rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-  };
+}
+
+function unmountAnim() {
+  refCount--;
+  if (refCount === 0 && rafId) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
 }
 
 const ChapterAccessLink = ({
@@ -68,15 +72,11 @@ const ChapterAccessLink = ({
   const navigate = useNavigate();
   const [loginOpen, setLoginOpen] = useState(false);
   const locked = requiresChapterLogin(chapter, isAuthenticated);
-  const elRef = useRef(null);
 
-  /* Subscribe to shared RAF animation loop */
+  /* Keep the shared RAF loop alive while any instance is mounted */
   useEffect(() => {
-    const el = elRef.current;
-    if (!el) return;
-    return subscribe((a) => {
-      el.style.setProperty('--border-angle', `${a}deg`);
-    });
+    mountAnim();
+    return unmountAnim;
   }, []);
 
   /* Block ALL event types from reaching parent card containers */
@@ -119,10 +119,8 @@ const ChapterAccessLink = ({
       >
         <button
           type="button"
-          ref={elRef}
           onClick={handleClick}
           className={linkClassName}
-          style={{ '--border-angle': '0deg' }}
           {...rest}
         >
           {label != null || meta != null ? (
@@ -158,11 +156,9 @@ const ChapterAccessLink = ({
 
   return (
     <Link
-      ref={elRef}
       to={to}
       onClick={handleClick}
       className={linkClassName}
-      style={{ '--border-angle': '0deg' }}
       {...rest}
     >
       {label != null || meta != null ? (

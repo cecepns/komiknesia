@@ -125,7 +125,7 @@
 }
 
 /* ── Chapter Card Rotating Border Animation ── */
-/* Uses JS-driven --border-angle + conic-gradient + mask (same technique as scythescans) */
+/* --border-angle is set once on :root by a single RAF loop in ChapterAccessLink.jsx */
 
 .chapter-border-anim {
   position: relative;
