@@ -169,7 +169,7 @@ const Landing = () => {
     apiClient.getSettings()
       .then((s) => {
         if (s && Array.isArray(s.quick_links) && s.quick_links.length > 0) {
-          const landingLinks = s.quick_links.filter(item => item.is_active !== false && item.is_landing !== false);
+          const landingLinks = s.quick_links.filter(item => item.is_active === true && item.is_landing === true);
           if (landingLinks.length > 0) setCtaItems(landingLinks);
         }
       })

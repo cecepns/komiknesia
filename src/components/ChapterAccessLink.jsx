@@ -86,11 +86,11 @@ const ChapterAccessLink = ({
   };
 
   const handleClick = (e) => {
-    e.preventDefault();
     e.stopPropagation();
     if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
 
     if (locked) {
+      e.preventDefault();
       setLoginOpen(true);
       return;
     }

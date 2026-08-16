@@ -14,6 +14,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Premium from "./pages/Premium";
 import ProfileUser from "./pages/ProfileUser";
 import Jadwal from "./pages/Jadwal";
+import Landing from "./pages/Landing"
 import ScrollToTop from "./components/ScrollToTop";
 import AdPopup from "./components/AdPopup";
 import MbuhRedirectScript from "./components/MbuhRedirectScript";
@@ -36,6 +37,7 @@ function AppContent() {
       <ScrollToTop />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/landing" element={<Landing />} />
         <Route
           path="/admin/*"
           element={

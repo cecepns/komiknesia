@@ -847,7 +847,7 @@ const Library = () => {
                               onClick={(e) => e.stopPropagation()}
                               compact
                               className="mb-1"
-                              label={`Lanjut baca: Chapter ${item.chapterNumber || item.chapterTitle || "terakhir"}`}
+                              label={`Chapter ${item.chapterNumber || item.chapterTitle || "terakhir"}`}
                             />
                           ) : null}
                           <p className="text-xs text-gray-500 dark:text-gray-500">
