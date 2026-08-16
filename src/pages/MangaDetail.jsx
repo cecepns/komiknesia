@@ -52,6 +52,7 @@ import { useChapterAccess } from '../hooks/useChapterAccess';
 import { requiresChapterLogin, isLatestChapterInList } from '../utils/chapterAccess';
 import BottomNavigation from '../components/BottomNavigation';
 import LiveChatWidget from '../components/LiveChatWidget';
+import { getReadChapterSlugs } from '../utils/historyManager';
 
 import { REACTION_OPTIONS, emptyReactionCounts, sumReactionCounts } from '../constants/reactions';
 
@@ -136,25 +137,7 @@ const MangaDetail = () => {
   const donateUrl = 'https://saweria.co/KomikNesia';
 
   useEffect(() => {
-    try {
-      const readSet = new Set();
-      
-      const kh = JSON.parse(localStorage.getItem('komiknesia_history') || '[]');
-      kh.forEach((item) => {
-        if (item.chapterSlug) readSet.add(item.chapterSlug);
-        if (item.slug) readSet.add(item.slug);
-      });
-
-      const mh = JSON.parse(localStorage.getItem('mangaHistory') || '[]');
-      mh.forEach((item) => {
-        if (item.chapterSlug) readSet.add(item.chapterSlug);
-        if (item.slug) readSet.add(item.slug);
-      });
-
-      setReadChapterSlugs(readSet);
-    } catch {
-      /* ignore */
-    }
+    setReadChapterSlugs(getReadChapterSlugs());
   }, []);
 
   useEffect(() => {
