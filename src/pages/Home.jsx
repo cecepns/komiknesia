@@ -130,6 +130,9 @@ const Home = () => {
   const { ads: populerAds } = useAds("populer");
   const { ads: homeFooterAds } = useAds("home-footer");
   const { ads: homePopupAds } = useAds("home-popup");
+  const { ads: homeManhwaAds } = useAds("home-manhwa-top");
+  const { ads: homeMangaAds } = useAds("home-manga-top");
+  const { ads: homeManhuaAds } = useAds("home-manhua-top");
 
   const [quickLinks, setQuickLinks] = useState([
     { id: 'discord', title: 'Discord', href: 'https://discord.gg/dgC22PSm9h', icon: 'Discord', is_active: true },
@@ -559,6 +562,11 @@ const Home = () => {
 
         {/* 4. Manhwa Section */}
         <div data-aos="fade-up" data-aos-delay="250">
+          {homeManhwaAds.length > 0 && (
+            <div className="mb-6">
+              <AdBanner ads={homeManhwaAds} layout="grid" columns={2} />
+            </div>
+          )}
           <ComicTypeSection
             title="MANHWA"
             type="manhwa"
@@ -568,6 +576,11 @@ const Home = () => {
 
         {/* 5. Manga Section */}
         <div data-aos="fade-up" data-aos-delay="275">
+          {homeMangaAds.length > 0 && (
+            <div className="mb-6">
+              <AdBanner ads={homeMangaAds} layout="grid" columns={2} />
+            </div>
+          )}
           <ComicTypeSection
             title="MANGA"
             type="manga"
@@ -577,6 +590,11 @@ const Home = () => {
 
         {/* 6. Manhua Section */}
         <div data-aos="fade-up" data-aos-delay="300">
+          {homeManhuaAds.length > 0 && (
+            <div className="mb-6">
+              <AdBanner ads={homeManhuaAds} layout="grid" columns={2} />
+            </div>
+          )}
           <ComicTypeSection
             title="MANHUA"
             type="manhua"

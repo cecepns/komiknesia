@@ -132,6 +132,7 @@ const MangaDetail = () => {
 
   const { ads: chapterTopAds } = useAds('chapter-top');
   const { ads: listChapterAds } = useAds('list-chapter');
+  const { ads: topUpvoteAds } = useAds('top-upvote');
 
   const discordInviteUrl = 'https://discord.gg/dgC22PSm9h';
   const donateUrl = 'https://saweria.co/KomikNesia';
@@ -519,6 +520,13 @@ const MangaDetail = () => {
       <main className="pt-20 pb-24 md:pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
+          {/* Top Ads Banner (Paling Atas) */}
+          {chapterTopAds.length > 0 && (
+            <div>
+              <AdBanner ads={chapterTopAds} layout="grid" columns={2} />
+            </div>
+          )}
+
           {/* 1. HERO BANNER & POSTER CARD */}
           <div className="relative overflow-hidden rounded-2xl bg-white/[0.04] border border-white/10 p-6 backdrop-blur-md shadow-2xl">
             <div
@@ -617,14 +625,7 @@ const MangaDetail = () => {
             </div>
           </div>
 
-          {/* 2. ADS BANNER */}
-          {chapterTopAds.length > 0 && (
-            <div>
-              <AdBanner ads={chapterTopAds} layout="grid" columns={2} />
-            </div>
-          )}
-
-          {/* 3. SECTION LINK ATAS: PREMIUM & SHARE KOMIK */}
+          {/* 2. SECTION LINK ATAS: PREMIUM & SHARE KOMIK */}
           <div className="grid grid-cols-2 gap-2 mb-4 sm:gap-3">
             <button
               type="button"
@@ -1068,6 +1069,13 @@ const MangaDetail = () => {
           <div className="mt-8">
             <CommentSection mangaId={manga?.id} externalSlug={slug} />
           </div>
+
+          {/* 9. BOTTOM ADS BANNER */}
+          {topUpvoteAds.length > 0 && (
+            <div className="mt-8">
+              <AdBanner ads={topUpvoteAds} layout="grid" columns={2} />
+            </div>
+          )}
 
         </div>
       </main>

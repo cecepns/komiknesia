@@ -29,7 +29,7 @@ const show = async (req, res) => {
 
 const store = async (req, res) => {
   try {
-    const { email, whatsapp, description, is_active = true } = req.body;
+    const { email, whatsapp, telegram, description, is_active = true } = req.body;
 
     if (!email || !whatsapp) {
       return res.status(400).json({ error: 'Email and WhatsApp are required' });
@@ -38,8 +38,8 @@ const store = async (req, res) => {
     await db.execute('UPDATE contact_info SET is_active = FALSE WHERE is_active = TRUE');
 
     const [result] = await db.execute(
-      'INSERT INTO contact_info (email, whatsapp, description, is_active) VALUES (?, ?, ?, ?)',
-      [email, whatsapp, description || null, is_active]
+      'INSERT INTO contact_info (email, whatsapp, telegram, description, is_active) VALUES (?, ?, ?, ?, ?)',
+      [email, whatsapp, telegram || null, description || null, is_active]
     );
 
     res.status(201).json({ id: result.insertId, message: 'Contact info created successfully' });
@@ -52,7 +52,7 @@ const store = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, whatsapp, description, is_active } = req.body;
+    const { email, whatsapp, telegram, description, is_active } = req.body;
 
     const updates = [];
     const params = [];
@@ -65,6 +65,11 @@ const update = async (req, res) => {
     if (whatsapp !== undefined) {
       updates.push('whatsapp = ?');
       params.push(whatsapp);
+    }
+
+    if (telegram !== undefined) {
+      updates.push('telegram = ?');
+      params.push(telegram);
     }
 
     if (description !== undefined) {

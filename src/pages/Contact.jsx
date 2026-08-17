@@ -23,7 +23,21 @@ const Contact = () => {
     }
   };
 
-  const telegramUrl = contactInfo?.telegram || 'https://t.me/KomikNesiaOfficial';
+  const rawTelegram = contactInfo?.telegram || '@KomikNesiaOfficial';
+  let telegramUrl = rawTelegram;
+  if (!rawTelegram.startsWith('http://') && !rawTelegram.startsWith('https://')) {
+    const handle = rawTelegram.startsWith('@') ? rawTelegram.slice(1) : rawTelegram;
+    telegramUrl = `https://t.me/${handle}`;
+  }
+  let telegramHandle = rawTelegram;
+  if (rawTelegram.startsWith('http://') || rawTelegram.startsWith('https://')) {
+    const parts = rawTelegram.replace(/\/$/, '').split('/');
+    const lastPart = parts[parts.length - 1];
+    telegramHandle = lastPart ? `@${lastPart}` : rawTelegram;
+  } else if (!rawTelegram.startsWith('@')) {
+    telegramHandle = `@${rawTelegram}`;
+  }
+
   const emailAddress = contactInfo?.email || 'admin@komiknesia.net';
 
   if (loading) {
@@ -108,7 +122,7 @@ const Contact = () => {
                   Telegram
                 </h3>
                 <p className="text-sky-400 font-medium group-hover:underline break-words">
-                  @KomikNesiaOfficial
+                  {telegramHandle}
                 </p>
                 <p className="text-sm text-gray-400 mt-1">
                   Chat Telegram dengan kami

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Mail, MessageCircle, FileText, Trash2 } from 'lucide-react';
+import { Save, Mail, MessageCircle, FileText, Trash2, Send } from 'lucide-react';
 import { apiClient } from '../../utils/api';
 
 const ContactManager = () => {
@@ -9,6 +9,7 @@ const ContactManager = () => {
   const [formData, setFormData] = useState({
     email: '',
     whatsapp: '',
+    telegram: '',
     description: '',
     is_active: true
   });
@@ -26,6 +27,7 @@ const ContactManager = () => {
         setFormData({
           email: data.email || '',
           whatsapp: data.whatsapp || '',
+          telegram: data.telegram || '',
           description: data.description || '',
           is_active: data.is_active !== undefined ? data.is_active : true
         });
@@ -156,6 +158,24 @@ const ContactManager = () => {
             )}
           </div>
 
+          {/* Telegram */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <Send className="h-4 w-4 inline-block mr-2" />
+              Telegram (Username / Link)
+            </label>
+            <input
+              type="text"
+              value={formData.telegram}
+              onChange={(e) => setFormData(prev => ({ ...prev, telegram: e.target.value }))}
+              placeholder="@KomikNesiaOfficial atau https://t.me/KomikNesiaOfficial"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Contoh: @KomikNesiaOfficial atau link t.me
+            </p>
+          </div>
+
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -245,6 +265,22 @@ const ContactManager = () => {
                 </a>
               </div>
             </div>
+            {formData.telegram && (
+              <div className="flex items-center space-x-3">
+                <Send className="h-5 w-5 text-sky-500" />
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Telegram</p>
+                  <a 
+                    href={formData.telegram.startsWith('http') ? formData.telegram : formData.telegram.startsWith('@') ? `https://t.me/${formData.telegram.slice(1)}` : `https://t.me/${formData.telegram}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-500 hover:underline"
+                  >
+                    {formData.telegram}
+                  </a>
+                </div>
+              </div>
+            )}
             {formData.description && (
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Deskripsi</p>
