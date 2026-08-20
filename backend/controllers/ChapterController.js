@@ -477,7 +477,7 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, chapter_number, scheduled_release_at, release_mode } = req.body;
+    const { title, chapter_number, scheduled_release_at, release_mode, remove_cover } = req.body;
 
     const [chapterRows] = await db.execute('SELECT manga_id FROM chapters WHERE id = ?', [id]);
     if (chapterRows.length === 0) {
@@ -511,6 +511,8 @@ const update = async (req, res) => {
       try {
         fs.unlinkSync(req.file.path);
       } catch { }
+    } else if (remove_cover === 'true' || remove_cover === true) {
+      query += ', cover = NULL';
     }
 
     query += ' WHERE id = ?';

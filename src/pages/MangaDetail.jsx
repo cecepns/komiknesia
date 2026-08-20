@@ -23,7 +23,6 @@ import {
   Lock,
   BookOpen,
   ThumbsUp,
-  PencilLine,
   Copy,
   X,
   CheckCircle,
@@ -82,7 +81,6 @@ const MangaDetail = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingChapterSlug, setDownloadingChapterSlug] = useState(null);
-  const [customThumbnails, setCustomThumbnails] = useState({});
   const [readChapterSlugs, setReadChapterSlugs] = useState(new Set());
 
   const [mangaReactionData, setMangaReactionData] = useState(() => emptyReactionCounts());
@@ -288,24 +286,14 @@ const MangaDetail = () => {
           }
         }
 
-        let customThumb = null;
-        try {
-          customThumb = localStorage.getItem(`komiknesia_custom_ch_thumb_${ch.slug}`);
-        } catch {
-          /* ignore */
-        }
-
-        if (customThumb) {
-          setCustomThumbnails((prev) => ({ ...prev, [ch.slug]: customThumb }));
-        }
-
         chapterList.push({
           ...ch,
           id: ch.id,
           content_id: ch.content_id,
           number: ch.number,
           title: ch.title || `Chapter ${ch.number}`,
-          thumbnail: customThumb || mangaData.cover,
+          cover: ch.cover || null,
+          thumbnail: ch.cover || ch.thumbnail || mangaData.cover,
           uploadedAt: uploadedAt,
           isNew: index === 0,
           slug: ch.slug,
@@ -857,7 +845,7 @@ const MangaDetail = () => {
                 const isLatest = isLatestChapterInList(chapters, chapter.slug);
                 const chapterLocked = requiresChapterLogin(chapter, isAuthenticated);
                 const isRead = readChapterSlugs.has(chapter.slug) || readChapterSlugs.has(chapter.id);
-                const thumbUrl = customThumbnails[chapter.slug] || getImageUrl(chapter.thumbnail || manga?.cover);
+                const thumbUrl = getImageUrl(chapter.cover || chapter.thumbnail || manga?.cover);
 
                 return (
                   <div
@@ -870,43 +858,12 @@ const MangaDetail = () => {
                     }`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-lg bg-gray-950 border border-white/10 group/thumb">
+                      <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-lg bg-gray-950 border border-white/10">
                         <LazyImage
                           src={thumbUrl}
                           alt={chapter.title}
                           className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 ${isRead ? 'opacity-50' : ''}`}
                           wrapperClassName="h-full w-full"
-                        />
-                        <label
-                          htmlFor={`thumb-upload-${chapter.slug}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute inset-0 bg-black/70 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-                          title="Ganti Foto Cover"
-                        >
-                          <PencilLine className="h-4 w-4 text-white" />
-                        </label>
-                        <input
-                          type="file"
-                          id={`thumb-upload-${chapter.slug}`}
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                try {
-                                  localStorage.setItem(`komiknesia_custom_ch_thumb_${chapter.slug}`, ev.target.result);
-                                  setCustomThumbnails((prev) => ({ ...prev, [chapter.slug]: ev.target.result }));
-                                  toast.success('Foto thumbnail chapter diperbarui');
-                                } catch {
-                                  toast.error('Foto terlalu besar');
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
                         />
                       </div>
 

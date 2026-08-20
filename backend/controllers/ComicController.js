@@ -42,6 +42,7 @@ const detailBySlug = async (req, res) => {
           c.chapter_number as number,
           c.title,
           c.slug,
+          c.cover,
           c.created_at,
           c.updated_at,
           COALESCE(c.views, 0) AS views,
@@ -87,6 +88,8 @@ const detailBySlug = async (req, res) => {
             number: ch.number,
             title: ch.title || `Chapter ${ch.number}`,
             slug: ch.slug,
+            cover: ch.cover || null,
+            thumbnail: ch.cover || null,
             views: Number(ch.views) || 0,
             reaction_count: Number(ch.reaction_count) || 0,
             created_at: {

@@ -89,6 +89,7 @@ const sitemapMain = async (req, res) => {
       FROM manga 
       WHERE slug IS NOT NULL AND slug != ''
       ORDER BY updated_at DESC
+      LIMIT 100
     `);
 
     const [chapterRows] = await db.execute(`
@@ -96,6 +97,7 @@ const sitemapMain = async (req, res) => {
       FROM chapters c
       WHERE c.slug IS NOT NULL AND c.slug != ''
       ORDER BY c.updated_at DESC
+      LIMIT 100
     `);
 
     const now = new Date().toISOString().split('T')[0];
@@ -206,6 +208,7 @@ const sitemapManga = async (req, res) => {
       FROM manga 
       WHERE slug IS NOT NULL AND slug != ''
       ORDER BY updated_at DESC
+      LIMIT 100
     `);
 
     const now = new Date().toISOString().split('T')[0];
@@ -255,15 +258,9 @@ const sitemapChapters = async (req, res) => {
     const [chapterRows] = await db.execute(`
       SELECT c.slug, c.updated_at
       FROM chapters c
-      WHERE c.manga_id IN (
-        SELECT id FROM (
-          SELECT id FROM manga
-          ORDER BY updated_at DESC
-          LIMIT 25
-        ) as temp
-      )
-      AND c.slug IS NOT NULL AND c.slug != ''
+      WHERE c.slug IS NOT NULL AND c.slug != ''
       ORDER BY c.updated_at DESC
+      LIMIT 100
     `);
 
     const now = new Date().toISOString().split('T')[0];

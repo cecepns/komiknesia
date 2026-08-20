@@ -147,7 +147,15 @@ const createChapter = async (req, res) => {
   try {
     const { mangaId } = req.params;
     const { title, chapter_number, scheduled_release_at, release_mode } = req.body;
-    const cover = req.file ? `/uploads/${req.file.filename}` : null;
+    let cover = null;
+    if (req.file) {
+      const ext = path.extname(req.file.originalname || req.file.filename || '') || '.webp';
+      const key = `komiknesia/chapters/${mangaId}/cover-${Date.now()}${ext}`;
+      cover = await uploadFileToS3(key, req.file.path, req.file.mimetype);
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch { }
+    }
 
     const wantsScheduled = release_mode === 'scheduled';
     const parsedSchedule = wantsScheduled ? parseScheduledReleaseAt(scheduled_release_at) : null;
