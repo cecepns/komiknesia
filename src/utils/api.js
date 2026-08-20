@@ -128,10 +128,19 @@ class APIClient {
     }
   }
 
+  getTurnstileToken() {
+    try {
+      return sessionStorage.getItem('cf_turnstile_passed') || localStorage.getItem('cf_turnstile_passed');
+    } catch {
+      return null;
+    }
+  }
+
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     const isFormData = options.body instanceof FormData;
     const token = this.getAuthToken();
+    const turnstileToken = this.getTurnstileToken();
     const isAuthAnonymous =
       endpoint === '/auth/login' ||
       endpoint.startsWith('/auth/login?') ||
@@ -144,6 +153,7 @@ class APIClient {
       // Don't set Content-Type for FormData - browser will set it with boundary
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'X-Device-Id': this.getDeviceId(),
+      ...(turnstileToken ? { 'x-turnstile-token': turnstileToken } : {}),
     };
 
     // Always add auth token if available (this will override any Authorization in options.headers)
@@ -164,6 +174,18 @@ class APIClient {
       const response = await fetch(url, config);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+
+        // Jika token Turnstile expired/invalid, hapus cache storage & minta verifikasi ulang
+        if (response.status === 403 && typeof errorData.error === 'string' && (errorData.error.toLowerCase().includes('turnstile') || errorData.error.toLowerCase().includes('verification'))) {
+          try {
+            sessionStorage.removeItem('cf_turnstile_passed');
+            localStorage.removeItem('cf_turnstile_passed');
+            window.dispatchEvent(new CustomEvent('turnstile-expired'));
+          } catch {
+            // ignore
+          }
+        }
+
         const err = new Error(errorData.error || `HTTP error! status: ${response.status}`);
         err.status = response.status;
         throw err;
@@ -273,9 +295,13 @@ class APIClient {
 
   async uploadBannerImage(formData) {
     const token = this.getAuthToken();
+    const turnstileToken = this.getTurnstileToken();
     const headers = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (turnstileToken) {
+      headers['x-turnstile-token'] = turnstileToken;
     }
     const response = await fetch(`${API_BASE_URL}/settings/upload-banner`, {
       method: 'POST',
@@ -291,9 +317,13 @@ class APIClient {
 
   async uploadImage(formData) {
     const token = this.getAuthToken();
+    const turnstileToken = this.getTurnstileToken();
     const headers = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (turnstileToken) {
+      headers['x-turnstile-token'] = turnstileToken;
     }
     // Attempt uploading to backend upload endpoint
     const response = await fetch(`${API_BASE_URL}/comments/upload-image`, {

@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const db = require('../db');
 const { JWT_SECRET } = require('../middlewares/auth');
 const { parseUserRole } = require('../utils/userRole');
@@ -444,11 +445,71 @@ const publicProfile = async (req, res) => {
   }
 };
 
+const verifyTurnstileToken = async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || "0x4AAAAAAEWaUvw7hJ7ke3d-kdSOCjir6PQ";
+
+    if (!token) {
+      return res.status(400).json({ status: false, error: 'Turnstile token is required' });
+    }
+
+    const clientIp =
+      req.headers['cf-connecting-ip'] ||
+      req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+      req.socket?.remoteAddress;
+
+    const formData = new URLSearchParams();
+    formData.append('secret', secretKey);
+    formData.append('response', token);
+    if (clientIp) {
+      formData.append('remoteip', clientIp);
+    }
+
+    const response = await axios.post(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      formData.toString(),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 5000,
+      }
+    );
+
+    const result = response.data;
+    if (!result || !result.success) {
+      return res.status(403).json({
+        status: false,
+        error: 'Verifikasi keamanan Turnstile gagal',
+        codes: result ? result['error-codes'] : null,
+      });
+    }
+
+    // Buat Gate Session Token yang berlaku selama 24 jam
+    const gateToken = jwt.sign(
+      { turnstileVerified: true, verifiedAt: Date.now() },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return res.json({
+      status: true,
+      gateToken,
+    });
+  } catch (error) {
+    console.error('[Turnstile] Error verifying token:', error.message);
+    return res.status(500).json({
+      status: false,
+      error: 'Terjadi kesalahan saat memverifikasi keamanan server.',
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   me,
   updateProfile,
   publicProfile,
+  verifyTurnstileToken,
 };
 

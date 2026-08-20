@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import Logo from '../assets/logo.png';
+import { API_BASE_URL } from '../utils/api';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAEWaUoa7oc3vFoJo';
 const STORAGE_KEY = 'cf_turnstile_passed';
@@ -9,25 +10,43 @@ export default function TurnstileGate({ children }) {
   const [isVerified, setIsVerified] = useState(false);
   const [checkingStorage, setCheckingStorage] = useState(true);
   const [turnstileLoaded, setTurnstileLoaded] = useState(false);
+  const [isVerifyingWithBackend, setIsVerifyingWithBackend] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const widgetContainerRef = useRef(null);
   const widgetIdRef = useRef(null);
 
   useEffect(() => {
-    // 1. Cek apakah sudah pernah diverifikasi di sesi ini
+    // 1. Cek apakah sudah ada session token (JWT) valid di browser
     try {
-      const savedToken = sessionStorage.getItem(STORAGE_KEY);
-      if (savedToken) {
+      const savedToken = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+      // Token valid harus berformat JWT (3 bagian dipisahkan titik)
+      if (savedToken && savedToken.split('.').length === 3) {
         setIsVerified(true);
         setCheckingStorage(false);
-        return;
+      } else {
+        // Hapus token lama/raw yang tidak valid
+        sessionStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+        setCheckingStorage(false);
       }
     } catch {
-      // ignore storage error
+      setCheckingStorage(false);
     }
-    setCheckingStorage(false);
 
-    // 2. Tunggu script Turnstile siap
+    // 2. Listener jika backend mengabarkan token kedaluwarsa
+    const handleExpired = () => {
+      try {
+        sessionStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      setIsVerified(false);
+      setCheckingStorage(false);
+    };
+    window.addEventListener('turnstile-expired', handleExpired);
+
+    // 3. Tunggu script Turnstile siap
     const checkTurnstileReady = setInterval(() => {
       if (window.turnstile && typeof window.turnstile.render === 'function') {
         setTurnstileLoaded(true);
@@ -35,7 +54,10 @@ export default function TurnstileGate({ children }) {
       }
     }, 200);
 
-    return () => clearInterval(checkTurnstileReady);
+    return () => {
+      window.removeEventListener('turnstile-expired', handleExpired);
+      clearInterval(checkTurnstileReady);
+    };
   }, []);
 
   // 3. Render widget saat Turnstile ready dan kontainer tersedia
@@ -53,13 +75,44 @@ export default function TurnstileGate({ children }) {
         sitekey: TURNSTILE_SITE_KEY,
         theme: 'dark',
         size: 'normal',
-        callback: (token) => {
+        callback: async (token) => {
+          setIsVerifyingWithBackend(true);
+          setErrorMsg('');
+
           try {
-            sessionStorage.setItem(STORAGE_KEY, token);
-          } catch {
-            // ignore storage error
+            const res = await fetch(`${API_BASE_URL}/auth/verify-turnstile`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ token }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.status && data.gateToken) {
+              try {
+                sessionStorage.setItem(STORAGE_KEY, data.gateToken);
+                localStorage.setItem(STORAGE_KEY, data.gateToken);
+              } catch {
+                // ignore
+              }
+              setIsVerified(true);
+            } else {
+              setErrorMsg(data.error || 'Verifikasi keamanan gagal. Silakan coba lagi.');
+              if (widgetIdRef.current !== null && window.turnstile) {
+                window.turnstile.reset(widgetIdRef.current);
+              }
+            }
+          } catch (err) {
+            console.error('Turnstile backend error:', err);
+            setErrorMsg('Gagal memvalidasi sesi keamanan ke server. Silakan coba lagi.');
+            if (widgetIdRef.current !== null && window.turnstile) {
+              window.turnstile.reset(widgetIdRef.current);
+            }
+          } finally {
+            setIsVerifyingWithBackend(false);
           }
-          setIsVerified(true);
         },
         'error-callback': () => {
           setErrorMsg('Verifikasi gagal. Silakan coba lagi atau muat ulang halaman.');
@@ -129,13 +182,13 @@ export default function TurnstileGate({ children }) {
 
         {/* Turnstile Widget Container */}
         <div className="w-full flex flex-col items-center justify-center min-h-[70px] mb-4">
-          {!turnstileLoaded && (
+          {(!turnstileLoaded || isVerifyingWithBackend) && (
             <div className="flex items-center gap-2 text-xs text-gray-400 py-3">
               <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-              <span>Memuat modul keamanan...</span>
+              <span>{isVerifyingWithBackend ? 'Memvalidasi sesi keamanan...' : 'Memuat modul keamanan...'}</span>
             </div>
           )}
-          <div ref={widgetContainerRef} className="flex justify-center w-full"></div>
+          <div ref={widgetContainerRef} className={`flex justify-center w-full ${isVerifyingWithBackend ? 'hidden' : ''}`}></div>
         </div>
 
         {/* Error message */}
