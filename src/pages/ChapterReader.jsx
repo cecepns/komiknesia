@@ -37,6 +37,7 @@ import {
 } from 'react-share';
 import { toast } from 'react-toastify';
 import discordIcon from '../assets/discord.svg';
+import creditBanner from '../assets/credit-banner.png';
 import LazyImage from '../components/LazyImage';
 import { saveToHistory } from '../utils/historyManager';
 import { API_BASE_URL, apiClient, getImageUrl } from '../utils/api';
@@ -651,23 +652,34 @@ const ChapterReader = () => {
           ) : (
             <div className="webtoon-pages flex flex-col gap-0 p-0 m-0 select-none">
               {chapterData?.images && chapterData.images.length > 0 ? (
-                chapterData.images.map((image, index) => {
-                  const { src } = normalizeChapterImage(image);
-                  return (
-                    <div
-                      key={index}
-                      className="w-full m-0 p-0 leading-[0] overflow-hidden"
-                    >
-                      <LazyImage
-                        src={getImageUrl(src)}
-                        alt={`Page ${index + 1}`}
-                        className="w-full h-auto block align-bottom m-0 p-0 border-0 outline-none"
-                        wrapperClassName="w-full block m-0 p-0 leading-[0] min-h-0"
-                        loadingClassName="min-h-[40vh] sm:min-h-[50vh]"
-                      />
-                    </div>
-                  );
-                })
+                <>
+                  {chapterData.images.map((image, index) => {
+                    const { src } = normalizeChapterImage(image);
+                    return (
+                      <div
+                        key={index}
+                        className="w-full m-0 p-0 leading-[0] overflow-hidden"
+                      >
+                        <LazyImage
+                          src={getImageUrl(src)}
+                          alt={`Page ${index + 1}`}
+                          className="w-full h-auto block align-bottom m-0 p-0 border-0 outline-none"
+                          wrapperClassName="w-full block m-0 p-0 leading-[0] min-h-0"
+                          loadingClassName="min-h-[40vh] sm:min-h-[50vh]"
+                        />
+                      </div>
+                    );
+                  })}
+                  {/* Credit Banner */}
+                  <div className="w-full m-0 p-0 leading-[0] overflow-hidden">
+                    <img
+                      src={creditBanner}
+                      alt="KomikNesia Credit Banner"
+                      className="w-full h-auto block align-bottom m-0 p-0 border-0 outline-none"
+                      loading="lazy"
+                    />
+                  </div>
+                </>
               ) : (
                 <div className="text-center py-20 text-gray-400 text-sm">
                   Tidak ada gambar tersedia untuk chapter ini
