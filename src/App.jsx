@@ -19,6 +19,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import AdPopup from "./components/AdPopup";
 import MbuhRedirectScript from "./components/MbuhRedirectScript";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TurnstileGate from "./components/TurnstileGate";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -131,11 +132,13 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <TurnstileGate>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </TurnstileGate>
   );
 }
 
