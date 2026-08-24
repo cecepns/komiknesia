@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,34 +25,71 @@ export function getChapterAccessLinkClassName({
   return [base, locked ? lockedCls : unlocked, className].filter(Boolean).join(' ');
 }
 
-/* ── Optimised single-write RAF loop ──
- * Sets --border-angle ONCE on <html> per frame.
- * All .chapter-border-anim elements inherit the value via CSS cascade.
- * Old approach: N × style.setProperty per frame (N = number of elements).
- * New approach: 1 × style.setProperty per frame, regardless of element count.
+/* ── Visibility-aware animation engine ──
+ * IntersectionObserver tracks which elements are on-screen.
+ * RAF loop ONLY runs when ≥1 element is visible.
+ * Off-screen elements: cheap static border (::after only).
+ * On-screen elements: animated gradient border (::before + ::after).
+ * Cost: 0 CPU when no elements are visible.
  */
 let rafId = null;
-let refCount = 0;
+const visibleElements = new Set();
 
 function tick(timestamp) {
-  const angle = (timestamp * 0.12) % 360;
-  document.documentElement.style.setProperty('--border-angle', `${angle}deg`);
+  const angle = `${(timestamp * 0.12) % 360}deg`;
+  for (const el of visibleElements) {
+    el.style.setProperty('--border-angle', angle);
+  }
   rafId = requestAnimationFrame(tick);
 }
 
-function mountAnim() {
-  refCount++;
-  if (refCount === 1) {
-    rafId = requestAnimationFrame(tick);
-  }
+function startLoop() {
+  if (!rafId) rafId = requestAnimationFrame(tick);
 }
 
-function unmountAnim() {
-  refCount--;
-  if (refCount === 0 && rafId) {
+function stopLoop() {
+  if (rafId) {
     cancelAnimationFrame(rafId);
     rafId = null;
   }
+}
+
+let sharedObserver = null;
+
+function getObserver() {
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('chapter-anim-visible');
+            visibleElements.add(entry.target);
+          } else {
+            entry.target.classList.remove('chapter-anim-visible');
+            visibleElements.delete(entry.target);
+          }
+        }
+        if (visibleElements.size > 0) {
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      },
+      { rootMargin: '200px 0px' }, // start animation 200px before entering viewport
+    );
+  }
+  return sharedObserver;
+}
+
+function observeEl(el) {
+  getObserver().observe(el);
+}
+
+function unobserveEl(el) {
+  getObserver().unobserve(el);
+  visibleElements.delete(el);
+  el.classList.remove('chapter-anim-visible');
+  if (visibleElements.size === 0) stopLoop();
 }
 
 const ChapterAccessLink = ({
@@ -72,12 +109,15 @@ const ChapterAccessLink = ({
   const navigate = useNavigate();
   const [loginOpen, setLoginOpen] = useState(false);
   const locked = requiresChapterLogin(chapter, isAuthenticated);
+  const animRef = useRef(null);
 
-  /* Keep the shared RAF loop alive while any instance is mounted */
+  /* Observe / unobserve the animated element for viewport visibility */
   useEffect(() => {
-    mountAnim();
-    return unmountAnim;
-  }, []);
+    const el = animRef.current;
+    if (!el) return;
+    observeEl(el);
+    return () => unobserveEl(el);
+  }, [locked]); // re-run when locked changes since the DOM element changes
 
   /* Block ALL event types from reaching parent card containers */
   const stopAllPropagation = (e) => {
@@ -118,6 +158,7 @@ const ChapterAccessLink = ({
         onTouchEnd={stopAllPropagation}
       >
         <button
+          ref={animRef}
           type="button"
           onClick={handleClick}
           className={linkClassName}
@@ -156,6 +197,7 @@ const ChapterAccessLink = ({
 
   return (
     <Link
+      ref={animRef}
       to={to}
       onClick={handleClick}
       className={linkClassName}

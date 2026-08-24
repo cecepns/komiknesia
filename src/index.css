@@ -125,7 +125,8 @@
 }
 
 /* ── Chapter Card Rotating Border Animation ── */
-/* --border-angle is set once on :root by a single RAF loop in ChapterAccessLink.jsx */
+/* --border-angle is set per-element (not on :root) by a visibility-aware RAF loop */
+/* ::before (animated gradient) only renders when IntersectionObserver marks element visible */
 
 .chapter-border-anim {
   position: relative;
@@ -133,13 +134,18 @@
   overflow: hidden;
 }
 
-/* Rotating conic-gradient border, masked to show only the border outline */
+/* Animated gradient — DISABLED by default (off-screen = no GPU cost) */
 .chapter-border-anim::before {
+  content: none;
+}
+
+/* Animated gradient — ENABLED only when element is visible on screen */
+.chapter-border-anim.chapter-anim-visible::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.5px; /* border thickness */
+  padding: 1.5px;
   background: conic-gradient(
     from var(--border-angle, 0deg),
     transparent 0%,
@@ -156,7 +162,7 @@
   z-index: 1;
 }
 
-/* Subtle static border for shape definition */
+/* Static border — always visible (very cheap to render) */
 .chapter-border-anim::after {
   content: '';
   position: absolute;
@@ -175,4 +181,17 @@
 .chapter-border-locked {
   --border-glow-color: #fbbf24;
   --border-static-color: rgba(251, 191, 36, 0.15);
+}
+
+/* ── Static border (unlocked chapters) ── */
+.chapter-border-static {
+  position: relative;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chapter-border-static:hover {
+  border-color: rgba(220, 38, 38, 0.8);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.2);
 }

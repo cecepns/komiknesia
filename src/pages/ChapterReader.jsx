@@ -553,7 +553,7 @@ const ChapterReader = () => {
             <h1 className="text-xs sm:text-sm font-semibold truncate tracking-wide text-gray-200 uppercase">
               {mangaData?.title || 'Loading...'}
             </h1>
-            <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+            <p className="text-[11px] font-bold text-red-600 uppercase tracking-wider">
               CHAPTER {currentChapter?.number || chapterData?.number}
             </p>
           </div>
@@ -598,14 +598,14 @@ const ChapterReader = () => {
                   onClick={() => handleChapterSelect(chapter)}
                   className={`w-full text-left p-3.5 rounded-xl transition-all ${
                     chapter.slug === chapterSlug
-                      ? 'bg-rose-600 text-white font-semibold shadow-md'
+                      ? 'bg-red-600 text-white font-semibold shadow-md'
                       : 'bg-white/5 hover:bg-white/10 text-gray-300'
                   }`}
                 >
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Chapter {chapter.number}</span>
                     {index === 0 && (
-                      <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold">
+                      <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded font-bold">
                         NEW
                       </span>
                     )}
@@ -644,7 +644,7 @@ const ChapterReader = () => {
               <button
                 type="button"
                 onClick={() => setLoginOpen(true)}
-                className="rounded-xl bg-rose-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-500 shadow-lg"
+                className="rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 shadow-lg"
               >
                 Login untuk Melanjutkan
               </button>
@@ -696,7 +696,7 @@ const ChapterReader = () => {
                 onClick={() => setChapterSharePopupOpen(true)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
               >
-                <Share2 className="h-5 w-5 text-red-500 shrink-0" />
+                <Share2 className="h-5 w-5 text-red-600 shrink-0" />
                 <span className="text-xs font-bold text-white sm:text-sm">Bagikan chapter</span>
               </button>
 
@@ -736,7 +736,7 @@ const ChapterReader = () => {
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/90 backdrop-blur-md px-3 py-3 shadow-md transition-all hover:scale-[1.02] hover:border-white/20 hover:bg-white/10"
               >
-                <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0" />
+                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
                 <span className="text-xs font-bold text-white sm:text-sm">Lapor error</span>
               </button>
             </div>
@@ -790,7 +790,7 @@ const ChapterReader = () => {
                 disabled={!hasPrevChapter}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
                   hasPrevChapter
-                    ? 'border-red-500/40 bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-md'
+                    ? 'border-red-600/40 bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-md'
                     : 'border-white/10 bg-[#16171e] text-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
@@ -804,7 +804,7 @@ const ChapterReader = () => {
                 disabled={!hasNextChapter}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border py-3.5 px-4 font-semibold text-sm sm:text-base transition-colors ${
                   hasNextChapter
-                    ? 'border-red-500/40 bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-md'
+                    ? 'border-red-600/40 bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-md'
                     : 'border-white/10 bg-[#16171e] text-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
@@ -856,7 +856,7 @@ const ChapterReader = () => {
             disabled={!hasPrevChapter}
             className={`p-1.5 sm:p-2 rounded-full transition-colors ${
               hasPrevChapter
-                ? 'hover:bg-red-600/30 text-red-400 hover:text-white'
+                ? 'hover:bg-red-600/30 text-red-600 hover:text-white'
                 : 'text-gray-600 cursor-not-allowed'
             }`}
             title="Prev Chapter"
@@ -881,8 +881,8 @@ const ChapterReader = () => {
             onClick={handleToggleAutoScroll}
             className={`p-2 sm:p-2.5 rounded-full transition-all shadow-md ${
               autoScrollEnabled
-                ? 'bg-rose-600 text-white ring-2 ring-rose-400'
-                : 'bg-rose-500/80 hover:bg-rose-500 text-white'
+                ? 'bg-red-600 text-white ring-2 ring-red-400'
+                : 'bg-red-600/80 hover:bg-red-600 text-white'
             }`}
             title={autoScrollEnabled ? 'Pause Auto Scroll' : 'Play Auto Scroll'}
           >
@@ -927,7 +927,7 @@ const ChapterReader = () => {
             disabled={!hasNextChapter}
             className={`p-1.5 sm:p-2 rounded-full transition-colors ${
               hasNextChapter
-                ? 'hover:bg-red-600/30 text-red-400 hover:text-white'
+                ? 'hover:bg-red-600/30 text-red-600 hover:text-white'
                 : 'text-gray-600 cursor-not-allowed'
             }`}
             title="Next Chapter"
@@ -987,7 +987,7 @@ const ChapterReader = () => {
                   className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
                     fitToWidth
                       ? 'bg-emerald-500 text-white shadow-md'
-                      : 'bg-rose-900/60 text-rose-300 border border-rose-500/30'
+                      : 'bg-red-900/60 text-red-300 border border-red-600/30'
                   }`}
                 >
                   {fitToWidth ? 'ON' : 'OFF'}
@@ -1007,7 +1007,7 @@ const ChapterReader = () => {
                   disabled={fitToWidth}
                   value={readerImageWidth}
                   onChange={(e) => setReaderImageWidth(Number(e.target.value))}
-                  className="w-full accent-rose-500 bg-white/10 rounded-lg h-2 cursor-pointer disabled:opacity-40"
+                  className="w-full accent-red-600 bg-white/10 rounded-lg h-2 cursor-pointer disabled:opacity-40"
                 />
               </div>
 
@@ -1023,7 +1023,7 @@ const ChapterReader = () => {
                   step={1}
                   value={autoScrollSpeed}
                   onChange={(e) => setAutoScrollSpeed(Number(e.target.value))}
-                  className="w-full accent-rose-500 bg-white/10 rounded-lg h-2 cursor-pointer"
+                  className="w-full accent-red-600 bg-white/10 rounded-lg h-2 cursor-pointer"
                 />
                 <p className="text-[11px] text-gray-500 italic">Adjust the speed of automatic scrolling</p>
               </div>
