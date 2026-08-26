@@ -91,13 +91,14 @@ export const getImageUrl = (imagePath) => {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const normalizedPath = normalizeUploadsPathname(cleanPath);
 
-  // If path is specifically for hero banners (e.g. banners/banner_xxx.png or /banners/...)
-  if (normalizedPath.startsWith('/banners/') || path.startsWith('banners/')) {
-    return `${currentCdnDomain}${normalizedPath}`;
+  // If path is for local /uploads (user avatars, stickers uploaded to server disk)
+  if (normalizedPath.startsWith('/uploads/')) {
+    return `${STATIC_ORIGIN}${normalizedPath}`;
   }
 
-  // All other relative upload assets (ads, avatars, profiles, etc.) serve from backend server
-  return `${STATIC_ORIGIN}${normalizedPath}`;
+  // All other relative assets (komiknesia/..., banners/..., covers/..., etc.) serve from CDN domain
+  const cdnBase = currentCdnDomain.replace(/\/+$/, '');
+  return `${cdnBase}${normalizedPath}`;
 };
 
 class APIClient {

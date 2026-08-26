@@ -301,6 +301,42 @@ function getDynamicCdnDomainSync() {
   return GLOBAL_CDN_DOMAIN;
 }
 
+function transformUrls(obj, cdnUrl) {
+  if (obj === null || obj === undefined) return obj;
+
+  if (obj instanceof Date) {
+    return obj;
+  }
+
+  if (typeof obj === 'string') {
+    if (obj.startsWith('/uploads/')) {
+      return obj;
+    }
+    const key = tryParseS3KeyFromUrl(obj);
+    if (key) {
+      const cleanCdn = (cdnUrl || GLOBAL_CDN_DOMAIN || S3_PUBLIC_URL).replace(/\/$/, '');
+      return `${cleanCdn}/${key}`;
+    }
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => transformUrls(item, cdnUrl));
+  }
+
+  if (typeof obj === 'object') {
+    const newObj = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        newObj[key] = transformUrls(obj[key], cdnUrl);
+      }
+    }
+    return newObj;
+  }
+
+  return obj;
+}
+
 module.exports = {
   s3Client,
   uploadBufferToS3,
@@ -311,5 +347,6 @@ module.exports = {
   tryParseS3KeyFromUrl,
   refreshCdnDomain,
   getDynamicCdnDomainSync,
+  transformUrls,
 };
 

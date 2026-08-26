@@ -54,6 +54,8 @@ function decryptPayload(encryptedBase64, currentTimeInt) {
   return JSON.parse(decrypted.toString('utf8'));
 }
 
+const { transformUrls, getDynamicCdnDomainSync } = require('./s3Upload');
+
 /**
  * Express middleware to automatically encrypt successful public JSON responses
  */
@@ -63,7 +65,12 @@ function encryptResponseMiddleware(req, res, next) {
   res.json = function (body) {
     // Only encrypt if response is successful and not already encrypted
     if (body && typeof body === 'object' && !body.encrypted && body.status !== false) {
-      const encrypted = encryptPayload(body);
+      // 1. Transform S3 / CDN URLs first with dynamic CDN domain from settings
+      const cdnUrl = getDynamicCdnDomainSync();
+      const transformedBody = transformUrls(body, cdnUrl);
+
+      // 2. Encrypt the transformed body
+      const encrypted = encryptPayload(transformedBody);
       res.setHeader('X-Encrypted-Response', '1');
       return originalJson.call(this, encrypted);
     }
