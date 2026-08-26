@@ -160,22 +160,13 @@ const ChapterReader = () => {
       setLoading(true);
       setError(null);
 
-      const token = apiClient.getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/chapters/slug/${chapterSlug}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const result = await apiClient.request(`/chapters/slug/${chapterSlug}`);
 
-      if (!response.ok) {
-        throw new Error('Chapter tidak ditemukan');
-      }
-
-      const result = await response.json();
-
-      if (result.status && result.data) {
+      if (result && result.status && result.data) {
         const chapters = result.data.chapters || [];
         const index = chapters.findIndex((ch) => ch.slug === chapterSlug);
         const currentChapter = index >= 0 ? chapters[index] : null;
-        const isLoggedIn = isAuthenticated || !!token;
+        const isLoggedIn = isAuthenticated || !!apiClient.getAuthToken();
         const locked = isChapterAccessLocked(chapters, chapterSlug, isLoggedIn);
 
         setChapterData({
@@ -189,9 +180,8 @@ const ChapterReader = () => {
 
         if (!locked && extractedMangaSlug) {
           try {
-            await fetch(`${API_BASE_URL}/comic/${extractedMangaSlug}/view`, {
+            await apiClient.request(`/comic/${extractedMangaSlug}/view`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
             });
           } catch (viewError) {
             console.warn('Failed to increment view counter:', viewError);

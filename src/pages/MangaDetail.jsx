@@ -145,19 +145,13 @@ const MangaDetail = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${API_BASE_URL}/comic/${slug}`);
+        const result = await apiClient.request(`/comic/${slug}`);
 
-        if (!response.ok) {
-          throw new Error('Manga tidak ditemukan');
-        }
-
-        const result = await response.json();
-
-        if (result.status && result.data) {
+        if (result && result.status && result.data) {
           setManga(result.data);
           generateChapters(result.data);
         } else {
-          throw new Error('Data manga tidak valid');
+          throw new Error('Manga tidak ditemukan atau data tidak valid');
         }
       } catch (err) {
         console.error('Error fetching manga:', err);

@@ -1,5 +1,16 @@
 const db = require('../db');
 
+// Anti-spam cooldown map for comments
+const commentCooldowns = new Map(); // userId -> { lastTime, lastBody }
+
+// Periodic cleanup
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, rec] of commentCooldowns.entries()) {
+    if (now - rec.lastTime > 60000) commentCooldowns.delete(uid);
+  }
+}, 60000).unref();
+
 const index = async (req, res) => {
   try {
     const { manga_id, chapter_id, external_slug, scope, page = 1, limit = 30 } = req.query;
@@ -127,9 +138,36 @@ const store = async (req, res) => {
   try {
     const { manga_id, chapter_id, parent_id, body, external_slug } = req.body;
 
-    if (!body || String(body).trim().length === 0) {
+    const trimmedBody = String(body || '').trim();
+    if (!trimmedBody) {
       return res.status(400).json({ status: false, error: 'Komentar tidak boleh kosong' });
     }
+
+    if (trimmedBody.length > 500) {
+      return res.status(400).json({ status: false, error: 'Komentar terlalu panjang (maksimal 500 karakter)' });
+    }
+
+    // Anti-Spam: Check cooldown (min 10 seconds between comments per user)
+    const userId = req.user.id;
+    const now = Date.now();
+    const lastRec = commentCooldowns.get(userId);
+
+    if (lastRec && now - lastRec.lastTime < 10000) {
+      const waitSec = Math.ceil((10000 - (now - lastRec.lastTime)) / 1000);
+      return res.status(429).json({
+        status: false,
+        error: `Tolong tunggu ${waitSec} detik sebelum mengirim komentar lagi.`,
+      });
+    }
+
+    // Anti-Spam: Check duplicate comment within 60 seconds
+    if (lastRec && lastRec.lastBody?.toLowerCase() === trimmedBody.toLowerCase() && now - lastRec.lastTime < 60000) {
+      return res.status(400).json({
+        status: false,
+        error: 'Komentar yang sama baru saja Anda kirim. Harap tidak mengirim komentar berulang.',
+      });
+    }
+
     if (!manga_id && !chapter_id) {
       return res
         .status(400)

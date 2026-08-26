@@ -1,10 +1,5 @@
-// export const API_BASE_URL = 'https://be-api.komiknesia.net/api';
-// export const API_BASE_URL_WITHOUT_API = 'https://be-api.komiknesia.net';
-// export const API_BASE_URL = 'http://localhost:8080/api';
-// export const API_BASE_URL_WITHOUT_API = 'http://localhost:8080';
+import { decryptResponseAddress } from './decryptor';
 
-// export const API_BASE_URL = 'https://be-api-node.komiknesia.net//api';
-// export const API_BASE_URL_WITHOUT_API = 'https://be-api-node.komiknesia.net/';
 export const API_BASE_URL = 'https://api-be.komiknesia.my.id/api';
 export const API_BASE_URL_WITHOUT_API = 'https://api-be.komiknesia.my.id/';
 
@@ -190,7 +185,24 @@ class APIClient {
         err.status = response.status;
         throw err;
       }
-      return await response.json();
+
+      const responseData = await response.json();
+      if (
+        responseData &&
+        typeof responseData === 'object' &&
+        responseData.encrypted &&
+        responseData.data &&
+        responseData.time
+      ) {
+        try {
+          return decryptResponseAddress(responseData.data, responseData.time);
+        } catch (decryptErr) {
+          console.error('[apiClient] Error decrypting API response:', decryptErr);
+          return responseData;
+        }
+      }
+
+      return responseData;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -200,15 +212,59 @@ class APIClient {
   // Auth methods
   async register(formData) {
     const url = `${API_BASE_URL}/auth/register`;
+    const turnstileToken = this.getTurnstileToken();
+    const headers = {
+      'X-Device-Id': this.getDeviceId(),
+      ...(turnstileToken ? { 'x-turnstile-token': turnstileToken } : {}),
+    };
     const response = await fetch(url, {
       method: 'POST',
+      headers,
       body: formData,
     });
     const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (
+        response.status === 403 &&
+        typeof data.error === 'string' &&
+        (data.error.toLowerCase().includes('turnstile') ||
+          data.error.toLowerCase().includes('verification'))
+      ) {
+        try {
+          sessionStorage.removeItem('cf_turnstile_passed');
+          localStorage.removeItem('cf_turnstile_passed');
+          window.dispatchEvent(new CustomEvent('turnstile-expired'));
+        } catch {
+          // ignore
+        }
+      }
+      return { status: false, error: data.error || `HTTP error! status: ${response.status}` };
+    }
     if (data && data.status && data.data && data.data.token) {
       this.setAuthToken(data.data.token);
     }
     return data;
+  }
+
+  async sendRegisterOtp(payload) {
+    return this.request('/auth/send-register-otp', {
+      method: 'POST',
+      body: payload,
+    });
+  }
+
+  async forgotPassword(identifier) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: { identifier },
+    });
+  }
+
+  async resetPassword({ email, otp_code, new_password }) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: { email, otp_code, new_password },
+    });
   }
 
   async login(username, password) {

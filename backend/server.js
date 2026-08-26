@@ -43,6 +43,8 @@ const scrapperSyncRoutes = require('./routes/scrapperSyncRoutes');
 const { toProxiedImagePathIfNeeded } = require('./utils/ikiruCdnImage');
 const { CHAPTER_RELEASED_WHERE, isScheduledReleaseInFuture } = require('./utils/chapterRelease');
 const { validateApiOrigin } = require('./middlewares/validateApiOrigin');
+const { globalApiLimiter } = require('./middlewares/rateLimiter');
+const { encryptResponseMiddleware } = require('./utils/responseEncryptor');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -100,6 +102,17 @@ const io = new Server(server, {
 
 app.set('io', io);
 
+// Anti-spam cooldown map for live chat
+const liveChatCooldowns = new Map(); // userId -> { lastTime, lastMessage }
+
+// Periodic cleanup of expired cooldown entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, rec] of liveChatCooldowns.entries()) {
+    if (now - rec.lastTime > 60000) liveChatCooldowns.delete(uid);
+  }
+}, 60000).unref();
+
 io.on('connection', (socket) => {
   socket.on('live-chat:send', async (payload, ack) => {
     try {
@@ -124,6 +137,26 @@ io.on('connection', (socket) => {
       }
 
       const decoded = jwt.verify(token, JWT_SECRET);
+
+      // Anti-Spam: Check cooldown (min 3 seconds between messages per user)
+      const now = Date.now();
+      const userLast = liveChatCooldowns.get(decoded.userId);
+      if (userLast && now - userLast.lastTime < 3000) {
+        const waitSec = Math.ceil((3000 - (now - userLast.lastTime)) / 1000);
+        if (typeof ack === 'function') {
+          ack({ status: false, error: `Tolong tunggu ${waitSec} detik sebelum mengirim pesan lagi.` });
+        }
+        return;
+      }
+
+      // Anti-Spam: Check duplicate message within 30 seconds
+      if (userLast && userLast.lastMessage?.toLowerCase() === message.toLowerCase() && now - userLast.lastTime < 30000) {
+        if (typeof ack === 'function') {
+          ack({ status: false, error: 'Pesan yang sama baru saja dikirim. Harap jangan spam pesan berulang.' });
+        }
+        return;
+      }
+
       const [users] = await db.execute(
         `SELECT id, username, name, profile_image
          FROM users
@@ -141,6 +174,10 @@ io.on('connection', (socket) => {
         'INSERT INTO live_chat_messages (user_id, message) VALUES (?, ?)',
         [sender.id, message]
       );
+
+      // Update cooldown record
+      liveChatCooldowns.set(decoded.userId, { lastTime: now, lastMessage: message });
+
       const [rows] = await db.execute(
         `SELECT
           c.id,
@@ -223,27 +260,30 @@ app.use((req, res, next) => {
   next();
 });
 
+// Apply global API rate limiter
+app.use('/api', globalApiLimiter);
+
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/categories', categoriesRoutes);
-app.use('/api/contents', validateApiOrigin(), contentsRoutes);
+app.use('/api/categories', encryptResponseMiddleware, categoriesRoutes);
+app.use('/api/contents', validateApiOrigin(), encryptResponseMiddleware, contentsRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/readlists', readlistRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/chapter-reactions', chapterReactionRoutes);
-app.use('/api/manga', validateApiOrigin(), mangaRoutes);
-app.use('/api/chapters', validateApiOrigin(), chapterRoutes);
-app.use('/api/comic', validateApiOrigin(), comicRoutes);
-app.use('/api/ads', adsRoutes);
-app.use('/api/featured-items', validateApiOrigin(), featuredItemsRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/contact-info', contactInfoRoutes);
+app.use('/api/manga', validateApiOrigin(), encryptResponseMiddleware, mangaRoutes);
+app.use('/api/chapters', validateApiOrigin(), encryptResponseMiddleware, chapterRoutes);
+app.use('/api/comic', validateApiOrigin(), encryptResponseMiddleware, comicRoutes);
+app.use('/api/ads', encryptResponseMiddleware, adsRoutes);
+app.use('/api/featured-items', validateApiOrigin(), encryptResponseMiddleware, featuredItemsRoutes);
+app.use('/api/settings', encryptResponseMiddleware, settingsRoutes);
+app.use('/api/contact-info', encryptResponseMiddleware, contactInfoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin/users', adminUserRoutes);
-app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/leaderboard', encryptResponseMiddleware, leaderboardRoutes);
 app.use('/api/premium-orders', premiumOrderRoutes);
-app.use('/api/stickers', stickerRoutes);
+app.use('/api/stickers', encryptResponseMiddleware, stickerRoutes);
 app.use('/api/live-chat', liveChatRoutes);
 app.use('/api', imageProxyRoutes);
 app.use('/api/ikiru', ikiruRoutes);
@@ -260,7 +300,7 @@ app.use('/', sitemapRoutes);
 
 
 // Get chapter images by slug (format lokal dan kompatibel dengan frontend)
-app.get('/api/v/:chapterSlug', async (req, res) => {
+app.get('/api/v/:chapterSlug', encryptResponseMiddleware, async (req, res) => {
   try {
     const { chapterSlug } = req.params;
 
@@ -482,6 +522,18 @@ const runSqlMigration = async () => {
     'ALTER TABLE chapters ADD INDEX idx_chapters_scheduled_release (scheduled_release_at)',
     'ALTER TABLE settings MODIFY COLUMN `value` TEXT NULL',
     'ALTER TABLE contact_info ADD COLUMN telegram VARCHAR(255) NULL AFTER whatsapp',
+    `CREATE TABLE IF NOT EXISTS email_otps (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      email VARCHAR(191) NOT NULL,
+      otp_code VARCHAR(10) NOT NULL,
+      purpose ENUM('register', 'reset_password') NOT NULL,
+      payload TEXT NULL,
+      expires_at DATETIME NOT NULL,
+      is_used TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_email_otps_lookup (email, purpose, is_used, expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
 
   for (const statement of statements) {

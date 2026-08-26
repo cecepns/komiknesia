@@ -5,8 +5,7 @@ import { X, ChevronDown, ChevronLeft, ChevronRight, Filter, LayoutGrid, List } f
 import LazyImage from "../components/LazyImage";
 import AdBanner from "../components/AdBanner";
 import { useAds } from "../hooks/useAds";
-import { getImageUrl } from "../utils/api";
-import { API_BASE_URL } from "../utils/api";
+import { getImageUrl, apiClient } from "../utils/api";
 import { getChapterTimeAgo } from "../utils/chapterTime";
 import LiveChatWidget from "../components/LiveChatWidget";
 import ChapterAccessLink from "../components/ChapterAccessLink";
@@ -79,9 +78,8 @@ const Content = () => {
     const fetchGenres = async () => {
       setGenresLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/contents/genres`);
-        const data = await response.json();
-        if (data.status && data.data) {
+        const data = await apiClient.request('/contents/genres');
+        if (data && data.status && data.data) {
           setGenres(data.data);
         }
       } catch (error) {
@@ -252,12 +250,9 @@ const Content = () => {
         params.append("orderBy", selectedOrder);
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/contents?${params.toString()}`,
-      );
-      const data = await response.json();
+      const data = await apiClient.request(`/contents?${params.toString()}`);
 
-      if (data.status && Array.isArray(data.data)) {
+      if (data && data.status && Array.isArray(data.data)) {
         setMangaList(data.data);
         setTotalPages(Math.max(1, Number(data.meta?.total_pages) || 1));
       }

@@ -5,15 +5,20 @@ const db = require('../db');
 const { JWT_SECRET } = require('../middlewares/auth');
 const { parseUserRole } = require('../utils/userRole');
 
+const { sendRegisterOtpEmail, sendResetPasswordOtpEmail } = require('../utils/mailer');
+
 const USERNAME_REGEX = /^[a-z0-9._-]+$/;
 
 const normalizeUsername = (value = '') => String(value).trim().toLowerCase().replace(/\s+/g, '');
 
-const register = async (req, res) => {
+const sendRegisterOtp = async (req, res) => {
   try {
-    const { name, username, password, email } = req.body || {};
-    if (!name || !username || !password) {
-      return res.status(400).json({ status: false, error: 'Nama, username, dan password wajib diisi' });
+    const { name, username, email, password } = req.body || {};
+    if (!name || !username || !email || !password) {
+      return res.status(400).json({
+        status: false,
+        error: 'Nama, username, email, dan password wajib diisi.',
+      });
     }
 
     const nameTrim = String(name).trim();
@@ -31,7 +36,124 @@ const register = async (req, res) => {
         error: 'Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).',
       });
     }
-    const emailTrim = email && String(email).trim() ? String(email).trim() : '';
+
+    const emailTrim = String(email).trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailTrim)) {
+      return res.status(400).json({ status: false, error: 'Format email tidak valid.' });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({ status: false, error: 'Password minimal 6 karakter.' });
+    }
+
+    // Check existing username
+    const [existingUsername] = await db.execute(
+      'SELECT id FROM users WHERE LOWER(TRIM(username)) = ?',
+      [usernameLower]
+    );
+    if (existingUsername.length > 0) {
+      return res.status(400).json({
+        status: false,
+        error: 'Username sudah dipakai. Gunakan username lain.',
+      });
+    }
+
+    // Check existing email
+    const [existingEmail] = await db.execute(
+      'SELECT id FROM users WHERE email IS NOT NULL AND LOWER(TRIM(email)) = ?',
+      [emailTrim]
+    );
+    if (existingEmail.length > 0) {
+      return res.status(400).json({
+        status: false,
+        error: 'Email sudah terdaftar. Silakan login atau gunakan email lain.',
+      });
+    }
+
+    // Generate 6 digit OTP
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Invalidate previous unused OTPs for this email & purpose
+    await db.execute(
+      'UPDATE email_otps SET is_used = 1 WHERE email = ? AND purpose = "register" AND is_used = 0',
+      [emailTrim]
+    );
+
+    // Save OTP (valid 10 minutes)
+    await db.execute(
+      `INSERT INTO email_otps (email, otp_code, purpose, expires_at)
+       VALUES (?, ?, 'register', DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+      [emailTrim, otpCode]
+    );
+
+    // Send email
+    try {
+      await sendRegisterOtpEmail({ to: emailTrim, name: nameTrim, otpCode });
+    } catch (mailError) {
+      console.error('[sendRegisterOtp] Mail sending failed:', mailError);
+      return res.status(500).json({
+        status: false,
+        error: 'Gagal mengirim email OTP. Pastikan email valid atau coba lagi nanti.',
+      });
+    }
+
+    return res.json({
+      status: true,
+      message: `Kode OTP verifikasi telah dikirim ke ${emailTrim}.`,
+    });
+  } catch (error) {
+    console.error('Error during sendRegisterOtp:', error);
+    return res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+};
+
+const register = async (req, res) => {
+  try {
+    const { name, username, password, email, otp_code } = req.body || {};
+    if (!name || !username || !password || !email) {
+      return res.status(400).json({ status: false, error: 'Nama, username, email, dan password wajib diisi' });
+    }
+
+    if (!otp_code || String(otp_code).trim().length === 0) {
+      return res.status(400).json({ status: false, error: 'Kode OTP verifikasi wajib diisi' });
+    }
+
+    const emailTrim = String(email).trim().toLowerCase();
+    const otpTrim = String(otp_code).trim();
+
+    // Verify OTP
+    const [otpRows] = await db.execute(
+      `SELECT id FROM email_otps
+       WHERE email = ? AND purpose = 'register' AND otp_code = ? AND is_used = 0 AND expires_at >= NOW()
+       ORDER BY id DESC LIMIT 1`,
+      [emailTrim, otpTrim]
+    );
+
+    if (otpRows.length === 0) {
+      return res.status(400).json({
+        status: false,
+        error: 'Kode OTP tidak valid atau sudah kedaluwarsa. Silakan minta kode baru.',
+      });
+    }
+
+    const otpId = otpRows[0].id;
+
+    const nameTrim = String(name).trim();
+    if (!nameTrim) {
+      return res.status(400).json({ status: false, error: 'Nama wajib diisi' });
+    }
+
+    const usernameLower = normalizeUsername(username);
+    if (usernameLower.length < 3) {
+      return res.status(400).json({ status: false, error: 'Username minimal 3 karakter' });
+    }
+    if (!USERNAME_REGEX.test(usernameLower)) {
+      return res.status(400).json({
+        status: false,
+        error: 'Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).',
+      });
+    }
 
     const [existingUsername] = await db.execute(
       'SELECT id FROM users WHERE LOWER(TRIM(username)) = ?',
@@ -44,26 +166,26 @@ const register = async (req, res) => {
       });
     }
 
-    if (emailTrim) {
-      const [existingEmail] = await db.execute(
-        'SELECT id FROM users WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM(?))',
-        [emailTrim]
-      );
-      if (existingEmail.length > 0) {
-        return res.status(400).json({
-          status: false,
-          error: 'Email sudah dipakai. Gunakan email lain.',
-        });
-      }
+    const [existingEmail] = await db.execute(
+      'SELECT id FROM users WHERE email IS NOT NULL AND LOWER(TRIM(email)) = ?',
+      [emailTrim]
+    );
+    if (existingEmail.length > 0) {
+      return res.status(400).json({
+        status: false,
+        error: 'Email sudah terdaftar. Gunakan email lain.',
+      });
     }
+
+    // Mark OTP as used
+    await db.execute('UPDATE email_otps SET is_used = 1 WHERE id = ?', [otpId]);
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const profileImage = req.file ? `/uploads/${req.file.filename}` : null;
-    const emailVal = emailTrim || null;
 
     await db.execute(
       'INSERT INTO users (name, username, password, email, profile_image) VALUES (?, ?, ?, ?, ?)',
-      [nameTrim.slice(0, 100), usernameLower, hashedPassword, emailVal, profileImage]
+      [nameTrim.slice(0, 100), usernameLower, hashedPassword, emailTrim, profileImage]
     );
 
     const [inserted] = await db.execute(
@@ -504,9 +626,161 @@ const verifyTurnstileToken = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { identifier } = req.body || {};
+    if (!identifier || String(identifier).trim().length === 0) {
+      return res.status(400).json({
+        status: false,
+        error: 'Email atau username wajib diisi.',
+      });
+    }
+
+    const trimmed = String(identifier).trim().toLowerCase();
+
+    const [users] = await db.execute(
+      `SELECT id, name, username, email FROM users
+       WHERE (LOWER(TRIM(email)) = ? OR LOWER(TRIM(username)) = ?) AND email IS NOT NULL AND email != ''
+       LIMIT 1`,
+      [trimmed, trimmed]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        status: false,
+        error: 'Akun dengan email atau username tersebut tidak ditemukan atau tidak memiliki email terdaftar.',
+      });
+    }
+
+    const user = users[0];
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Invalidate previous unused OTPs for this email & reset_password
+    await db.execute(
+      'UPDATE email_otps SET is_used = 1 WHERE email = ? AND purpose = "reset_password" AND is_used = 0',
+      [user.email]
+    );
+
+    // Save OTP
+    await db.execute(
+      `INSERT INTO email_otps (email, otp_code, purpose, expires_at)
+       VALUES (?, ?, 'reset_password', DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+      [user.email, otpCode]
+    );
+
+    // Determine frontend URL for direct reset link
+    const origin = req.headers.origin || req.headers.referer || process.env.FRONTEND_URL || 'https://komiknesia.asia';
+    const frontendBase = String(origin).replace(/\/+$/, '').split('?')[0].replace(/\/akun$/, '');
+    const resetLink = `${frontendBase}/akun?mode=reset_password&email=${encodeURIComponent(user.email)}&otp=${otpCode}`;
+
+    // Send email with resetLink and OTP
+    try {
+      await sendResetPasswordOtpEmail({
+        to: user.email,
+        name: user.name || user.username,
+        otpCode,
+        resetLink,
+      });
+    } catch (mailError) {
+      console.error('[forgotPassword] Mail sending failed:', mailError);
+      return res.status(500).json({
+        status: false,
+        error: 'Gagal mengirim email reset password. Silakan coba lagi nanti.',
+      });
+    }
+
+    // Mask email for user privacy, e.g. "a***d@gmail.com"
+    const [localPart, domain] = user.email.split('@');
+    const maskedLocal = localPart.length <= 2 ? localPart[0] + '***' : localPart[0] + '***' + localPart[localPart.length - 1];
+    const maskedEmail = `${maskedLocal}@${domain}`;
+
+    return res.json({
+      status: true,
+      message: `Kode reset password telah dikirim ke email ${maskedEmail}.`,
+      email: user.email,
+      maskedEmail,
+    });
+  } catch (error) {
+    console.error('Error during forgotPassword:', error);
+    return res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp_code, new_password } = req.body || {};
+    if (!email || !otp_code || !new_password) {
+      return res.status(400).json({
+        status: false,
+        error: 'Email, kode OTP, dan password baru wajib diisi.',
+      });
+    }
+
+    if (String(new_password).length < 6) {
+      return res.status(400).json({
+        status: false,
+        error: 'Password baru minimal 6 karakter.',
+      });
+    }
+
+    const emailTrim = String(email).trim().toLowerCase();
+    const otpTrim = String(otp_code).trim();
+
+    // Verify OTP
+    const [otpRows] = await db.execute(
+      `SELECT id FROM email_otps
+       WHERE email = ? AND purpose = 'reset_password' AND otp_code = ? AND is_used = 0 AND expires_at >= NOW()
+       ORDER BY id DESC LIMIT 1`,
+      [emailTrim, otpTrim]
+    );
+
+    if (otpRows.length === 0) {
+      return res.status(400).json({
+        status: false,
+        error: 'Kode OTP tidak valid atau sudah kedaluwarsa.',
+      });
+    }
+
+    const otpId = otpRows[0].id;
+
+    // Check user exists
+    const [users] = await db.execute(
+      'SELECT id FROM users WHERE LOWER(TRIM(email)) = ?',
+      [emailTrim]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        status: false,
+        error: 'Pengguna tidak ditemukan.',
+      });
+    }
+
+    const userId = users[0].id;
+    const hashedPassword = await bcrypt.hash(String(new_password), 10);
+
+    // Update password
+    await db.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId]);
+
+    // Mark OTP as used
+    await db.execute('UPDATE email_otps SET is_used = 1 WHERE id = ?', [otpId]);
+
+    return res.json({
+      status: true,
+      message: 'Password berhasil diubah. Silakan masuk menggunakan password baru Anda.',
+    });
+  } catch (error) {
+    console.error('Error during resetPassword:', error);
+    return res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+};
+
 module.exports = {
+  sendRegisterOtp,
   register,
   login,
+  forgotPassword,
+  resetPassword,
   me,
   updateProfile,
   publicProfile,

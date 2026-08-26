@@ -1,6 +1,7 @@
 const router = require('express').Router();
 
 const { authenticateToken } = require('../middlewares/auth');
+const requireAdmin = require('../middlewares/requireAdmin');
 const { upload } = require('../middlewares/upload');
 const MangaController = require('../controllers/MangaController');
 
@@ -14,6 +15,7 @@ router.get('/slug/:slug', MangaController.showBySlug);
 router.post(
   '/',
   authenticateToken,
+  requireAdmin,
   upload.fields([
     { name: 'thumbnail', maxCount: 1 },
     { name: 'cover_background', maxCount: 1 },
@@ -23,19 +25,21 @@ router.post(
 router.put(
   '/:id',
   authenticateToken,
+  requireAdmin,
   upload.fields([
     { name: 'thumbnail', maxCount: 1 },
     { name: 'cover_background', maxCount: 1 },
   ]),
   MangaController.update
 );
-router.delete('/:id', authenticateToken, MangaController.destroy);
+router.delete('/:id', authenticateToken, requireAdmin, MangaController.destroy);
 
 // Chapters under a manga
 router.get('/:mangaId/chapters', MangaController.listChapters);
 router.post(
   '/:mangaId/chapters',
   authenticateToken,
+  requireAdmin,
   upload.single('cover'),
   MangaController.createChapter
 );

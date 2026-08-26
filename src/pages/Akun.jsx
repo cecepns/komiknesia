@@ -1,28 +1,74 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, UserPlus, Loader2, LogOut, Camera } from 'lucide-react';
-import { getImageUrl } from '../utils/api';
+import { LogIn, UserPlus, Loader2, LogOut, Camera, KeyRound, Mail, ArrowLeft, RefreshCw, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { apiClient, getImageUrl } from '../utils/api';
 import { toast } from 'react-toastify';
 
 const Akun = () => {
   const { user, loading: authLoading, login, register, updateProfile, logout, isAuthenticated } = useAuth();
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'register_otp' | 'forgot_password' | 'reset_password'
+
+  // Form states
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+
+  // Forgot / Reset password states
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [resetOtpCode, setResetOtpCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+
+  // Profile management states
   const [profileName, setProfileName] = useState('');
   const [profileUsername, setProfileUsername] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profileBio, setProfileBio] = useState('');
-  const [loading, setLoading] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // General loading and timer states
+  const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const timerRef = useRef(null);
+
+  // Check URL parameters for direct reset password links (e.g. /akun?mode=reset_password&email=...&otp=...)
+  useEffect(() => {
+    const urlMode = searchParams.get('mode');
+    const urlEmail = searchParams.get('email');
+    const urlOtp = searchParams.get('otp') || searchParams.get('token');
+
+    if (urlMode === 'reset_password' || (urlEmail && urlOtp)) {
+      setMode('reset_password');
+      if (urlEmail) {
+        setResetEmail(urlEmail);
+        setMaskedEmail(urlEmail);
+      }
+      if (urlOtp) {
+        setResetOtpCode(urlOtp);
+      }
+    }
+  }, [searchParams]);
+
+  // Countdown timer handler for resending OTP
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      timerRef.current = setTimeout(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timerRef.current);
+  }, [resendCooldown]);
 
   // Sync editable profile fields with current user
   useEffect(() => {
@@ -69,7 +115,8 @@ const Akun = () => {
     }
   };
 
-  const handleRegister = async (e) => {
+  // Step 1: Send OTP to register
+  const handleRequestRegisterOtp = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('Nama wajib diisi');
@@ -88,20 +135,63 @@ const Akun = () => {
       toast.error('Username hanya boleh huruf kecil, angka, titik, underscore, atau dash (tanpa spasi).');
       return;
     }
+    if (!email.trim()) {
+      toast.error('Email wajib diisi untuk verifikasi OTP');
+      return;
+    }
     if (!password) {
       toast.error('Password wajib diisi');
       return;
     }
+    if (password.length < 6) {
+      toast.error('Password minimal 6 karakter');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiClient.sendRegisterOtp({
+        name: name.trim(),
+        username: usernameNormalized,
+        email: email.trim(),
+        password,
+      });
+
+      if (res && res.status) {
+        toast.success(res.message || 'Kode OTP telah dikirim ke email Anda.');
+        setMode('register_otp');
+        setResendCooldown(60);
+      } else {
+        toast.error(res.error || 'Gagal mengirim kode OTP');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengirim kode OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Submit OTP & Complete Registration
+  const handleVerifyRegisterOtp = async (e) => {
+    e.preventDefault();
+    if (!otpCode.trim()) {
+      toast.error('Masukkan 6 digit kode OTP yang diterima di email');
+      return;
+    }
+
+    const usernameNormalized = username.trim().toLowerCase().replace(/\s+/g, '');
     setLoading(true);
     try {
       const formData = new FormData();
-        formData.append('name', name.trim());
-        formData.append('username', usernameNormalized);
+      formData.append('name', name.trim());
+      formData.append('username', usernameNormalized);
       formData.append('password', password);
-      if (email.trim()) formData.append('email', email.trim());
+      formData.append('email', email.trim());
+      formData.append('otp_code', otpCode.trim());
+
       const result = await register(formData);
       if (result.success) {
-        toast.success('Registrasi berhasil. Anda sudah masuk.');
+        toast.success('Registrasi berhasil! Anda sudah masuk.');
       } else {
         const message = result.error || 'Registrasi gagal';
         toast.error(message);
@@ -114,6 +204,105 @@ const Akun = () => {
     }
   };
 
+  // Resend OTP for Register
+  const handleResendRegisterOtp = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    try {
+      const usernameNormalized = username.trim().toLowerCase().replace(/\s+/g, '');
+      const res = await apiClient.sendRegisterOtp({
+        name: name.trim(),
+        username: usernameNormalized,
+        email: email.trim(),
+        password,
+      });
+      if (res && res.status) {
+        toast.success('Kode OTP baru telah dikirim ke email Anda.');
+        setResendCooldown(60);
+      } else {
+        toast.error(res.error || 'Gagal mengirim ulang OTP');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengirim ulang OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot Password - Step 1: Send OTP
+  const handleRequestForgotOtp = async (e) => {
+    e.preventDefault();
+    if (!forgotIdentifier.trim()) {
+      toast.error('Masukkan email atau username akun Anda');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiClient.forgotPassword(forgotIdentifier.trim());
+      if (res && res.status) {
+        setResetEmail(res.email || forgotIdentifier.trim());
+        setMaskedEmail(res.maskedEmail || res.email || forgotIdentifier.trim());
+        setMode('reset_password');
+        setResendCooldown(60);
+        toast.success(res.message || 'Kode reset password telah dikirim ke email Anda.');
+      } else {
+        toast.error(res.error || 'Gagal mengirim kode reset password');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengirim kode reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot Password - Step 2: Reset with OTP
+  const handleVerifyResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetOtpCode.trim()) {
+      toast.error('Kode OTP wajib diisi');
+      return;
+    }
+    if (!resetNewPassword) {
+      toast.error('Password baru wajib diisi');
+      return;
+    }
+    if (resetNewPassword.length < 6) {
+      toast.error('Password baru minimal 6 karakter');
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast.error('Konfirmasi password baru tidak cocok');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiClient.resetPassword({
+        email: resetEmail,
+        otp_code: resetOtpCode.trim(),
+        new_password: resetNewPassword,
+      });
+
+      if (res && res.status) {
+        toast.success(res.message || 'Password berhasil diubah. Silakan masuk.');
+        setMode('login');
+        setUsername(resetEmail);
+        setPassword('');
+        setResetOtpCode('');
+        setResetNewPassword('');
+        setResetConfirmPassword('');
+      } else {
+        toast.error(res.error || 'Gagal mereset password');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal mereset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Profile Management
   const handleUpdateProfileImage = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -248,6 +437,7 @@ const Akun = () => {
 
       <div className="relative z-10 mx-auto max-w-md px-4 py-14 md:py-24">
         {isAuthenticated ? (
+          /* Profile Page for Logged In Users */
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md shadow-2xl sm:p-8">
             <div className="mb-6 text-center">
               <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
@@ -475,49 +665,58 @@ const Akun = () => {
             </button>
           </div>
         ) : (
-          /* Login / Register */
+          /* Authentication Forms */
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md shadow-2xl sm:p-8">
+            {/* Header */}
             <div className="mb-6 text-center">
               <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                Akun
+                {mode === 'login' && 'Masuk Akun'}
+                {mode === 'register' && 'Daftar Akun Baru'}
+                {mode === 'register_otp' && 'Verifikasi Email'}
+                {mode === 'forgot_password' && 'Lupa Password'}
+                {mode === 'reset_password' && 'Atur Password Baru'}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                Masuk dengan akun yang ada atau daftar akun baru.
+                {mode === 'login' && 'Masuk untuk mengakses bookmark, histori baca, dan fitur premium.'}
+                {mode === 'register' && 'Buat akun KomikNesia gratis untuk pengalaman membaca terbaik.'}
+                {mode === 'register_otp' && `Masukkan 6 digit kode OTP yang telah dikirim ke ${email}.`}
+                {mode === 'forgot_password' && 'Masukkan username atau email Anda untuk menerima kode reset.'}
+                {mode === 'reset_password' && `Masukkan kode OTP yang dikirim ke ${maskedEmail || resetEmail}.`}
               </p>
             </div>
 
-            <div className="mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('login');
-                }}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
-                  mode === 'login'
-                    ? 'bg-red-600 text-white shadow-md'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
-                }`}
-              >
-                <LogIn className="h-4 w-4 shrink-0" />
-                Login
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('register');
-                }}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
-                  mode === 'register'
-                    ? 'bg-red-600 text-white shadow-md'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
-                }`}
-              >
-                <UserPlus className="h-4 w-4 shrink-0" />
-                Daftar
-              </button>
-            </div>
+            {/* Mode Switcher Tabs for Login / Register */}
+            {(mode === 'login' || mode === 'register') && (
+              <div className="mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
+                    mode === 'login'
+                      ? 'bg-red-600 text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
+                  }`}
+                >
+                  <LogIn className="h-4 w-4 shrink-0" />
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('register')}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
+                    mode === 'register'
+                      ? 'bg-red-600 text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
+                  }`}
+                >
+                  <UserPlus className="h-4 w-4 shrink-0" />
+                  Daftar
+                </button>
+              </div>
+            )}
 
-            {mode === 'login' ? (
+            {/* 1. LOGIN FORM */}
+            {mode === 'login' && (
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
                   <label
@@ -539,12 +738,24 @@ const Akun = () => {
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="akun-login-password"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
-                  >
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label
+                      htmlFor="akun-login-password"
+                      className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                    >
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotIdentifier(username || '');
+                        setMode('forgot_password');
+                      }}
+                      className="text-xs font-medium text-red-500 hover:text-red-400 underline transition-colors"
+                    >
+                      Lupa password?
+                    </button>
+                  </div>
                   <input
                     id="akun-login-password"
                     type="password"
@@ -557,45 +768,39 @@ const Akun = () => {
                     autoComplete="current-password"
                   />
                 </div>
-                <p className="text-center text-sm leading-relaxed text-slate-600 dark:text-gray-300">
-                  Lupa sandi?{' '}
-                  <Link
-                    to="/contact"
-                    className="font-semibold text-red-600 underline decoration-red-600/40 underline-offset-2 transition-colors hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                  >
-                    Hubungi admin
-                  </Link>
-                  .
-                </p>
+
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
                 >
                   {loading ? (
                     <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
                   ) : (
                     <LogIn className="h-5 w-5 shrink-0" />
                   )}
-                  Masuk
+                  Masuk Sekarang
                 </button>
               </form>
-            ) : (
-              <form onSubmit={handleRegister} className="space-y-5">
+            )}
+
+            {/* 2. REGISTER FORM - STEP 1 */}
+            {mode === 'register' && (
+              <form onSubmit={handleRequestRegisterOtp} className="space-y-4">
                 <div>
                   <label
                     htmlFor="akun-reg-name"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
-                    Nama
+                    Nama Lengkap *
                   </label>
                   <input
                     id="akun-reg-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
-                    placeholder="Nama lengkap"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="Nama Anda"
                     required
                     disabled={loading}
                     autoComplete="name"
@@ -604,17 +809,17 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-reg-username"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
-                    Username (unik, min. 3 karakter)
+                    Username * (min. 3 karakter)
                   </label>
                   <input
                     id="akun-reg-username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
-                    placeholder="username_unik"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="username_kamu"
                     required
                     minLength={3}
                     disabled={loading}
@@ -624,17 +829,18 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-reg-email"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
-                    Email (opsional)
+                    Email Aktif * (untuk verifikasi OTP)
                   </label>
                   <input
                     id="akun-reg-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
-                    placeholder="email@contoh.com"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="nama@email.com"
+                    required
                     disabled={loading}
                     autoComplete="email"
                   />
@@ -642,33 +848,269 @@ const Akun = () => {
                 <div>
                   <label
                     htmlFor="akun-reg-password"
-                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
                   >
-                    Password
+                    Password * (min. 6 karakter)
                   </label>
                   <input
                     id="akun-reg-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
                     placeholder="••••••••"
                     required
+                    minLength={6}
                     disabled={loading}
                     autoComplete="new-password"
                   />
                 </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                    ) : (
+                      <Mail className="h-5 w-5 shrink-0" />
+                    )}
+                    Kirim Kode OTP Verifikasi
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* 3. REGISTER OTP VERIFICATION - STEP 2 */}
+            {mode === 'register_otp' && (
+              <form onSubmit={handleVerifyRegisterOtp} className="space-y-5">
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center">
+                  <Mail className="mx-auto h-8 w-8 text-red-400 mb-2" />
+                  <p className="text-xs text-gray-300">
+                    Kami telah mengirimkan 6 digit kode OTP ke:
+                  </p>
+                  <p className="font-semibold text-white mt-1 text-sm">{email}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Cek folder Inbox atau Spam email Anda.
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="akun-reg-otp"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200 text-center"
+                  >
+                    Kode OTP (6 Digit)
+                  </label>
+                  <input
+                    id="akun-reg-otp"
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center font-mono text-2xl tracking-[8px] font-bold text-red-400 placeholder:text-gray-600 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="••••••"
+                    required
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>Tidak menerima kode?</span>
+                  <button
+                    type="button"
+                    onClick={handleResendRegisterOtp}
+                    disabled={resendCooldown > 0 || loading}
+                    className="font-semibold text-red-500 hover:text-red-400 disabled:text-gray-500 transition-colors flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    {resendCooldown > 0 ? `Kirim ulang (${resendCooldown}s)` : 'Kirim Ulang OTP'}
+                  </button>
+                </div>
+
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
+                  disabled={loading || otpCode.length < 6}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
                 >
                   {loading ? (
                     <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
                   ) : (
-                    <UserPlus className="h-5 w-5 shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
                   )}
-                  Daftar
+                  Verifikasi & Selesaikan Pendaftaran
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode('register')}
+                  className="flex w-full items-center justify-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Ubah data pendaftaran
+                </button>
+              </form>
+            )}
+
+            {/* 4. FORGOT PASSWORD - STEP 1 */}
+            {mode === 'forgot_password' && (
+              <form onSubmit={handleRequestForgotOtp} className="space-y-5">
+                <div>
+                  <label
+                    htmlFor="akun-forgot-identifier"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                  >
+                    Email atau Username Terdaftar
+                  </label>
+                  <input
+                    id="akun-forgot-identifier"
+                    type="text"
+                    value={forgotIdentifier}
+                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="nama@email.com atau username"
+                    required
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                  ) : (
+                    <Mail className="h-5 w-5 shrink-0" />
+                  )}
+                  Kirim Kode Reset Password
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  className="flex w-full items-center justify-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Kembali ke Halaman Login
+                </button>
+              </form>
+            )}
+
+            {/* 5. RESET PASSWORD - STEP 2 */}
+            {mode === 'reset_password' && (
+              <form onSubmit={handleVerifyResetPassword} className="space-y-4">
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center">
+                  <KeyRound className="mx-auto h-7 w-7 text-red-400 mb-1" />
+                  <p className="text-xs text-gray-300">
+                    Kode verifikasi reset telah dikirim ke:
+                  </p>
+                  <p className="font-semibold text-white text-sm mt-0.5">{maskedEmail || resetEmail}</p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="akun-reset-otp"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                  >
+                    Kode OTP (6 Digit) *
+                  </label>
+                  <input
+                    id="akun-reset-otp"
+                    type="text"
+                    maxLength={6}
+                    value={resetOtpCode}
+                    onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-mono text-center text-xl tracking-[6px] font-bold text-red-400 placeholder:text-gray-600 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="••••••"
+                    required
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="akun-reset-newpw"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                  >
+                    Password Baru * (min. 6 karakter)
+                  </label>
+                  <input
+                    id="akun-reset-newpw"
+                    type="password"
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="Password baru Anda"
+                    required
+                    minLength={6}
+                    disabled={loading}
+                    autoComplete="new-password"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="akun-reset-confirmpw"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-gray-200"
+                  >
+                    Konfirmasi Password Baru *
+                  </label>
+                  <input
+                    id="akun-reset-confirmpw"
+                    type="password"
+                    value={resetConfirmPassword}
+                    onChange={(e) => setResetConfirmPassword(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-gray-100 placeholder:text-gray-500 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/25"
+                    placeholder="Ulangi password baru"
+                    required
+                    minLength={6}
+                    disabled={loading}
+                    autoComplete="new-password"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
+                  <span>Tidak menerima kode?</span>
+                  <button
+                    type="button"
+                    onClick={handleRequestForgotOtp}
+                    disabled={resendCooldown > 0 || loading}
+                    className="font-semibold text-red-500 hover:text-red-400 disabled:text-gray-500 transition-colors flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    {resendCooldown > 0 ? `Kirim ulang (${resendCooldown}s)` : 'Kirim Ulang OTP'}
+                  </button>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 text-[15px] font-bold text-white shadow-md transition-all duration-200 hover:bg-red-700 active:scale-98 disabled:pointer-events-none disabled:opacity-55"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-5 w-5 shrink-0" />
+                    )}
+                    Simpan Password Baru & Masuk
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  className="flex w-full items-center justify-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Batal & Kembali ke Login
                 </button>
               </form>
             )}

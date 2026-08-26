@@ -1,6 +1,7 @@
 const router = require('express').Router();
 
 const { authenticateToken, optionalAuthenticate } = require('../middlewares/auth');
+const requireAdmin = require('../middlewares/requireAdmin');
 const { upload } = require('../middlewares/upload');
 const ChapterController = require('../controllers/ChapterController');
 const ChapterScheduleController = require('../controllers/ChapterScheduleController');
@@ -20,10 +21,11 @@ router.get('/slug/:slug/download', ChapterController.downloadBySlug);
 router.put(
   '/:id',
   authenticateToken,
+  requireAdmin,
   upload.single('cover'),
   ChapterController.update
 );
-router.delete('/:id', authenticateToken, ChapterController.destroy);
+router.delete('/:id', authenticateToken, requireAdmin, ChapterController.destroy);
 
 // Chapter images management (mounted at /api/chapters)
 // Expected by frontend as:
@@ -31,21 +33,24 @@ router.delete('/:id', authenticateToken, ChapterController.destroy);
 // - POST /api/chapters/:chapterId/images
 // - DELETE /api/chapters/:chapterId/images/:imageId
 // - PUT /api/chapters/:chapterId/images/reorder
-router.get('/:chapterId/images', ChapterController.listImages);
+router.get('/:chapterId/images', authenticateToken, requireAdmin, ChapterController.listImages);
 router.post(
   '/:chapterId/images',
   authenticateToken,
+  requireAdmin,
   upload.array('images', 200),
   ChapterController.uploadImages
 );
 router.delete(
   '/:chapterId/images/:imageId',
   authenticateToken,
+  requireAdmin,
   ChapterController.deleteImage
 );
 router.put(
   '/:chapterId/images/reorder',
   authenticateToken,
+  requireAdmin,
   ChapterController.reorderImages
 );
 

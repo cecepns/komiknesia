@@ -380,6 +380,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
   const [hasMore, setHasMore] = useState(false);
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [commentCooldown, setCommentCooldown] = useState(0);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [stickers, setStickers] = useState([]);
   const [stickersLoading, setStickersLoading] = useState(false);
@@ -387,6 +388,13 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
   const textareaRef = useRef(null);
   const stickerToggleRef = useRef(null);
   const stickerTrayRef = useRef(null);
+
+  useEffect(() => {
+    if (commentCooldown > 0) {
+      const timer = setTimeout(() => setCommentCooldown((c) => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [commentCooldown]);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
@@ -529,7 +537,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!body.trim() || submitting || !isAuthenticated) return;
+    if (!body.trim() || submitting || !isAuthenticated || commentCooldown > 0) return;
     setSubmitting(true);
     try {
       await apiClient.postComment({
@@ -539,7 +547,10 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
         body: body.trim(),
       });
       setBody('');
+      setCommentCooldown(10);
       fetchComments();
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengirim komentar');
     } finally {
       setSubmitting(false);
     }
@@ -547,7 +558,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
 
   const handlePickSticker = async (imagePath) => {
     const path = String(imagePath || '').trim();
-    if (!path || submitting || !isAuthenticated) return;
+    if (!path || submitting || !isAuthenticated || commentCooldown > 0) return;
     setSubmitting(true);
     setStickerPickerOpen(false);
     try {
@@ -557,7 +568,10 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
         external_slug: externalSlug || undefined,
         body: `${STICKER_MESSAGE_PREFIX}${path}`,
       });
+      setCommentCooldown(10);
       fetchComments();
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengirim stiker');
     } finally {
       setSubmitting(false);
     }
@@ -707,11 +721,19 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
 
               <button
                 type="submit"
-                disabled={!body.trim() || submitting || !isAuthenticated}
+                disabled={!body.trim() || submitting || !isAuthenticated || commentCooldown > 0}
                 className="px-5 py-2 bg-[#7e3844] hover:bg-red-600 disabled:opacity-40 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95"
               >
-                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                KIRIM
+                {submitting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
+                {submitting
+                  ? 'MENGIRIM...'
+                  : commentCooldown > 0
+                  ? `TUNGGU (${commentCooldown}s)`
+                  : 'KIRIM'}
               </button>
             </div>
           </div>
