@@ -350,58 +350,25 @@ class APIClient {
     });
   }
 
-  async uploadBannerImage(formData) {
-    const token = this.getAuthToken();
-    const turnstileToken = this.getTurnstileToken();
-    const headers = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    if (turnstileToken) {
-      headers['x-turnstile-token'] = turnstileToken;
-    }
-    const response = await fetch(`${API_BASE_URL}/settings/upload-banner`, {
+  uploadBannerImage(formData) {
+    return this.request('/settings/upload-banner', {
       method: 'POST',
-      headers,
       body: formData,
     });
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || errData.message || 'Upload banner gagal');
-    }
-    return await response.json();
   }
 
   async uploadImage(formData) {
-    const token = this.getAuthToken();
-    const turnstileToken = this.getTurnstileToken();
-    const headers = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    if (turnstileToken) {
-      headers['x-turnstile-token'] = turnstileToken;
-    }
-    // Attempt uploading to backend upload endpoint
-    const response = await fetch(`${API_BASE_URL}/comments/upload-image`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-    if (!response.ok) {
-      // Fallback endpoint if comments/upload-image is at /upload
-      const fallbackResponse = await fetch(`${API_BASE_URL}/upload-image`, {
+    try {
+      return await this.request('/comments/upload-image', {
         method: 'POST',
-        headers,
         body: formData,
       });
-      if (!fallbackResponse.ok) {
-        const errData = await fallbackResponse.json().catch(() => ({}));
-        throw new Error(errData.error || errData.message || 'Upload gambar gagal');
-      }
-      return await fallbackResponse.json();
+    } catch (err) {
+      return await this.request('/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
     }
-    return await response.json();
   }
 
   deleteAdminPremiumOrder(id) {

@@ -266,9 +266,60 @@ const destroy = async (req, res) => {
   }
 };
 
+const uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ status: false, error: 'No image file uploaded' });
+    }
+
+    const { uploadFileToS3, s3Client } = require('../utils/s3Upload');
+    const path = require('path');
+    const fs = require('fs');
+
+    const ext = path.extname(req.file.originalname || req.file.filename || '').toLowerCase() || '.webp';
+    const filename = `comment_${Date.now()}_${Math.round(Math.random() * 1e6)}${ext}`;
+    const s3Key = `komiknesia/comments/${filename}`;
+
+    let savedPath = '';
+
+    if (s3Client) {
+      try {
+        await uploadFileToS3(s3Key, req.file.path, req.file.mimetype);
+        savedPath = s3Key;
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (s3Err) {
+        console.error('Error uploading comment image to S3, falling back to local:', s3Err);
+      }
+    }
+
+    if (!savedPath) {
+      const commentsDir = path.join(__dirname, '..', 'uploads-komiknesia', 'comments');
+      if (!fs.existsSync(commentsDir)) {
+        fs.mkdirSync(commentsDir, { recursive: true });
+      }
+      const targetPath = path.join(commentsDir, filename);
+      fs.renameSync(req.file.path, targetPath);
+      savedPath = `/uploads/comments/${filename}`;
+    }
+
+    res.json({
+      status: true,
+      image: savedPath,
+      url: savedPath,
+      path: savedPath,
+    });
+  } catch (error) {
+    console.error('Error uploading comment image:', error);
+    res.status(500).json({ status: false, error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   index,
   store,
   destroy,
+  uploadImage,
 };
 

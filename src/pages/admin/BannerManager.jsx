@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save, Plus, Trash2, ArrowUp, ArrowDown, ExternalLink, Image as ImageIcon, Star } from 'lucide-react';
 import { apiClient, getImageUrl } from '../../utils/api';
+import { decryptResponseAddress } from '../../utils/decryptor';
 import LazyImage from '../../components/LazyImage';
 
 const BannerManager = () => {
@@ -41,8 +42,25 @@ const BannerManager = () => {
     setUploadingImage(true);
     try {
       const res = await apiClient.uploadBannerImage(formData);
-      if (res && res.image) {
-        setForm((prev) => ({ ...prev, image: res.image }));
+      let parsed = res;
+      if (res && typeof res === 'object' && res.encrypted && res.data && res.time) {
+        try {
+          parsed = decryptResponseAddress(res.data, res.time);
+        } catch (decErr) {
+          console.error('Failed decrypting banner upload response:', decErr);
+        }
+      }
+      const imgUrl =
+        parsed?.image ||
+        parsed?.url ||
+        parsed?.path ||
+        parsed?.data?.image ||
+        parsed?.data?.url ||
+        parsed?.data?.path;
+      if (imgUrl) {
+        setForm((prev) => ({ ...prev, image: imgUrl }));
+      } else {
+        alert('Gagal mendapatkan URL gambar banner');
       }
     } catch (err) {
       console.error('Error uploading banner image:', err);

@@ -64,16 +64,10 @@ function triggerFileDownload(blob, filename) {
   URL.revokeObjectURL(objectUrl);
 }
 
-async function downloadClientJsPdf({ slug, mangaTitle, chapterNumber, token }) {
+async function downloadClientJsPdf({ slug, mangaTitle, chapterNumber }) {
   // Fetch chapter details from API to get array of page image URLs
-  const res = await fetch(`${API_BASE_URL}/chapters/slug/${encodeURIComponent(slug)}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  if (!res.ok) throw new Error('Gagal mengambil data chapter dari server');
-
-  const json = await res.json();
-  const data = json.data || {};
+  const res = await apiClient.request(`/chapters/slug/${encodeURIComponent(slug)}`);
+  const data = res?.data || res || {};
   const images = data.images || data.pages || data.content?.images || [];
 
   if (!images || images.length === 0) {

@@ -9,7 +9,9 @@ const fs = require('fs');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
-const { JWT_SECRET } = require('./middlewares/auth');
+const { JWT_SECRET, authenticateToken } = require('./middlewares/auth');
+const { upload } = require('./middlewares/upload');
+const CommentController = require('./controllers/CommentController');
 
 const authRoutes = require('./routes/authRoutes');
 const categoriesRoutes = require('./routes/categoriesRoutes');
@@ -59,8 +61,12 @@ const allowedOrigins = [
   'https://komiknesia.net',
   'https://www.komiknesia.asia',
   'https://02.komiknesia.asia',
-  'https://www.02.komiknesia.asia', // pastikan versi www juga ada
+  'https://www.02.komiknesia.asia',
+  'https://03.komiknesia.asia',
+  'https://www.03.komiknesia.asia',
   'https://id.komiknesia.net',
+  'https://komiknesia.site',
+  'https://www.komiknesia.site',
   'https://v1.komiknesiaku.com',
   'https://v2.komiknesia.site',
   'https://v3.komiknesia.site',
@@ -277,7 +283,7 @@ app.use('/api/chapters', validateApiOrigin(), encryptResponseMiddleware, chapter
 app.use('/api/comic', validateApiOrigin(), encryptResponseMiddleware, comicRoutes);
 app.use('/api/ads', encryptResponseMiddleware, adsRoutes);
 app.use('/api/featured-items', validateApiOrigin(), encryptResponseMiddleware, featuredItemsRoutes);
-app.use('/api/settings', encryptResponseMiddleware, settingsRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/contact-info', encryptResponseMiddleware, contactInfoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin/users', adminUserRoutes);
@@ -292,6 +298,7 @@ app.use('/api/admin/ikiru-sync', ikiruSyncRoutes);
 app.use('/api/admin/apkomik-sync', apkomikSyncRoutes);
 app.use('/api/admin/migration', migrationRoutes);
 app.use('/api/admin/scrapper-sync', scrapperSyncRoutes);
+app.post('/api/upload-image', authenticateToken, upload.single('image'), CommentController.uploadImage);
 app.use('/', sitemapRoutes);
 
 

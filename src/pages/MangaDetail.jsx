@@ -28,6 +28,8 @@ import {
   CheckCircle,
   Check,
   Sparkles,
+  Plus,
+  FolderPlus,
 } from 'lucide-react';
 import {
   WhatsappShareButton,
@@ -67,6 +69,8 @@ const MangaDetail = () => {
   const [readlistsForPicker, setReadlistsForPicker] = useState([]);
   const [readlistsPickerLoading, setReadlistsPickerLoading] = useState(false);
   const [readlistAddSubmitting, setReadlistAddSubmitting] = useState(null);
+  const [newReadlistTitle, setNewReadlistTitle] = useState('');
+  const [creatingNewReadlist, setCreatingNewReadlist] = useState(false);
   const [sharePopupOpen, setSharePopupOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('chapters'); // 'chapters', 'rekomendasi'
@@ -232,7 +236,7 @@ const MangaDetail = () => {
 
   const openReadlistPicker = () => {
     if (!isAuthenticated) {
-      navigate('/akun');
+      setLoginOpen(true);
       return;
     }
     setReadlistPickerOpen(true);
@@ -243,24 +247,51 @@ const MangaDetail = () => {
     setReadlistAddSubmitting(readlistId);
     try {
       const res = await apiClient.addReadlistItems(readlistId, { slugs: [slug] });
-      if (res.status) {
+      if (res && res.status) {
         const added = Number(res.added) || 0;
         const title =
           readlistsForPicker.find((r) => Number(r.id) === Number(readlistId))?.title || 'readlist';
         if (added > 0) {
-          toast.success(`Komik ditambahkan ke “${title}”.`);
+          toast.success(`Komik ditambahkan ke "${title}".`);
         } else {
           toast.info('Komik ini sudah ada di readlist tersebut.');
         }
         setReadlistPickerOpen(false);
       } else {
-        toast.error(res.error || 'Gagal menambahkan ke readlist.');
+        toast.error(res?.error || 'Gagal menambahkan ke readlist.');
       }
     } catch (err) {
       console.error('Readlist add error:', err);
       toast.error('Gagal menambahkan ke readlist.');
     } finally {
       setReadlistAddSubmitting(null);
+    }
+  };
+
+  const handleCreateAndAddReadlist = async (e) => {
+    e?.preventDefault();
+    const t = newReadlistTitle.trim();
+    if (!t) {
+      toast.error('Nama readlist tidak boleh kosong');
+      return;
+    }
+    setCreatingNewReadlist(true);
+    try {
+      const createRes = await apiClient.createReadlist({ title: t });
+      if (createRes?.status && createRes?.data?.id) {
+        const newId = createRes.data.id;
+        await apiClient.addReadlistItems(newId, { slugs: [slug] });
+        toast.success(`Readlist "${t}" dibuat & komik ditambahkan!`);
+        setNewReadlistTitle('');
+        setReadlistPickerOpen(false);
+      } else {
+        toast.error(createRes?.error || 'Gagal membuat readlist');
+      }
+    } catch (err) {
+      console.error('Error creating readlist:', err);
+      toast.error('Gagal membuat readlist');
+    } finally {
+      setCreatingNewReadlist(false);
     }
   };
 
@@ -1128,6 +1159,123 @@ const MangaDetail = () => {
                 <TelegramIcon size={40} round />
                 <span>Telegram</span>
               </TelegramShareButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* READLIST PICKER MODAL */}
+      {readlistPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          onClick={() => setReadlistPickerOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-md bg-gray-900 border border-white/10 rounded-2xl shadow-2xl p-5 flex flex-col max-h-[85vh] text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30">
+                  <ListChecks className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Simpan ke Readlist</h3>
+                  <p className="text-xs text-gray-400 truncate max-w-[240px]">
+                    {manga?.title || 'Komik'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReadlistPickerOpen(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Tutup"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Buat Readlist Baru */}
+            <form onSubmit={handleCreateAndAddReadlist} className="mb-4">
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Buat Readlist Baru
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nama readlist baru..."
+                  value={newReadlistTitle}
+                  onChange={(e) => setNewReadlistTitle(e.target.value)}
+                  maxLength={100}
+                  className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3.5 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingNewReadlist || !newReadlistTitle.trim()}
+                  className="flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white px-3.5 py-2 text-xs font-bold transition-all shadow-md active:scale-95 shrink-0"
+                >
+                  {creatingNewReadlist ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  <span>Buat</span>
+                </button>
+              </div>
+            </form>
+
+            <div className="border-t border-white/10 pt-3 mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-400">Daftar Readlist Kamu</span>
+              <span className="text-xs text-gray-500">{readlistsForPicker.length} readlist</span>
+            </div>
+
+            {/* Readlists List */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[120px] max-h-[260px]">
+              {readlistsPickerLoading ? (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                  <Loader2 className="h-6 w-6 animate-spin text-red-500 mb-2" />
+                  <p className="text-xs">Memuat readlist...</p>
+                </div>
+              ) : readlistsForPicker.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 bg-white/[0.02] rounded-xl border border-white/5 p-4">
+                  <FolderPlus className="h-8 w-8 text-gray-500 mx-auto mb-2" />
+                  <p className="text-xs text-gray-300 font-medium">Belum ada readlist</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Ketik nama di atas untuk membuat readlist pertama.</p>
+                </div>
+              ) : (
+                readlistsForPicker.map((rl) => {
+                  const isSubmitting = readlistAddSubmitting === rl.id;
+                  return (
+                    <button
+                      key={rl.id}
+                      type="button"
+                      onClick={() => addMangaToReadlist(rl.id)}
+                      disabled={isSubmitting}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 transition-all text-left group"
+                    >
+                      <div className="min-w-0 pr-3">
+                        <p className="text-xs sm:text-sm font-semibold text-white truncate group-hover:text-red-400 transition-colors">
+                          {rl.title}
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {rl.manga_count || 0} komik
+                        </p>
+                      </div>
+                      <div className="shrink-0">
+                        {isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                        ) : (
+                          <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white transition-colors">
+                            <Plus className="h-3.5 w-3.5" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

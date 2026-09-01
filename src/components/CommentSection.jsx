@@ -522,7 +522,7 @@ export default function CommentSection({ mangaId, chapterId, externalSlug, scope
       });
 
       toast.dismiss(toastId);
-      const imgPath = res?.image || res?.url || res?.path;
+      const imgPath = res?.image || res?.url || res?.path || res?.data?.image || res?.data?.url || res?.data?.path;
       if (imgPath) {
         insertBbCode(`img]${imgPath}[/img`, '');
         toast.success('Foto berhasil disisipkan');
