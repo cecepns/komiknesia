@@ -13,8 +13,8 @@ const LazyImage = ({
   placeholderSrc = null,
   effect = 'opacity',
   threshold = 100,
-  /** Omit Referer on image requests (many CDNs block hotlinking by Referer). */
-  referrerPolicy = 'no-referrer',
+  /** Send Referer on image requests so CDN hotlink/scraper protection passes */
+  referrerPolicy = 'strict-origin-when-cross-origin',
   ...props 
 }) => {
   const [isLoading, setIsLoading] = useState(true);

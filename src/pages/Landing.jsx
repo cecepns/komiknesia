@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import discordIcon from "../assets/discord.svg";
-import { apiClient } from "../utils/api";
+import { apiClient, setCdnDomain } from "../utils/api";
+import { decryptResponseAddress } from "../utils/decryptor";
 
 const defaultCtaItems = [
   {
@@ -166,14 +167,63 @@ const Landing = () => {
   const [openFaqItems, setOpenFaqItems] = useState(() => new Set([faqItems[0]?.question]));
 
   useEffect(() => {
-    apiClient.getSettings()
-      .then((s) => {
-        if (s && Array.isArray(s.quick_links) && s.quick_links.length > 0) {
-          const landingLinks = s.quick_links.filter(item => item.is_active === true && item.is_landing === true);
-          if (landingLinks.length > 0) setCtaItems(landingLinks);
+    const fetchLandingSettings = async () => {
+      try {
+        const res = await apiClient.getSettings();
+        let settings = res;
+
+        // Handle direct encrypted response payload { encrypted: true, data: "...", time: ... }
+        if (settings && typeof settings === 'object' && settings.encrypted && settings.data && settings.time) {
+          try {
+            settings = decryptResponseAddress(settings.data, settings.time);
+          } catch (decErr) {
+            console.error("[Landing] Failed to decrypt settings payload:", decErr);
+          }
         }
-      })
-      .catch((err) => console.error("Error loading quick links for Landing:", err));
+
+        // Handle nested encrypted response payload { data: { encrypted: true, data: "...", time: ... } }
+        if (settings && typeof settings === 'object' && settings.data && typeof settings.data === 'object' && !Array.isArray(settings.data)) {
+          if (settings.data.encrypted && settings.data.data && settings.data.time) {
+            try {
+              settings = decryptResponseAddress(settings.data.data, settings.data.time);
+            } catch (decErr) {
+              console.error("[Landing] Failed to decrypt nested settings.data payload:", decErr);
+            }
+          }
+        }
+
+        if (settings?.cdn_domain) {
+          setCdnDomain(settings.cdn_domain);
+        }
+
+        let rawLinks = settings?.quick_links ?? settings?.data?.quick_links ?? (Array.isArray(settings?.data) ? settings.data : null);
+
+        if (typeof rawLinks === 'string') {
+          try {
+            rawLinks = JSON.parse(rawLinks);
+          } catch (pErr) {
+            console.warn("[Landing] Failed to parse quick_links string:", pErr);
+          }
+        }
+
+        if (Array.isArray(rawLinks) && rawLinks.length > 0) {
+          const landingLinks = rawLinks.filter((item) => {
+            if (!item || typeof item !== 'object') return false;
+            const isActive = item.is_active !== false && item.is_active !== '0' && item.is_active !== 0;
+            const isLanding = item.is_landing !== false && item.is_landing !== '0' && item.is_landing !== 0;
+            return isActive && isLanding;
+          });
+
+          if (landingLinks.length > 0) {
+            setCtaItems(landingLinks);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading quick links for Landing:", err);
+      }
+    };
+
+    fetchLandingSettings();
   }, []);
 
   const allFaqOpen = openFaqItems.size === faqItems.length;
