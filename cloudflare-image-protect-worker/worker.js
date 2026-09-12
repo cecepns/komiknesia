@@ -9,6 +9,10 @@ const ALLOWED_DOMAINS = [
   'komiknesia.site',
   'v1.komiknesiaku.com',
   'id.nusakomik.com',
+  'api-be.komiknesia.my.id',
+  'api-be.nusakomik.com',
+  'komiknesia.asia',
+  '03.komiknesia.asia',
   'localhost',
   '127.0.0.1',
 ];

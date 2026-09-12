@@ -1,5 +1,5 @@
-const axios = require('axios');
 const cheerio = require('cheerio');
+const { fetchHtml } = require('../fetcher');
 
 const BASE_URL = 'https://v6.kiryuu.to';
 const SOURCE = 'kiryu';
@@ -26,20 +26,6 @@ function slugifyGenre(text) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-}
-
-async function fetchHtml(url) {
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-  };
-  try {
-    const res = await axios.get(url, { headers, timeout: 30000 });
-    return cheerio.load(res.data);
-  } catch (error) {
-    throw new Error(`Gagal mengambil data dari ${url}: ${error.message}`);
-  }
 }
 
 function resolveMangaTarget(rawValue, fallbackBaseUrl = BASE_URL) {

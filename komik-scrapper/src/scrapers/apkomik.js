@@ -1,10 +1,9 @@
-const axios = require('axios');
 const cheerio = require('cheerio');
+const { fetchHtml } = require('../fetcher');
 
 const BASE_URL = 'https://01.apkomik.com';
 const SOURCE = 'apkomik';
 const MANGA_PATH_REGEX = /\/manga\/([^/?#]+)/i;
-const DEFAULT_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 function cleanText(text) {
   return String(text || '').replace(/\s+/g, ' ').trim();
@@ -17,20 +16,6 @@ function slugifyGenre(text) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-}
-
-async function fetchHtml(url) {
-  const headers = {
-    'User-Agent': DEFAULT_UA,
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-  };
-  try {
-    const res = await axios.get(url, { headers, timeout: 25000 });
-    return cheerio.load(res.data);
-  } catch (error) {
-    throw new Error(`Gagal mengambil data dari ${url}: ${error.message}`);
-  }
 }
 
 function resolveMangaTarget(rawValue, fallbackBaseUrl = BASE_URL) {

@@ -76,17 +76,56 @@ async function downloadClientJsPdf({ slug, mangaTitle, chapterNumber }) {
 
   const { jsPDF } = await import('jspdf');
 
-  // Load image via candidate cascade to convert to JPEG Data URL
-  const loadImageDataUrl = (url) => {
-    return new Promise((resolve, reject) => {
-      const fullUrl = getImageUrl(url);
-      if (!fullUrl) return reject(new Error('URL gambar tidak valid'));
+  // Load image to convert to JPEG Data URL
+  const loadImageDataUrl = async (url) => {
+    const fullUrl = getImageUrl(url);
+    if (!fullUrl) throw new Error('URL gambar tidak valid');
 
+    // 1. Prioritize Direct Fetch (Client browser sends valid Referer to Cloudflare Worker)
+    try {
+      const res = await fetch(fullUrl, {
+        referrerPolicy: 'strict-origin-when-cross-origin',
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        return await new Promise((resolve, reject) => {
+          const img = new Image();
+          const objectUrl = URL.createObjectURL(blob);
+          img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth || img.width || 800;
+              canvas.height = img.naturalHeight || img.height || 1200;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+              resolve({
+                dataUrl,
+                width: canvas.width,
+                height: canvas.height,
+              });
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('Gagal decode image blob'));
+          };
+          img.src = objectUrl;
+        });
+      }
+    } catch (directErr) {
+      console.warn('Direct fetch for PDF failed, trying candidate cascade:', directErr);
+    }
+
+    // 2. Fallback candidate cascade via Image() element if fetch fails
+    return new Promise((resolve, reject) => {
       const candidates = [
-        `https://images.weserv.nl/?url=${encodeURIComponent(fullUrl)}`,
-        `https://proxy.cdnesia.my.id/?url=${encodeURIComponent(fullUrl)}`,
-        `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(fullUrl)}`,
         fullUrl,
+        `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(fullUrl)}`,
+        `https://proxy.cdnesia.my.id/?url=${encodeURIComponent(fullUrl)}`,
       ];
 
       const tryNextCandidate = (index) => {
@@ -97,6 +136,7 @@ async function downloadClientJsPdf({ slug, mangaTitle, chapterNumber }) {
         const src = candidates[index];
         const img = new Image();
         img.crossOrigin = 'anonymous';
+        img.referrerPolicy = 'strict-origin-when-cross-origin';
         img.onload = () => {
           try {
             const canvas = document.createElement('canvas');
