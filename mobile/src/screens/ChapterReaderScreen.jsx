@@ -30,6 +30,59 @@ import { useAds } from '../hooks/useAds';
 
 const { width } = Dimensions.get('window');
 
+// Module-level ratio cache to remember dimensions across unmount/remount
+const ratioCache = new Map();
+
+// Subcomponent for each image with auto-ratio detection and crisp rendering
+const ReaderImage = React.memo(({ uri, index, total, onToggleControls }) => {
+  const cachedRatio = ratioCache.get(uri);
+  const [aspectRatio, setAspectRatio] = useState(cachedRatio || null);
+  const [loaded, setLoaded] = useState(!!cachedRatio);
+  const [hasError, setHasError] = useState(false);
+
+  const displayHeight = aspectRatio ? width / aspectRatio : width * 1.4;
+
+  return (
+    <Pressable
+      onPress={onToggleControls}
+      style={[styles.imageWrapper, { width, height: displayHeight }]}
+    >
+      {!loaded && !hasError && (
+        <View style={styles.imagePlaceholder}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.imagePlaceholderText}>
+            Halaman {index + 1} / {total}
+          </Text>
+        </View>
+      )}
+      <Image
+        source={{ uri }}
+        style={styles.pageImage}
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        recyclingKey={uri}
+        onLoad={(event) => {
+          setLoaded(true);
+          const w = event?.source?.width;
+          const h = event?.source?.height;
+          if (w > 0 && h > 0) {
+            const r = w / h;
+            ratioCache.set(uri, r);
+            setAspectRatio(r);
+          }
+        }}
+        onError={() => setHasError(true)}
+      />
+      {hasError && (
+        <View style={styles.imageErrorBox}>
+          <Ionicons name="image-outline" size={24} color={COLORS.textMuted} />
+          <Text style={styles.imageErrorText}>Gagal memuat gambar halaman {index + 1}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+});
+
 export const ChapterReaderScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { chapterSlug, mangaSlug, mangaTitle } = route.params || {};
@@ -267,58 +320,6 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
     checkAdAndDownload();
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centerLoading}>
-        <StatusBar hidden />
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Menyiapkan halaman komik...</Text>
-      </View>
-    );
-  }
-
-  if (isLocked) {
-    return (
-      <SafeAreaView style={styles.lockContainer}>
-        <StatusBar barStyle="light-content" />
-        <View style={styles.lockBox}>
-          <View style={styles.lockIconCircle}>
-            <Ionicons name="lock-closed" size={40} color={COLORS.vip} />
-          </View>
-          <Text style={styles.lockTitle}>Chapter Terkunci</Text>
-          <Text style={styles.lockDesc}>
-            Chapter ini baru saja dirilis kurang dari 2 jam yang lalu. Khusus bagi tamu, akses akan terbuka otomatis setelah 2 jam atau masuk ke akun KomikNesia sekarang.
-          </Text>
-          <TouchableOpacity
-            style={styles.lockLoginBtn}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Ionicons name="log-in-outline" size={18} color="#FFF" />
-            <Text style={styles.lockLoginText}>Masuk ke Akun</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.lockBackBtn}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.lockBackText}>Kembali ke Detail</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error || images.length === 0) {
-    return (
-      <SafeAreaView style={styles.centerLoading}>
-        <Ionicons name="alert-circle-outline" size={48} color={COLORS.danger} />
-        <Text style={styles.errorText}>{error || 'Tidak ada gambar di chapter ini.'}</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtnText}>Kembali</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
   const handleToggleControls = useCallback(() => {
     setControlsVisible((prev) => !prev);
   }, []);
@@ -383,6 +384,58 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
       </View>
     );
   }, [readerBottomAds, prevChapter, nextChapter, navigateToChapter]);
+
+  if (loading) {
+    return (
+      <View style={styles.centerLoading}>
+        <StatusBar hidden />
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Menyiapkan halaman komik...</Text>
+      </View>
+    );
+  }
+
+  if (isLocked) {
+    return (
+      <SafeAreaView style={styles.lockContainer}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.lockBox}>
+          <View style={styles.lockIconCircle}>
+            <Ionicons name="lock-closed" size={40} color={COLORS.vip} />
+          </View>
+          <Text style={styles.lockTitle}>Chapter Terkunci</Text>
+          <Text style={styles.lockDesc}>
+            Chapter ini baru saja dirilis kurang dari 2 jam yang lalu. Khusus bagi tamu, akses akan terbuka otomatis setelah 2 jam atau masuk ke akun KomikNesia sekarang.
+          </Text>
+          <TouchableOpacity
+            style={styles.lockLoginBtn}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Ionicons name="log-in-outline" size={18} color="#FFF" />
+            <Text style={styles.lockLoginText}>Masuk ke Akun</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.lockBackBtn}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.lockBackText}>Kembali ke Detail</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || images.length === 0) {
+    return (
+      <SafeAreaView style={styles.centerLoading}>
+        <Ionicons name="alert-circle-outline" size={48} color={COLORS.danger} />
+        <Text style={styles.errorText}>{error || 'Tidak ada gambar di chapter ini.'}</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backBtnText}>Kembali</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -584,59 +637,6 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
     </View>
   );
 };
-
-// Module-level ratio cache to remember dimensions across unmount/remount
-const ratioCache = new Map();
-
-// Subcomponent for each image with auto-ratio detection and crisp rendering
-const ReaderImage = React.memo(({ uri, index, total, onToggleControls }) => {
-  const cachedRatio = ratioCache.get(uri);
-  const [aspectRatio, setAspectRatio] = useState(cachedRatio || null);
-  const [loaded, setLoaded] = useState(!!cachedRatio);
-  const [hasError, setHasError] = useState(false);
-
-  const displayHeight = aspectRatio ? width / aspectRatio : width * 1.4;
-
-  return (
-    <Pressable
-      onPress={onToggleControls}
-      style={[styles.imageWrapper, { width, height: displayHeight }]}
-    >
-      {!loaded && !hasError && (
-        <View style={styles.imagePlaceholder}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.imagePlaceholderText}>
-            Halaman {index + 1} / {total}
-          </Text>
-        </View>
-      )}
-      <Image
-        source={{ uri }}
-        style={styles.pageImage}
-        contentFit="contain"
-        cachePolicy="memory-disk"
-        recyclingKey={uri}
-        onLoad={(event) => {
-          setLoaded(true);
-          const w = event?.source?.width;
-          const h = event?.source?.height;
-          if (w > 0 && h > 0) {
-            const r = w / h;
-            ratioCache.set(uri, r);
-            setAspectRatio(r);
-          }
-        }}
-        onError={() => setHasError(true)}
-      />
-      {hasError && (
-        <View style={styles.imageErrorBox}>
-          <Ionicons name="image-outline" size={24} color={COLORS.textMuted} />
-          <Text style={styles.imageErrorText}>Gagal memuat gambar halaman {index + 1}</Text>
-        </View>
-      )}
-    </Pressable>
-  );
-});
 
 const styles = StyleSheet.create({
   container: {
