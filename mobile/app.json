@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "KomikNesia",
+    "slug": "komiknesia-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0F19",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0F19",
+      "dark": {
+        "image": "./assets/splash-icon.png",
+        "backgroundColor": "#0B0F19",
+        "resizeMode": "contain"
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.komiknesia.app"
+    },
+    "android": {
+      "package": "com.komiknesia.app",
+      "backgroundColor": "#0B0F19",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0B0F19",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#0B0F19",
+          "resizeMode": "contain"
+        }
+      },
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#0B0F19"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0B0F19",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0B0F19",
+            "resizeMode": "contain"
+          }
+        }
+      ]
+    ]
+  }
+}
