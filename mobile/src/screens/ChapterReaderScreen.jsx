@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  Image as RNImage,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   StyleSheet,
   Dimensions,
@@ -12,6 +11,7 @@ import {
   FlatList,
   StatusBar,
   Share,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -174,7 +174,7 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
       setAutoScrolling(true);
       scrollIntervalRef.current = setInterval(() => {
         scrollPosRef.current += 3;
-        scrollRef.current?.scrollTo({ y: scrollPosRef.current, animated: false });
+        scrollRef.current?.scrollToOffset({ offset: scrollPosRef.current, animated: false });
       }, 30);
     }
   };
@@ -319,9 +319,74 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
     );
   }
 
+  const handleToggleControls = useCallback(() => {
+    setControlsVisible((prev) => !prev);
+  }, []);
+
+  const renderReaderItem = useCallback(
+    ({ item, index }) => {
+      const uri = getImageUrl(item?.src);
+      return (
+        <ReaderImage
+          uri={uri}
+          index={index}
+          total={images.length}
+          onToggleControls={handleToggleControls}
+        />
+      );
+    },
+    [images.length, handleToggleControls]
+  );
+
+  const renderHeader = useCallback(() => {
+    if (readerTopAds.length === 0) return null;
+    return (
+      <View style={styles.readerAdWrapper}>
+        <AdBanner ads={readerTopAds} columns={1} />
+      </View>
+    );
+  }, [readerTopAds]);
+
+  const renderFooter = useCallback(() => {
+    return (
+      <View style={styles.footerContainer}>
+        {readerBottomAds.length > 0 && (
+          <View style={styles.readerAdWrapper}>
+            <AdBanner ads={readerBottomAds} columns={2} />
+          </View>
+        )}
+
+        {/* End of chapter action card */}
+        <View style={styles.endChapterCard}>
+          <Text style={styles.endChapterTitle}>Kamu telah menyelesaikan chapter ini 🎉</Text>
+          <View style={styles.endNavButtons}>
+            {prevChapter && (
+              <TouchableOpacity
+                style={styles.endNavBtn}
+                onPress={() => navigateToChapter(prevChapter)}
+              >
+                <Ionicons name="arrow-back" size={16} color="#FFF" />
+                <Text style={styles.endNavBtnText}>Chapter Sebelumnya</Text>
+              </TouchableOpacity>
+            )}
+            {nextChapter && (
+              <TouchableOpacity
+                style={[styles.endNavBtn, styles.endNavBtnPrimary]}
+                onPress={() => navigateToChapter(nextChapter)}
+              >
+                <Text style={styles.endNavBtnText}>Chapter Selanjutnya</Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFF" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  }, [readerBottomAds, prevChapter, nextChapter, navigateToChapter]);
+
   return (
     <View style={styles.container}>
-      <StatusBar hidden={!controlsVisible} barStyle="light-content" />
+      <StatusBar hidden={!controlsVisible} barStyle="light-content" backgroundColor="#000000" translucent />
 
       {/* Top Floating Controls */}
       {controlsVisible && (
@@ -382,67 +447,26 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* Reader Scrollable Canvas */}
-      <ScrollView
+      {/* Reader Virtualized FlatList Canvas */}
+      <FlatList
         ref={scrollRef}
+        data={images}
+        keyExtractor={(item, index) => `${item?.src || index}-${index}`}
+        renderItem={renderReaderItem}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.readerCanvas}
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        windowSize={5}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews={Platform.OS === 'android'}
         onScroll={(e) => {
           scrollPosRef.current = e.nativeEvent.contentOffset.y;
         }}
-        scrollEventThrottle={16}
-      >
-        {/* Ad Banner - Top (Sebelum Chapter Images, Sama seperti Web) */}
-        {readerTopAds.length > 0 && (
-          <View style={styles.readerAdWrapper}>
-            <AdBanner ads={readerTopAds} columns={1} />
-          </View>
-        )}
-
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setControlsVisible(!controlsVisible)}
-        >
-          {images.map((item, idx) => {
-            const uri = getImageUrl(item.src);
-            return (
-              <ReaderImage key={idx} uri={uri} index={idx} total={images.length} />
-            );
-          })}
-        </TouchableOpacity>
-
-        {/* Ad Banner - Bottom (Setelah Chapter Images, Sama seperti Web) */}
-        {readerBottomAds.length > 0 && (
-          <View style={styles.readerAdWrapper}>
-            <AdBanner ads={readerBottomAds} columns={2} />
-          </View>
-        )}
-
-        {/* End of chapter action card */}
-        <View style={styles.endChapterCard}>
-          <Text style={styles.endChapterTitle}>Kamu telah menyelesaikan chapter ini 🎉</Text>
-          <View style={styles.endNavButtons}>
-            {prevChapter && (
-              <TouchableOpacity
-                style={styles.endNavBtn}
-                onPress={() => navigateToChapter(prevChapter)}
-              >
-                <Ionicons name="arrow-back" size={16} color="#FFF" />
-                <Text style={styles.endNavBtnText}>Chapter Sebelumnya</Text>
-              </TouchableOpacity>
-            )}
-            {nextChapter && (
-              <TouchableOpacity
-                style={[styles.endNavBtn, styles.endNavBtnPrimary]}
-                onPress={() => navigateToChapter(nextChapter)}
-              >
-                <Text style={styles.endNavBtnText}>Chapter Selanjutnya</Text>
-                <Ionicons name="arrow-forward" size={16} color="#FFF" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </ScrollView>
+        scrollEventThrottle={64}
+      />
 
       {/* Bottom Floating Reader Bar */}
       {controlsVisible && (
@@ -561,29 +585,23 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
   );
 };
 
-// Subcomponent for each image with auto-ratio detection and crisp rendering
-const ReaderImage = ({ uri, index, total }) => {
-  const [aspectRatio, setAspectRatio] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
+// Module-level ratio cache to remember dimensions across unmount/remount
+const ratioCache = new Map();
 
-  useEffect(() => {
-    if (!uri) return;
-    RNImage.getSize(
-      uri,
-      (w, h) => {
-        if (w > 0 && h > 0) {
-          setAspectRatio(w / h);
-        }
-      },
-      () => {}
-    );
-  }, [uri]);
+// Subcomponent for each image with auto-ratio detection and crisp rendering
+const ReaderImage = React.memo(({ uri, index, total, onToggleControls }) => {
+  const cachedRatio = ratioCache.get(uri);
+  const [aspectRatio, setAspectRatio] = useState(cachedRatio || null);
+  const [loaded, setLoaded] = useState(!!cachedRatio);
+  const [hasError, setHasError] = useState(false);
 
   const displayHeight = aspectRatio ? width / aspectRatio : width * 1.4;
 
   return (
-    <View style={[styles.imageWrapper, { width, height: displayHeight }]}>
+    <Pressable
+      onPress={onToggleControls}
+      style={[styles.imageWrapper, { width, height: displayHeight }]}
+    >
       {!loaded && !hasError && (
         <View style={styles.imagePlaceholder}>
           <ActivityIndicator size="small" color={COLORS.primary} />
@@ -596,15 +614,16 @@ const ReaderImage = ({ uri, index, total }) => {
         source={{ uri }}
         style={styles.pageImage}
         contentFit="contain"
-        allowDownscaling={false}
         cachePolicy="memory-disk"
-        priority="high"
+        recyclingKey={uri}
         onLoad={(event) => {
           setLoaded(true);
           const w = event?.source?.width;
           const h = event?.source?.height;
           if (w > 0 && h > 0) {
-            setAspectRatio(w / h);
+            const r = w / h;
+            ratioCache.set(uri, r);
+            setAspectRatio(r);
           }
         }}
         onError={() => setHasError(true)}
@@ -615,9 +634,9 @@ const ReaderImage = ({ uri, index, total }) => {
           <Text style={styles.imageErrorText}>Gagal memuat gambar halaman {index + 1}</Text>
         </View>
       )}
-    </View>
+    </Pressable>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -627,14 +646,18 @@ const styles = StyleSheet.create({
   readerCanvas: {
     backgroundColor: '#000',
     alignItems: 'center',
-    paddingBottom: 60,
+    paddingBottom: 80,
   },
   readerAdWrapper: {
     width: '100%',
     marginVertical: SPACING.md,
   },
+  footerContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
   imageWrapper: {
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#000000',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -650,7 +673,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F121C',
+    backgroundColor: '#050505',
     gap: 8,
   },
   imagePlaceholderText: {
@@ -665,7 +688,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#161922',
+    backgroundColor: '#0A0A0A',
     gap: 4,
   },
   imageErrorText: {
@@ -726,7 +749,7 @@ const styles = StyleSheet.create({
   bottomNavBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161922',
+    backgroundColor: '#141414',
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
@@ -748,7 +771,7 @@ const styles = StyleSheet.create({
   bottomChapterSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#11131A',
+    backgroundColor: '#141414',
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
@@ -765,7 +788,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: RADIUS.full,
-    backgroundColor: '#161922',
+    backgroundColor: '#141414',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,

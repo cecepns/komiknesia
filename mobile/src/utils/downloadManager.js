@@ -311,10 +311,16 @@ export const downloadManager = {
         }
       }
 
-      const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
+      let totalMb = '';
+      if (totalBytes >= 1024 * 1024 * 1024) {
+        totalMb = `${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+      } else {
+        totalMb = `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
       return {
         totalBytes,
-        totalMb: `${totalMb} MB`,
+        totalMb,
         totalManga: all.length,
         totalChapters,
       };
