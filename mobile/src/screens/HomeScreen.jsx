@@ -6,14 +6,15 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
-  Image,
   StyleSheet,
   Dimensions,
   ActivityIndicator,
   Linking,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +39,351 @@ const POPULAR_GAP = SPACING.md;
 const POPULAR_SNAP_INTERVAL = POPULAR_CARD_WIDTH + POPULAR_GAP;
 const POPULAR_SIDE_PADDING = Math.round((width - POPULAR_CARD_WIDTH) / 2);
 
+const extractBannerSlug = (item) => {
+  if (item.slug && item.slug.trim()) return item.slug.trim();
+  if (item.manga_slug && item.manga_slug.trim()) return item.manga_slug.trim();
+  if (item.href) {
+    const match = item.href.match(/\/komik\/([^/?#]+)/);
+    if (match && match[1]) return match[1];
+    const segments = item.href.replace(/\/+$/, '').split('/');
+    return segments[segments.length - 1];
+  }
+  return item.id;
+};
+
+// Isolated Hero Banner Slider - auto-scroll timer runs inside this component only
+const HeroBannerSlider = React.memo(({ banners, onBannerPress }) => {
+  const bannerScrollRef = useRef(null);
+  const [activeBannerIdx, setActiveBannerIdx] = useState(0);
+
+  useEffect(() => {
+    if (!banners || banners.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveBannerIdx((prev) => {
+        const next = (prev + 1) % banners.length;
+        bannerScrollRef.current?.scrollTo({ x: next * (BANNER_WIDTH + SPACING.md), animated: true });
+        return next;
+      });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [banners?.length]);
+
+  const handleBannerPrev = () => {
+    if (!banners || banners.length <= 1) return;
+    const prev = (activeBannerIdx - 1 + banners.length) % banners.length;
+    setActiveBannerIdx(prev);
+    bannerScrollRef.current?.scrollTo({ x: prev * (BANNER_WIDTH + SPACING.md), animated: true });
+  };
+
+  const handleBannerNext = () => {
+    if (!banners || banners.length <= 1) return;
+    const next = (activeBannerIdx + 1) % banners.length;
+    setActiveBannerIdx(next);
+    bannerScrollRef.current?.scrollTo({ x: next * (BANNER_WIDTH + SPACING.md), animated: true });
+  };
+
+  if (!banners || banners.length === 0) return null;
+
+  return (
+    <View style={styles.heroSectionWrapper}>
+      <View style={styles.bannerSliderContainer}>
+        {banners.length > 1 && (
+          <>
+            <TouchableOpacity
+              style={[styles.bannerNavBtn, styles.bannerNavBtnLeft]}
+              onPress={handleBannerPrev}
+              activeOpacity={0.8}
+              accessibilityLabel="Previous Banner"
+            >
+              <Ionicons name="chevron-back" size={18} color="#FFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.bannerNavBtn, styles.bannerNavBtnRight]}
+              onPress={handleBannerNext}
+              activeOpacity={0.8}
+              accessibilityLabel="Next Banner"
+            >
+              <Ionicons name="chevron-forward" size={18} color="#FFF" />
+            </TouchableOpacity>
+          </>
+        )}
+
+        <ScrollView
+          ref={bannerScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={BANNER_WIDTH + SPACING.md}
+          decelerationRate="fast"
+          contentContainerStyle={styles.bannerList}
+          onMomentumScrollEnd={(e) => {
+            const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + SPACING.md));
+            setActiveBannerIdx(idx);
+          }}
+        >
+          {banners.map((item, idx) => {
+            const bannerUrl = getImageUrl(item.image || item.image_url || item.banner_url || item.cover);
+            const slug = extractBannerSlug(item);
+            const seriesTag = item.series || 'HOT';
+            const rating = item.rating ? Number(item.rating).toFixed(1) : null;
+
+            return (
+              <TouchableOpacity
+                key={item.id || idx}
+                activeOpacity={0.92}
+                onPress={() => onBannerPress(slug, item.title)}
+                style={styles.bannerCard}
+              >
+                <Image
+                  source={{ uri: bannerUrl }}
+                  style={styles.bannerImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  priority="high"
+                  transition={200}
+                />
+
+                <View style={styles.bannerTopBadges}>
+                  {seriesTag ? (
+                    <View style={styles.seriesBadge}>
+                      <Text style={styles.seriesBadgeText}>{seriesTag.toUpperCase()}</Text>
+                    </View>
+                  ) : null}
+                  {rating ? (
+                    <View style={styles.ratingBadge}>
+                      <Ionicons name="star" size={10} color={COLORS.star} />
+                      <Text style={styles.ratingBadgeText}>{rating}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <LinearGradient
+                  colors={['transparent', 'rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.95)']}
+                  style={styles.bannerGradient}
+                >
+                  <Text numberOfLines={2} style={styles.bannerTitle}>
+                    {item.title}
+                  </Text>
+
+                  <View style={styles.readNowBtn}>
+                    <Ionicons name="book" size={12} color="#FFF" />
+                    <Text style={styles.readNowBtnText}>BACA SEKARANG</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {banners.length > 1 && (
+        <View style={styles.bannerDotsContainer}>
+          {banners.map((_, i) => (
+            <View
+              key={`dot-${i}`}
+              style={[
+                styles.bannerDot,
+                i === activeBannerIdx && styles.bannerDotActive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+});
+
+// Isolated Popular Slider - scrolling and auto-timer will not re-render the outer HomeScreen
+const PopularSlider = React.memo(({ items, onMangaPress }) => {
+  const popularScrollRef = useRef(null);
+  const isDraggingPopularRef = useRef(false);
+  const [activePopularIdx, setActivePopularIdx] = useState(0);
+
+  const scrollPopularToIndex = useCallback((idx, animated = true) => {
+    if (!items || items.length === 0) return;
+    const clamped = Math.max(0, Math.min(idx, items.length - 1));
+    setActivePopularIdx(clamped);
+    popularScrollRef.current?.scrollTo({ x: clamped * POPULAR_SNAP_INTERVAL, animated });
+  }, [items?.length]);
+
+  useEffect(() => {
+    if (!items || items.length <= 1) return;
+    const timer = setTimeout(() => {
+      if (!isDraggingPopularRef.current) {
+        const next = (activePopularIdx + 1) % items.length;
+        scrollPopularToIndex(next);
+      }
+    }, 8500);
+    return () => clearTimeout(timer);
+  }, [activePopularIdx, items?.length, scrollPopularToIndex]);
+
+  const handlePopularPrev = () => {
+    if (!items || items.length === 0) return;
+    const prev = Math.max(0, activePopularIdx - 1);
+    scrollPopularToIndex(prev);
+  };
+
+  const handlePopularNext = () => {
+    if (!items || items.length === 0) return;
+    const next = Math.min(items.length - 1, activePopularIdx + 1);
+    scrollPopularToIndex(next);
+  };
+
+  const handlePopularScroll = (e) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
+    const clamped = Math.max(0, Math.min(idx, items.length - 1));
+    if (clamped !== activePopularIdx) {
+      setActivePopularIdx(clamped);
+    }
+  };
+
+  const handlePopularScrollBegin = () => {
+    isDraggingPopularRef.current = true;
+  };
+
+  const handlePopularScrollEnd = (e) => {
+    isDraggingPopularRef.current = false;
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
+    const clamped = Math.max(0, Math.min(idx, items.length - 1));
+    setActivePopularIdx(clamped);
+    const targetX = clamped * POPULAR_SNAP_INTERVAL;
+    if (Math.abs(offsetX - targetX) > 1) {
+      popularScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    }
+  };
+
+  if (!items || items.length === 0) return null;
+
+  return (
+    <View style={styles.popularSectionWrapper}>
+      <View style={styles.popularHeaderCenter}>
+        <View style={styles.popularHeaderPill}>
+          <Text style={styles.popularFireIcon}>🔥</Text>
+          <Text style={styles.popularHeaderText}>Popular Today</Text>
+        </View>
+      </View>
+
+      <View style={styles.popularSliderWrapper}>
+        <TouchableOpacity
+          style={[styles.popularNavBtn, styles.popularNavBtnLeft]}
+          onPress={handlePopularPrev}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chevron-back" size={20} color="#FFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.popularNavBtn, styles.popularNavBtnRight]}
+          onPress={handlePopularNext}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chevron-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+
+        <ScrollView
+          ref={popularScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={POPULAR_SNAP_INTERVAL}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          disableIntervalMomentum={true}
+          contentContainerStyle={styles.popularSlidesContainer}
+          onScrollBeginDrag={handlePopularScrollBegin}
+          onScroll={handlePopularScroll}
+          scrollEventThrottle={32}
+          onScrollEndDrag={handlePopularScrollEnd}
+          onMomentumScrollEnd={handlePopularScrollEnd}
+        >
+          {items.map((item, idx) => {
+            const coverUrl = getImageUrl(item.cover || item.image || item.thumbnail);
+            const latestCh = item?.lastChapters?.[0] || item?.latest_chapter;
+            const chNum = latestCh?.number || latestCh?.chapter_number || item?.chapter || null;
+            const isCurrentActive = idx === activePopularIdx;
+
+            return (
+              <TouchableOpacity
+                key={`pop-slide-${item.id || item.slug}-${idx}`}
+                activeOpacity={0.88}
+                onPress={() => {
+                  if (isCurrentActive) {
+                    onMangaPress(item);
+                  } else {
+                    scrollPopularToIndex(idx);
+                  }
+                }}
+                style={[
+                  styles.popularSlideCard,
+                  isCurrentActive ? styles.popularSlideCardActive : styles.popularSlideCardInactive,
+                  idx < items.length - 1 && { marginRight: POPULAR_GAP },
+                ]}
+              >
+                <View style={styles.popularCardCoverWrapper}>
+                  {coverUrl ? (
+                    <Image
+                      source={{ uri: coverUrl }}
+                      style={styles.popularCardCover}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      priority="high"
+                      transition={150}
+                    />
+                  ) : (
+                    <View style={styles.placeholderCover}>
+                      <Ionicons name="book-outline" size={32} color={COLORS.textMuted} />
+                    </View>
+                  )}
+
+                  <View
+                    style={[
+                      styles.slideRankBadge,
+                      idx === 0
+                        ? styles.rankGold
+                        : idx === 1
+                        ? styles.rankSilver
+                        : idx === 2
+                        ? styles.rankBronze
+                        : styles.rankDefault,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.slideRankText,
+                        idx <= 1 ? { color: '#000' } : { color: '#FFF' },
+                      ]}
+                    >
+                      #{idx + 1}
+                    </Text>
+                  </View>
+
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0, 0, 0, 0.95)']}
+                    style={styles.popularCoverGradient}
+                  />
+                </View>
+
+                <View style={styles.popularCardFooter}>
+                  <Text numberOfLines={1} style={styles.popularCardTitle}>
+                    {item.title}
+                  </Text>
+
+                  <View style={styles.popularMetaRow}>
+                    <Text style={styles.popularChapterText}>
+                      {chNum ? `Chapter ${chNum}` : 'Komik Populer'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </View>
+  );
+});
+
 export const HomeScreen = ({ navigation }) => {
   const { isAuthenticated, user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -56,15 +402,6 @@ export const HomeScreen = ({ navigation }) => {
   const [manhwaList, setManhwaList] = useState([]);
   const [mangaList, setMangaList] = useState([]);
   const [manhuaList, setManhuaList] = useState([]);
-
-  // Banner slider state
-  const bannerScrollRef = useRef(null);
-  const [activeBannerIdx, setActiveBannerIdx] = useState(0);
-
-  // Popular slider state
-  const popularScrollRef = useRef(null);
-  const isDraggingPopularRef = useRef(false);
-  const [activePopularIdx, setActivePopularIdx] = useState(0);
 
   // Ads mirroring web positions
   const { ads: homeTopAds } = useAds('home-top');
@@ -115,17 +452,17 @@ export const HomeScreen = ({ navigation }) => {
         // Fallback featured items
         apiClient.getFeaturedItems('banner', true),
         // 1. Paling Populer (Full carousel / slides)
-        apiClient.getContents({ page: 1, per_page: 12, orderBy: 'Popular', popularWindow: 'day' }),
+        apiClient.getContents({ page: 1, per_page: 10, orderBy: 'Popular', popularWindow: 'day' }),
         // 2. Projek KomikNesia
-        apiClient.getContents({ page: 1, per_page: 12, orderBy: 'Update', project: 'true' }),
+        apiClient.getContents({ page: 1, per_page: 6, orderBy: 'Update', project: 'true' }),
         // 3. Update Terbaru
-        apiClient.getContents({ page: 1, per_page: 12, orderBy: 'Update' }),
+        apiClient.getContents({ page: 1, per_page: 8, orderBy: 'Update' }),
         // 4. Manhwa Section
-        apiClient.getContents({ page: 1, per_page: 12, type: 'manhwa', orderBy: 'Update' }),
+        apiClient.getContents({ page: 1, per_page: 6, type: 'manhwa', orderBy: 'Update' }),
         // 5. Manga Section
-        apiClient.getContents({ page: 1, per_page: 12, type: 'manga', orderBy: 'Update' }),
+        apiClient.getContents({ page: 1, per_page: 6, type: 'manga', orderBy: 'Update' }),
         // 6. Manhua Section
-        apiClient.getContents({ page: 1, per_page: 12, type: 'manhua', orderBy: 'Update' }),
+        apiClient.getContents({ page: 1, per_page: 6, type: 'manhua', orderBy: 'Update' }),
       ]);
 
       // Set banners: prioritize settings.hero_banners, fallback to featured items
@@ -200,63 +537,25 @@ export const HomeScreen = ({ navigation }) => {
     }
   };
 
-  // Auto-scroll for Hero Banners
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const timer = setInterval(() => {
-      setActiveBannerIdx((prev) => {
-        const next = (prev + 1) % banners.length;
-        bannerScrollRef.current?.scrollTo({ x: next * (BANNER_WIDTH + SPACING.md), animated: true });
-        return next;
-      });
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [banners.length]);
-
-  const scrollPopularToIndex = useCallback((idx, animated = true) => {
-    if (popularManga.length === 0) return;
-    const clamped = Math.max(0, Math.min(idx, popularManga.length - 1));
-    setActivePopularIdx(clamped);
-    popularScrollRef.current?.scrollTo({ x: clamped * POPULAR_SNAP_INTERVAL, animated });
-  }, [popularManga.length]);
-
-  // Auto-scroll for Popular Slides (8.5 seconds, restarts on active change & pauses when dragging)
-  useEffect(() => {
-    if (popularManga.length <= 1) return;
-    const timer = setTimeout(() => {
-      if (!isDraggingPopularRef.current) {
-        const next = (activePopularIdx + 1) % popularManga.length;
-        scrollPopularToIndex(next);
-      }
-    }, 8500);
-    return () => clearTimeout(timer);
-  }, [activePopularIdx, popularManga.length, scrollPopularToIndex]);
-
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
   };
 
-  const extractBannerSlug = (item) => {
-    if (item.slug && item.slug.trim()) return item.slug.trim();
-    if (item.manga_slug && item.manga_slug.trim()) return item.manga_slug.trim();
-    if (item.href) {
-      const match = item.href.match(/\/komik\/([^/?#]+)/);
-      if (match && match[1]) return match[1];
-      const segments = item.href.replace(/\/+$/, '').split('/');
-      return segments[segments.length - 1];
+  const handleBannerPress = useCallback((slug, title) => {
+    if (slug) {
+      navigation.navigate('MangaDetail', { slug, title });
     }
-    return item.id;
-  };
+  }, [navigation]);
 
-  const handleMangaPress = (manga) => {
-    const slug = manga.slug || manga.id;
+  const handleMangaPress = useCallback((manga) => {
+    const slug = manga?.slug || manga?.id;
     if (slug) {
       navigation.navigate('MangaDetail', { slug, title: manga.title });
     }
-  };
+  }, [navigation]);
 
-  const handleChapterPress = (chapter, manga) => {
+  const handleChapterPress = useCallback((chapter, manga) => {
     if (!chapter?.slug) {
       handleMangaPress(manga);
       return;
@@ -273,58 +572,7 @@ export const HomeScreen = ({ navigation }) => {
       mangaSlug: manga?.slug || manga?.id,
       mangaTitle: manga?.title || '',
     });
-  };
-
-  const handleBannerPrev = () => {
-    if (banners.length <= 1) return;
-    const prev = (activeBannerIdx - 1 + banners.length) % banners.length;
-    setActiveBannerIdx(prev);
-    bannerScrollRef.current?.scrollTo({ x: prev * (BANNER_WIDTH + SPACING.md), animated: true });
-  };
-
-  const handleBannerNext = () => {
-    if (banners.length <= 1) return;
-    const next = (activeBannerIdx + 1) % banners.length;
-    setActiveBannerIdx(next);
-    bannerScrollRef.current?.scrollTo({ x: next * (BANNER_WIDTH + SPACING.md), animated: true });
-  };
-
-  const handlePopularPrev = () => {
-    if (popularManga.length === 0) return;
-    const prev = Math.max(0, activePopularIdx - 1);
-    scrollPopularToIndex(prev);
-  };
-
-  const handlePopularNext = () => {
-    if (popularManga.length === 0) return;
-    const next = Math.min(popularManga.length - 1, activePopularIdx + 1);
-    scrollPopularToIndex(next);
-  };
-
-  const handlePopularScroll = (e) => {
-    const offsetX = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
-    const clamped = Math.max(0, Math.min(idx, popularManga.length - 1));
-    if (clamped !== activePopularIdx) {
-      setActivePopularIdx(clamped);
-    }
-  };
-
-  const handlePopularScrollBegin = () => {
-    isDraggingPopularRef.current = true;
-  };
-
-  const handlePopularScrollEnd = (e) => {
-    isDraggingPopularRef.current = false;
-    const offsetX = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
-    const clamped = Math.max(0, Math.min(idx, popularManga.length - 1));
-    setActivePopularIdx(clamped);
-    const targetX = clamped * POPULAR_SNAP_INTERVAL;
-    if (Math.abs(offsetX - targetX) > 1) {
-      popularScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
-  };
+  }, [navigation, isAuthenticated, handleMangaPress]);
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
@@ -341,6 +589,8 @@ export const HomeScreen = ({ navigation }) => {
                 <Image
                   source={{ uri: getImageUrl(user.avatar) }}
                   style={styles.userAvatarImg}
+                  contentFit="cover"
+                  transition={150}
                 />
               ) : (
                 <LinearGradient
@@ -375,7 +625,7 @@ export const HomeScreen = ({ navigation }) => {
             <Image
               source={require('../../assets/logo.png')}
               style={styles.headerLogo}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
         )}
@@ -393,6 +643,8 @@ export const HomeScreen = ({ navigation }) => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={Platform.OS === 'android'}
+        overScrollMode="never"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -416,260 +668,10 @@ export const HomeScreen = ({ navigation }) => {
             )}
 
             {/* 1. HERO BANNER SECTION (PALING PERTAMA) */}
-            {banners.length > 0 && (
-              <View style={styles.heroSectionWrapper}>
-                <View style={styles.bannerSliderContainer}>
-                  {banners.length > 1 && (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.bannerNavBtn, styles.bannerNavBtnLeft]}
-                        onPress={handleBannerPrev}
-                        activeOpacity={0.8}
-                        accessibilityLabel="Previous Banner"
-                      >
-                        <Ionicons name="chevron-back" size={18} color="#FFF" />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.bannerNavBtn, styles.bannerNavBtnRight]}
-                        onPress={handleBannerNext}
-                        activeOpacity={0.8}
-                        accessibilityLabel="Next Banner"
-                      >
-                        <Ionicons name="chevron-forward" size={18} color="#FFF" />
-                      </TouchableOpacity>
-                    </>
-                  )}
-
-                  <ScrollView
-                    ref={bannerScrollRef}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    snapToInterval={BANNER_WIDTH + SPACING.md}
-                    decelerationRate="fast"
-                    contentContainerStyle={styles.bannerList}
-                    onMomentumScrollEnd={(e) => {
-                      const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + SPACING.md));
-                      setActiveBannerIdx(idx);
-                    }}
-                  >
-                  {banners.map((item, idx) => {
-                    const bannerUrl = getImageUrl(item.image || item.image_url || item.banner_url || item.cover);
-                    const slug = extractBannerSlug(item);
-                    const seriesTag = item.series || 'HOT';
-                    const rating = item.rating ? Number(item.rating).toFixed(1) : null;
-
-                    return (
-                      <TouchableOpacity
-                        key={item.id || idx}
-                        activeOpacity={0.92}
-                        onPress={() => {
-                          if (slug) {
-                            navigation.navigate('MangaDetail', {
-                              slug,
-                              title: item.title,
-                            });
-                          }
-                        }}
-                        style={styles.bannerCard}
-                      >
-                        <Image
-                          source={{ uri: bannerUrl }}
-                          style={styles.bannerImage}
-                          resizeMode="cover"
-                        />
-
-                        {/* Top Badges: Series & Rating */}
-                        <View style={styles.bannerTopBadges}>
-                          {seriesTag ? (
-                            <View style={styles.seriesBadge}>
-                              <Text style={styles.seriesBadgeText}>{seriesTag.toUpperCase()}</Text>
-                            </View>
-                          ) : null}
-                          {rating ? (
-                            <View style={styles.ratingBadge}>
-                              <Ionicons name="star" size={10} color={COLORS.star} />
-                              <Text style={styles.ratingBadgeText}>{rating}</Text>
-                            </View>
-                          ) : null}
-                        </View>
-
-                        {/* Dark Gradient Overlay */}
-                        <LinearGradient
-                          colors={['transparent', 'rgba(11, 15, 25, 0.4)', 'rgba(11, 15, 25, 0.95)']}
-                          style={styles.bannerGradient}
-                        >
-                          <Text numberOfLines={2} style={styles.bannerTitle}>
-                            {item.title}
-                          </Text>
-
-                          <View style={styles.readNowBtn}>
-                            <Ionicons name="book" size={12} color="#FFF" />
-                            <Text style={styles.readNowBtnText}>BACA SEKARANG</Text>
-                          </View>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-                {/* Banner Dots Indicator */}
-                {banners.length > 1 && (
-                  <View style={styles.bannerDotsContainer}>
-                    {banners.map((_, i) => (
-                      <View
-                        key={`dot-${i}`}
-                        style={[
-                          styles.bannerDot,
-                          i === activeBannerIdx && styles.bannerDotActive,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
+            <HeroBannerSlider banners={banners} onBannerPress={handleBannerPress} />
 
             {/* 2. POPULER SECTION (DIJADIKAN SLIDES) */}
-            {popularManga.length > 0 && (
-              <View style={styles.popularSectionWrapper}>
-                {/* Popular Today Center Header Badge matching web */}
-                <View style={styles.popularHeaderCenter}>
-                  <View style={styles.popularHeaderPill}>
-                    <Text style={styles.popularFireIcon}>🔥</Text>
-                    <Text style={styles.popularHeaderText}>Popular Today</Text>
-                  </View>
-                </View>
-
-                {/* Left & Right Navigation Arrows */}
-                <View style={styles.popularSliderWrapper}>
-                  <TouchableOpacity
-                    style={[styles.popularNavBtn, styles.popularNavBtnLeft]}
-                    onPress={handlePopularPrev}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chevron-back" size={20} color="#FFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.popularNavBtn, styles.popularNavBtnRight]}
-                    onPress={handlePopularNext}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chevron-forward" size={20} color="#FFF" />
-                  </TouchableOpacity>
-
-                  {/* Horizontal Slides */}
-                  <ScrollView
-                    ref={popularScrollRef}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    snapToInterval={POPULAR_SNAP_INTERVAL}
-                    snapToAlignment="start"
-                    decelerationRate="fast"
-                    disableIntervalMomentum={true}
-                    contentContainerStyle={styles.popularSlidesContainer}
-                    onScrollBeginDrag={handlePopularScrollBegin}
-                    onScroll={handlePopularScroll}
-                    scrollEventThrottle={16}
-                    onScrollEndDrag={handlePopularScrollEnd}
-                    onMomentumScrollEnd={handlePopularScrollEnd}
-                  >
-                    {popularManga.map((item, idx) => {
-                      const coverUrl = getImageUrl(item.cover || item.image || item.thumbnail);
-                      const latestCh = item?.lastChapters?.[0] || item?.latest_chapter;
-                      const chNum = latestCh?.number || latestCh?.chapter_number || item?.chapter || null;
-                      const rating = Number(item.rating || item.score || 0).toFixed(1);
-                      const isCurrentActive = idx === activePopularIdx;
-
-                      return (
-                        <TouchableOpacity
-                          key={`pop-slide-${item.id || item.slug}-${idx}`}
-                          activeOpacity={0.88}
-                          onPress={() => {
-                            if (isCurrentActive) {
-                              handleMangaPress(item);
-                            } else {
-                              scrollPopularToIndex(idx);
-                            }
-                          }}
-                          style={[
-                            styles.popularSlideCard,
-                            isCurrentActive ? styles.popularSlideCardActive : styles.popularSlideCardInactive,
-                            idx < popularManga.length - 1 && { marginRight: POPULAR_GAP },
-                          ]}
-                        >
-                          {/* Card Cover */}
-                          <View style={styles.popularCardCoverWrapper}>
-                            {coverUrl ? (
-                              <Image
-                                source={{ uri: coverUrl }}
-                                style={styles.popularCardCover}
-                                resizeMode="cover"
-                              />
-                            ) : (
-                              <View style={styles.placeholderCover}>
-                                <Ionicons name="book-outline" size={32} color={COLORS.textMuted} />
-                              </View>
-                            )}
-
-                            {/* Rank Badge (#1 Emas, #2 Perak, #3 Perunggu) */}
-                            <View
-                              style={[
-                                styles.slideRankBadge,
-                                idx === 0
-                                  ? styles.rankGold
-                                  : idx === 1
-                                  ? styles.rankSilver
-                                  : idx === 2
-                                  ? styles.rankBronze
-                                  : styles.rankDefault,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.slideRankText,
-                                  idx <= 1 ? { color: '#000' } : { color: '#FFF' },
-                                ]}
-                              >
-                                #{idx + 1}
-                              </Text>
-                            </View>
-
-                            {/* Subtle Cover Gradient */}
-                            <LinearGradient
-                              colors={['transparent', 'rgba(30, 30, 38, 0.95)']}
-                              style={styles.popularCoverGradient}
-                            />
-                          </View>
-
-                          {/* Card Footer Info */}
-                          <View style={styles.popularCardFooter}>
-                            <Text numberOfLines={1} style={styles.popularCardTitle}>
-                              {item.title}
-                            </Text>
-
-                            <View style={styles.popularMetaRow}>
-                              <Text style={styles.popularChapterText}>
-                                {chNum ? `Chapter ${chNum}` : 'Komik Populer'}
-                              </Text>
-
-                              {Number(rating) > 0 && (
-                                <View style={styles.popularRatingRow}>
-                                  <Ionicons name="star" size={11} color={COLORS.star} />
-                                  <Text style={styles.popularRatingVal}>{rating}</Text>
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-              </View>
-            )}
+            <PopularSlider items={popularManga} onMangaPress={handleMangaPress} />
 
             {/* 3. CHATROOM SECTION */}
             <ChatroomCard navigation={navigation} />

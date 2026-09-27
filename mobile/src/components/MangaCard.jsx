@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
 import { getImageUrl } from '../api/client';
@@ -13,7 +14,7 @@ const CARD_WIDTH_2COL = Math.floor((width - SPACING.lg * 2 - SPACING.md) / 2);
 // 3 columns: (width - 32 - 24) / 3
 const CARD_WIDTH_3COL = Math.floor((width - SPACING.lg * 2 - SPACING.md * 2) / 3);
 
-export const MangaCard = ({
+const MangaCardComponent = ({
   manga,
   onPress,
   onChapterPress,
@@ -24,6 +25,7 @@ export const MangaCard = ({
   showLatestChapter = true,
   isAuthenticated = false,
   rank = null,
+  showRating = false,
 }) => {
   if (!manga) return null;
 
@@ -38,6 +40,8 @@ export const MangaCard = ({
   const lastChapters =
     Array.isArray(manga.lastChapters) && manga.lastChapters.length > 0
       ? manga.lastChapters.slice(0, 3)
+      : Array.isArray(manga.chapters) && manga.chapters.length > 0
+      ? manga.chapters.slice(0, 3)
       : manga.latest_chapter
       ? [manga.latest_chapter]
       : manga.chapter
@@ -66,7 +70,10 @@ export const MangaCard = ({
           <Image
             source={{ uri: imageUrl }}
             style={styles.coverImage}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+            recyclingKey={imageUrl}
           />
         ) : (
           <View style={styles.placeholderCover}>
@@ -100,7 +107,7 @@ export const MangaCard = ({
         )}
 
         {/* Rating Badge */}
-        {Number(rating) > 0 && (
+        {showRating && Number(rating) > 0 && (
           <View style={styles.ratingBadge}>
             <Ionicons name="star" size={10} color={COLORS.star} />
             <Text style={styles.ratingText}>{rating}</Text>
@@ -437,3 +444,5 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
+
+export const MangaCard = React.memo(MangaCardComponent);

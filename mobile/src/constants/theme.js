@@ -4,7 +4,7 @@ export const COLORS = {
   primaryDark: '#991B1B',
   primaryGlow: 'rgba(220, 38, 38, 0.25)',
 
-  background: '#0B0F19', // Deep dark midnight
+  background: '#000000', // Pure pitch black #000000
   surface: '#111827', // Card surface
   surfaceElevated: '#1A2234', // Elevated card / drawer / sheet
   surfaceBorder: '#1F293D', // Border

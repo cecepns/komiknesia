@@ -104,11 +104,18 @@ export const downloadManager = {
     const safeChapterSlug = sanitizeSlug(chapter.slug);
 
     // Root folder penyimpanan di HP pengguna
-    const mangaDir = `${FileSystem.documentDirectory}downloads/${safeMangaSlug}/`;
+    const baseDir = FileSystem?.documentDirectory || FileSystem?.cacheDirectory || '';
+    const mangaDir = `${baseDir}downloads/${safeMangaSlug}/`;
     const chapterDir = `${mangaDir}${safeChapterSlug}/`;
 
     // Pastikan folder direktori dibuat
-    await FileSystem.makeDirectoryAsync(chapterDir, { intermediates: true });
+    if (typeof FileSystem?.makeDirectoryAsync === 'function') {
+      try {
+        await FileSystem.makeDirectoryAsync(chapterDir, { intermediates: true });
+      } catch (e) {
+        console.warn('makeDirectoryAsync warning:', e);
+      }
+    }
 
     // 1. Dapatkan daftar gambar chapter dari API
     let rawImages = chapter.images || [];
@@ -130,16 +137,16 @@ export const downloadManager = {
     // 2. Simpan cover komik lokal jika belum ada
     let localCoverUri = null;
     const coverUrl = manga.cover || manga.image || manga.thumbnail;
-    if (coverUrl) {
+    if (coverUrl && typeof FileSystem?.downloadAsync === 'function') {
       try {
         const coverTarget = `${mangaDir}cover.jpg`;
-        const coverInfo = await FileSystem.getInfoAsync(coverTarget);
-        if (!coverInfo.exists) {
+        const coverInfo = typeof FileSystem?.getInfoAsync === 'function' ? await FileSystem.getInfoAsync(coverTarget) : null;
+        if (!coverInfo?.exists) {
           const downloadRes = await FileSystem.downloadAsync(
             getImageUrl(coverUrl),
             coverTarget
           );
-          localCoverUri = downloadRes.uri;
+          localCoverUri = downloadRes?.uri || coverTarget;
         } else {
           localCoverUri = coverTarget;
         }
@@ -161,15 +168,24 @@ export const downloadManager = {
       const fileTarget = `${chapterDir}page_${String(i + 1).padStart(3, '0')}.${ext}`;
 
       try {
-        const result = await FileSystem.downloadAsync(remoteSrc, fileTarget);
-        localImages.push({
-          src: result.uri, // file:// path on device storage!
-          page: i + 1,
-        });
+        if (typeof FileSystem?.downloadAsync === 'function') {
+          const result = await FileSystem.downloadAsync(remoteSrc, fileTarget);
+          localImages.push({
+            src: result?.uri || fileTarget, // file:// path on device storage!
+            page: i + 1,
+          });
 
-        // Track file size
-        const info = await FileSystem.getInfoAsync(result.uri);
-        if (info.size) totalBytes += info.size;
+          // Track file size
+          if (typeof FileSystem?.getInfoAsync === 'function') {
+            const info = await FileSystem.getInfoAsync(result?.uri || fileTarget);
+            if (info?.size) totalBytes += info.size;
+          }
+        } else {
+          localImages.push({
+            src: remoteSrc,
+            page: i + 1,
+          });
+        }
       } catch (err) {
         console.warn(`Gagal mengunduh halaman ${i + 1}:`, err);
         // If image download fails, record original src as fallback

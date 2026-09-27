@@ -111,9 +111,11 @@ export const AdPopup = () => {
     }
   };
 
+  const isMobileVip = (!!user?.membership_active || user?.role === 'vip') && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
+
   // Schedule check loop (runs every second, matching web)
   useEffect(() => {
-    if (!settingsReady || !ads.length || loading || user?.membership_active || user?.role === 'vip') return;
+    if (!settingsReady || !ads.length || loading || isMobileVip) return;
 
     const UNLOCK_MS = unlockSeconds * 1000;
     const INITIAL_DELAY_MS = initialDelayMinutes * 60 * 1000;
@@ -262,7 +264,7 @@ export const AdPopup = () => {
     }
   };
 
-  if (!isOpen || !ads.length || user?.membership_active) {
+  if (!isOpen || !ads.length || isMobileVip) {
     return null;
   }
 

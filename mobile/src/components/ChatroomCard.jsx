@@ -12,7 +12,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiClient, getImageUrl } from '../api/client';
@@ -95,6 +97,7 @@ const ChatAvatar = ({ profileImage, name, username, isVip, size = 28 }) => {
 };
 
 export const ChatroomCard = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { isAuthenticated, user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +105,23 @@ export const ChatroomCard = ({ navigation }) => {
   const [inputText, setInputText] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalInputText, setModalInputText] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const modalScrollRef = useRef(null);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const fetchChats = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -315,6 +334,7 @@ export const ChatroomCard = ({ navigation }) => {
         visible={modalVisible}
         animationType="slide"
         transparent={false}
+        statusBarTranslucent
         onRequestClose={() => setModalVisible(false)}
       >
         <KeyboardAvoidingView
@@ -322,7 +342,17 @@ export const ChatroomCard = ({ navigation }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {/* Modal Header */}
-          <View style={styles.modalHeader}>
+          <View
+            style={[
+              styles.modalHeader,
+              {
+                paddingTop: Math.max(
+                  insets.top,
+                  Platform.OS === 'ios' ? 44 : SPACING.md
+                ),
+              },
+            ]}
+          >
             <View style={styles.modalHeaderLeft}>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
@@ -420,7 +450,16 @@ export const ChatroomCard = ({ navigation }) => {
 
           {/* Modal Input Bar */}
           {isAuthenticated ? (
-            <View style={styles.modalInputBar}>
+            <View
+              style={[
+                styles.modalInputBar,
+                {
+                  paddingBottom: keyboardVisible
+                    ? SPACING.sm
+                    : Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12),
+                },
+              ]}
+            >
               <TextInput
                 placeholder="Ketik pesan chat..."
                 placeholderTextColor={COLORS.textMuted}
@@ -447,7 +486,12 @@ export const ChatroomCard = ({ navigation }) => {
             </View>
           ) : (
             <TouchableOpacity
-              style={styles.modalLoginBar}
+              style={[
+                styles.modalLoginBar,
+                {
+                  paddingBottom: Math.max(insets.bottom, SPACING.md),
+                },
+              ]}
               onPress={() => {
                 setModalVisible(false);
                 navigation.navigate('Login');
@@ -727,14 +771,14 @@ const styles = StyleSheet.create({
   // MODAL STYLES
   modalContainer: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#000000',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    paddingTop: Platform.OS === 'ios' ? 50 : SPACING.lg,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.md,
     backgroundColor: '#111522',
     borderBottomWidth: 1,
@@ -804,7 +848,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingTop: SPACING.sm,
     backgroundColor: '#111522',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',

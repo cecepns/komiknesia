@@ -23,15 +23,35 @@ const index = async (req, res) => {
 
 const store = async (req, res) => {
   try {
-    const { link_url, ads_type, expired_at, display_order } = req.body;
+    const { link_url, ads_type, expired_at, display_order, image_alt, title, target_platform, media_type, video_url } = req.body;
     const image = req.file ? `/uploads/${req.file.filename}` : null;
     const expiredAt = expired_at && String(expired_at).trim() ? expired_at : null;
     const orderVal = display_order !== undefined && display_order !== null ? parseInt(display_order, 10) || 0 : 0;
+    const targetPlatform = ['web', 'mobile', 'both'].includes(String(target_platform || '').toLowerCase())
+      ? String(target_platform).toLowerCase()
+      : 'web';
+    const mediaType = ['image', 'video'].includes(String(media_type || '').toLowerCase())
+      ? String(media_type).toLowerCase()
+      : (image?.match(/\.(mp4|webm|ogg|mov)$/i) || video_url ? 'video' : 'image');
+    const videoUrl = video_url && String(video_url).trim() ? String(video_url).trim() : null;
 
-    const [result] = await db.execute(
-      'INSERT INTO ads (image, link_url, ads_type, expired_at, display_order) VALUES (?, ?, ?, ?, ?)',
-      [image, link_url, ads_type, expiredAt, orderVal]
-    );
+    let result;
+    try {
+      [result] = await db.execute(
+        'INSERT INTO ads (image, link_url, ads_type, image_alt, title, expired_at, display_order, target_platform, media_type, video_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [image, link_url, ads_type, image_alt || null, title || null, expiredAt, orderVal, targetPlatform, mediaType, videoUrl]
+      );
+    } catch (insertErr) {
+      if (insertErr.code === 'ER_BAD_FIELD_ERROR') {
+        // Fallback for database schema before migration
+        [result] = await db.execute(
+          'INSERT INTO ads (image, link_url, ads_type, expired_at, display_order) VALUES (?, ?, ?, ?, ?)',
+          [image, link_url, ads_type, expiredAt, orderVal]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     invalidateCache();
 
@@ -45,23 +65,49 @@ const store = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { link_url, ads_type, image_alt, title, expired_at, display_order } = req.body;
+    const { link_url, ads_type, image_alt, title, expired_at, display_order, target_platform, media_type, video_url } = req.body;
 
     const expiredAt = expired_at && String(expired_at).trim() ? expired_at : null;
     const orderVal = display_order !== undefined && display_order !== null ? parseInt(display_order, 10) || 0 : 0;
+    const targetPlatform = ['web', 'mobile', 'both'].includes(String(target_platform || '').toLowerCase())
+      ? String(target_platform).toLowerCase()
+      : 'web';
+    const mediaType = ['image', 'video'].includes(String(media_type || '').toLowerCase())
+      ? String(media_type).toLowerCase()
+      : (video_url ? 'video' : 'image');
+    const videoUrl = video_url !== undefined ? (String(video_url).trim() || null) : null;
 
-    let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?, expired_at = ?, display_order = ?';
-    const params = [link_url || null, ads_type || null, image_alt || null, title || null, expiredAt, orderVal];
+    try {
+      let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?, expired_at = ?, display_order = ?, target_platform = ?, media_type = ?, video_url = ?';
+      const params = [link_url || null, ads_type || null, image_alt || null, title || null, expiredAt, orderVal, targetPlatform, mediaType, videoUrl];
 
-    if (req.file) {
-      query += ', image = ?';
-      params.push(`/uploads/${req.file.filename}`);
+      if (req.file) {
+        query += ', image = ?';
+        params.push(`/uploads/${req.file.filename}`);
+      }
+
+      query += ' WHERE id = ?';
+      params.push(id);
+
+      await db.execute(query, params);
+    } catch (updateErr) {
+      if (updateErr.code === 'ER_BAD_FIELD_ERROR') {
+        let query = 'UPDATE ads SET link_url = ?, ads_type = ?, image_alt = ?, title = ?, expired_at = ?, display_order = ?';
+        const params = [link_url || null, ads_type || null, image_alt || null, title || null, expiredAt, orderVal];
+
+        if (req.file) {
+          query += ', image = ?';
+          params.push(`/uploads/${req.file.filename}`);
+        }
+
+        query += ' WHERE id = ?';
+        params.push(id);
+
+        await db.execute(query, params);
+      } else {
+        throw updateErr;
+      }
     }
-
-    query += ' WHERE id = ?';
-    params.push(id);
-
-    await db.execute(query, params);
 
     invalidateCache();
 

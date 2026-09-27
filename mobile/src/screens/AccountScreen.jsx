@@ -138,7 +138,24 @@ export const AccountScreen = ({ navigation }) => {
 
   const avatarUrl = user?.avatar || user?.profile_image ? getImageUrl(user.avatar || user.profile_image) : null;
   const isVip = !!user?.membership_active || user?.role === 'vip';
+  const membershipType = (user?.membership_type || '').toLowerCase();
+  const isMobileVip = isVip && (!membershipType || membershipType === 'mobile' || membershipType === 'both');
   const joinDate = user?.created_at ? formatDate(user.created_at) : 'Baru bergabung';
+
+  const getVipBadgeLabel = () => {
+    if (!isVip) return isAuthenticated ? 'Member Reguler' : 'Tamu (Guest)';
+    if (membershipType === 'mobile') return '📱 VIP Mobile';
+    if (membershipType === 'both') return '👑 VIP Web & Mobile';
+    if (membershipType === 'web') return '🌐 VIP Web (Web Saja)';
+    return '👑 VIP Premium';
+  };
+
+  const getVipPillLabel = () => {
+    if (membershipType === 'mobile') return 'VIP MOBILE';
+    if (membershipType === 'both') return 'VIP ALL';
+    if (membershipType === 'web') return 'VIP WEB';
+    return 'VIP';
+  };
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
@@ -177,7 +194,7 @@ export const AccountScreen = ({ navigation }) => {
                   </Text>
                   {isVip && (
                     <View style={styles.vipTag}>
-                      <Text style={styles.vipTagText}>VIP</Text>
+                      <Text style={styles.vipTagText}>{getVipPillLabel()}</Text>
                     </View>
                   )}
                 </View>
@@ -265,7 +282,7 @@ export const AccountScreen = ({ navigation }) => {
               </View>
               <View style={[styles.statusBadge, isVip ? styles.statusBadgeVip : styles.statusBadgeNormal]}>
                 <Text style={[styles.statusBadgeText, isVip ? styles.statusBadgeVipText : styles.statusBadgeNormalText]}>
-                  {isVip ? '👑 VIP Premium' : isAuthenticated ? 'Member Reguler' : 'Tamu (Guest)'}
+                  {getVipBadgeLabel()}
                 </Text>
               </View>
             </View>
@@ -582,7 +599,7 @@ export const AccountScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#000000',
   },
   topHeader: {
     paddingHorizontal: SPACING.lg,
@@ -648,7 +665,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#0B0F19',
+    borderColor: '#000000',
   },
   profileInfo: {
     flex: 1,

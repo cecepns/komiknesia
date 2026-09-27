@@ -42,23 +42,49 @@ const listUsers = async (req, res) => {
       params
     );
 
-    const [rows] = await db.execute(
-      `SELECT
-          u.id,
-          u.username,
-          u.email,
-          u.points,
-          u.is_membership,
-          u.membership_expires_at,
-          u.profile_image,
-          u.created_at,
-          u.role
-       FROM users u
-       ${whereSql}
-       ORDER BY u.id DESC
-       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
-    );
+    let rows;
+    try {
+      [rows] = await db.execute(
+        `SELECT
+            u.id,
+            u.username,
+            u.email,
+            u.points,
+            u.is_membership,
+            u.membership_type,
+            u.membership_expires_at,
+            u.profile_image,
+            u.created_at,
+            u.role
+         FROM users u
+         ${whereSql}
+         ORDER BY u.id DESC
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset]
+      );
+    } catch (queryErr) {
+      if (queryErr.code === 'ER_BAD_FIELD_ERROR') {
+        [rows] = await db.execute(
+          `SELECT
+              u.id,
+              u.username,
+              u.email,
+              u.points,
+              u.is_membership,
+              u.membership_expires_at,
+              u.profile_image,
+              u.created_at,
+              u.role
+           FROM users u
+           ${whereSql}
+           ORDER BY u.id DESC
+           LIMIT ? OFFSET ?`,
+          [...params, limit, offset]
+        );
+      } else {
+        throw queryErr;
+      }
+    }
 
     res.json({
       status: true,
@@ -66,6 +92,7 @@ const listUsers = async (req, res) => {
         items: rows.map((row) => ({
           ...row,
           is_membership: !!row.is_membership,
+          membership_type: row.membership_type || 'web',
           points: Number(row.points || 0),
           role: row.role || 'user',
         })),
@@ -84,13 +111,16 @@ const listUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { username, password, email, points, is_membership, membership_expires_at, role } =
+    const { username, password, email, points, is_membership, membership_type, membership_expires_at, role } =
       req.body || {};
     const usernameTrim = String(username || '').trim();
     const emailTrim = String(email || '').trim();
     const passwordVal = String(password || '');
     const pointsVal = Number.isFinite(Number(points)) ? Math.max(0, parseInt(points, 10)) : 0;
     const membershipVal = parseBoolean(is_membership);
+    const membershipType = ['web', 'mobile', 'both'].includes(String(membership_type || '').toLowerCase())
+      ? String(membership_type).toLowerCase()
+      : 'web';
     const membershipExpireDate = parseNullableDate(membership_expires_at);
 
     if (!usernameTrim || usernameTrim.length < 3) {
@@ -127,19 +157,40 @@ const createUser = async (req, res) => {
       roleVal = r;
     }
     const hashedPassword = await bcrypt.hash(passwordVal, 10);
-    await db.execute(
-      `INSERT INTO users (username, password, email, points, is_membership, membership_expires_at, role)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        usernameTrim,
-        hashedPassword,
-        emailTrim || null,
-        pointsVal,
-        membershipVal ? 1 : 0,
-        membershipVal ? membershipExpireDate : null,
-        roleVal,
-      ]
-    );
+    try {
+      await db.execute(
+        `INSERT INTO users (username, password, email, points, is_membership, membership_type, membership_expires_at, role)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          usernameTrim,
+          hashedPassword,
+          emailTrim || null,
+          pointsVal,
+          membershipVal ? 1 : 0,
+          membershipVal ? membershipType : 'web',
+          membershipVal ? membershipExpireDate : null,
+          roleVal,
+        ]
+      );
+    } catch (insertErr) {
+      if (insertErr.code === 'ER_BAD_FIELD_ERROR') {
+        await db.execute(
+          `INSERT INTO users (username, password, email, points, is_membership, membership_expires_at, role)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            usernameTrim,
+            hashedPassword,
+            emailTrim || null,
+            pointsVal,
+            membershipVal ? 1 : 0,
+            membershipVal ? membershipExpireDate : null,
+            roleVal,
+          ]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     res.json({ status: true, message: 'User berhasil ditambahkan' });
   } catch (error) {
@@ -151,7 +202,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
-    const { username, email, password, points, is_membership, membership_expires_at, role } =
+    const { username, email, password, points, is_membership, membership_type, membership_expires_at, role } =
       req.body || {};
     if (!Number.isFinite(userId)) {
       return res.status(400).json({ status: false, error: 'Invalid user id' });
@@ -214,13 +265,20 @@ const updateUser = async (req, res) => {
       params.push(pointsVal);
     }
 
-    if (is_membership !== undefined || membership_expires_at !== undefined) {
+    if (is_membership !== undefined || membership_expires_at !== undefined || membership_type !== undefined) {
       const membershipVal = parseBoolean(is_membership);
       const membershipExpireDate = parseNullableDate(membership_expires_at);
+      const membershipType = ['web', 'mobile', 'both'].includes(String(membership_type || '').toLowerCase())
+        ? String(membership_type).toLowerCase()
+        : 'web';
       updates.push('is_membership = ?');
       params.push(membershipVal ? 1 : 0);
       updates.push('membership_expires_at = ?');
       params.push(membershipVal ? membershipExpireDate : null);
+      if (membership_type !== undefined || membershipVal) {
+        updates.push('membership_type = ?');
+        params.push(membershipType);
+      }
     }
 
     if (role !== undefined) {
@@ -246,13 +304,31 @@ const updateUser = async (req, res) => {
       return res.status(400).json({ status: false, error: 'Tidak ada data untuk diubah' });
     }
 
-    await db.execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, [...params, userId]);
+    try {
+      await db.execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, [...params, userId]);
+    } catch (updateErr) {
+      if (updateErr.code === 'ER_BAD_FIELD_ERROR') {
+        const filteredUpdates = [];
+        const filteredParams = [];
+        for (let i = 0; i < updates.length; i++) {
+          if (!updates[i].includes('membership_type')) {
+            filteredUpdates.push(updates[i]);
+            filteredParams.push(params[i]);
+          }
+        }
+        await db.execute(`UPDATE users SET ${filteredUpdates.join(', ')} WHERE id = ?`, [...filteredParams, userId]);
+      } else {
+        throw updateErr;
+      }
+    }
+
     res.json({ status: true, message: 'User berhasil diperbarui' });
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ status: false, error: 'Internal server error' });
   }
 };
+
 
 const deleteUser = async (req, res) => {
   try {

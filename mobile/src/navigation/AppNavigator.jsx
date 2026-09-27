@@ -61,7 +61,7 @@ export const AppNavigator = () => {
       initialRouteName={hasSeenIntro ? 'MainTabs' : 'Intro'}
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#0B0F19' },
+        contentStyle: { backgroundColor: '#000000' },
       }}
     >
       <Stack.Screen name="Intro" component={IntroScreen} />
@@ -123,7 +123,7 @@ export const AppNavigator = () => {
 const styles = StyleSheet.create({
   splashContainer: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },

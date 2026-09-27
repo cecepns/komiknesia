@@ -44,7 +44,8 @@ async function getAdsWithCache() {
  */
 export const useAds = (adsType, limit = null, enabled = true) => {
   const { user, loading: authLoading } = useAuth();
-  const isPremiumUser = !!user?.membership_active;
+  // User is premium on web if membership_active AND (membership_type is 'web', 'both', or legacy undefined)
+  const isPremiumUser = !!user?.membership_active && (!user?.membership_type || user?.membership_type === 'web' || user?.membership_type === 'both');
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,9 +57,14 @@ export const useAds = (adsType, limit = null, enabled = true) => {
         setError(null);
         const allAds = await getAdsWithCache();
         
-        // Filter ads by type
+        // Filter ads by type and target_platform ('web' or 'both')
         let filteredAds = allAds.filter((ad) => {
           if (ad.ads_type !== adsType) return false;
+          const platform = (ad.target_platform || 'web').toLowerCase();
+          if (platform !== 'web' && platform !== 'both' && platform !== 'all' && platform !== 'keduanya') {
+            return false;
+          }
+          if (ad.is_active === 0 || ad.is_active === false) return false;
           if (!ad.expired_at) return true;
           const expiresAt = new Date(ad.expired_at).getTime();
           return !Number.isFinite(expiresAt) || expiresAt >= Date.now();

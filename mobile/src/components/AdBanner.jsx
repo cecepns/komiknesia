@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Image,
   TouchableOpacity,
   Linking,
   StyleSheet,
@@ -9,66 +8,20 @@ import {
   Text,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { getImageUrl } from '../api/client';
 import { RADIUS, SPACING } from '../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const SingleAdCard = ({ ad, width, isTwoCol = true }) => {
-  // Mobile banner ads: compact horizontal aspect ratio to avoid excessively tall skeletons
+const SingleAdCardComponent = ({ ad, width, isTwoCol = true }) => {
   const defaultRatio = isTwoCol ? 3.8 : 6.0;
   const maxCardHeight = isTwoCol ? 54 : 68;
   const minCardHeight = isTwoCol ? 38 : 44;
 
-  const [aspectRatio, setAspectRatio] = useState(defaultRatio);
   const [loaded, setLoaded] = useState(false);
-  const pulseAnim = useRef(new Animated.Value(0.35)).current;
   const imageUrl = getImageUrl(ad?.image);
-
-  useEffect(() => {
-    if (!loaded) {
-      const pulseLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 0.65,
-            duration: 750,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 0.35,
-            duration: 750,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulseLoop.start();
-      return () => pulseLoop.stop();
-    }
-  }, [loaded, pulseAnim]);
-
-  useEffect(() => {
-    if (!imageUrl) return;
-    let isMounted = true;
-    Image.getSize(
-      imageUrl,
-      (w, h) => {
-        if (isMounted && w > 0 && h > 0) {
-          // Clamp ratio so height is strictly compact and horizontal (never tall portrait)
-          const minR = isTwoCol ? 3.2 : 4.5;
-          const maxR = isTwoCol ? 7.0 : 8.5;
-          const ratio = Math.min(Math.max(w / h, minR), maxR);
-          setAspectRatio(ratio);
-        }
-      },
-      () => {
-        // Fallback keep defaultRatio
-      }
-    );
-    return () => {
-      isMounted = false;
-    };
-  }, [imageUrl, isTwoCol]);
 
   const handlePress = () => {
     if (ad?.link_url) {
@@ -88,22 +41,16 @@ const SingleAdCard = ({ ad, width, isTwoCol = true }) => {
         styles.adWrapper,
         {
           width,
-          aspectRatio,
+          aspectRatio: defaultRatio,
           maxHeight: maxCardHeight,
           minHeight: minCardHeight,
         },
       ]}
     >
-      {/* Skeleton loading pulse placeholder if image hasn't loaded yet */}
       {!loaded && (
-        <Animated.View
-          style={[
-            styles.skeletonPlaceholder,
-            { opacity: pulseAnim },
-          ]}
-        >
+        <View style={styles.skeletonPlaceholder}>
           <Ionicons name="megaphone-outline" size={14} color="#6B7280" />
-        </Animated.View>
+        </View>
       )}
 
       <Image
@@ -112,7 +59,8 @@ const SingleAdCard = ({ ad, width, isTwoCol = true }) => {
           styles.adImage,
           !loaded && styles.adImageHidden,
         ]}
-        resizeMode="cover"
+        contentFit="cover"
+        cachePolicy="memory-disk"
         onLoad={() => setLoaded(true)}
       />
       <View style={styles.adBadge}>
@@ -122,9 +70,11 @@ const SingleAdCard = ({ ad, width, isTwoCol = true }) => {
   );
 };
 
+const SingleAdCard = React.memo(SingleAdCardComponent);
+
 import { useAuth } from '../contexts/AuthContext';
 
-export const AdBanner = ({
+const AdBannerComponent = ({
   ads = [],
   columns = 2,
   style,
@@ -133,8 +83,8 @@ export const AdBanner = ({
   loading = false,
 }) => {
   const { user, isAuthenticated } = useAuth();
-  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip');
-  if (isVip) return null; // Premium = No Iklan Banner & Google
+  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip') && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
+  if (isVip) return null; // Premium Mobile = No Iklan Banner
 
   const isTwoCol = columns >= 2 && (ads.length >= 2 || (loading && columns === 2));
   const availableWidth = SCREEN_WIDTH - containerPadding * 2;
@@ -190,6 +140,8 @@ export const AdBanner = ({
     </View>
   );
 };
+
+export const AdBanner = React.memo(AdBannerComponent);
 
 const styles = StyleSheet.create({
   container: {

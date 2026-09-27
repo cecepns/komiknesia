@@ -18,8 +18,10 @@ import { MangaCard } from '../components/MangaCard';
 import { SearchInput } from '../components/SearchInput';
 import { CategoryPill } from '../components/CategoryPill';
 import { EmptyState } from '../components/EmptyState';
-import { AdBanner } from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
+import { useAuth } from '../contexts/AuthContext';
+import { ChapterAccessModal } from '../components/ChapterAccessModal';
+import { requiresChapterLogin } from '../utils/chapterAccess';
 
 const TYPE_OPTIONS = ['All', 'Manhwa', 'Manga', 'Manhua'];
 const STATUS_OPTIONS = ['All', 'Ongoing', 'Completed'];
@@ -32,6 +34,10 @@ const ORDER_OPTIONS = [
 ];
 
 export const ExploreScreen = ({ navigation, route }) => {
+  const { isAuthenticated } = useAuth();
+  const [accessModalVisible, setAccessModalVisible] = useState(false);
+  const [lockedChapterInfo, setLockedChapterInfo] = useState({ chapter: null, manga: null });
+
   const [searchQuery, setSearchQuery] = useState(route?.params?.query || '');
   const [debouncedQuery, setDebouncedQuery] = useState(route?.params?.query || '');
   const [selectedType, setSelectedType] = useState(route?.params?.filterType || 'All');
@@ -169,6 +175,25 @@ export const ExploreScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleChapterPress = (chapter, manga) => {
+    if (!chapter?.slug) {
+      handleMangaPress(manga);
+      return;
+    }
+
+    if (requiresChapterLogin(chapter, isAuthenticated)) {
+      setLockedChapterInfo({ chapter, manga });
+      setAccessModalVisible(true);
+      return;
+    }
+
+    navigation.navigate('ChapterReader', {
+      chapterSlug: chapter.slug,
+      mangaSlug: manga?.slug || manga?.id,
+      mangaTitle: manga?.title || '',
+    });
+  };
+
   const toggleGenre = (genreId) => {
     setSelectedGenreIds((prev) => {
       const next = new Set(prev);
@@ -304,7 +329,14 @@ export const ExploreScreen = ({ navigation, route }) => {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           renderItem={({ item }) => (
-            <MangaCard manga={item} columns={2} onPress={handleMangaPress} />
+            <MangaCard
+              manga={item}
+              columns={2}
+              showLastChapters={true}
+              isAuthenticated={isAuthenticated}
+              onPress={handleMangaPress}
+              onChapterPress={handleChapterPress}
+            />
           )}
           ListHeaderComponent={
             comicTopAds.length > 0 ? (
@@ -392,6 +424,22 @@ export const ExploreScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Custom Modal Akses Terbatas */}
+      <ChapterAccessModal
+        visible={accessModalVisible}
+        chapter={lockedChapterInfo.chapter}
+        manga={lockedChapterInfo.manga}
+        onClose={() => setAccessModalVisible(false)}
+        onLoginPress={() => {
+          setAccessModalVisible(false);
+          navigation.navigate('Login');
+        }}
+        onRegisterPress={() => {
+          setAccessModalVisible(false);
+          navigation.navigate('Register');
+        }}
+      />
     </SafeAreaView>
   );
 };

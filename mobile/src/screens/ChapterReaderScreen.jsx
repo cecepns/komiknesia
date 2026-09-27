@@ -3,7 +3,7 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
+  Image as RNImage,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -13,7 +13,8 @@ import {
   StatusBar,
   Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient, getImageUrl } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,9 +31,10 @@ import { useAds } from '../hooks/useAds';
 const { width } = Dimensions.get('window');
 
 export const ChapterReaderScreen = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const { chapterSlug, mangaSlug, mangaTitle } = route.params || {};
   const { isAuthenticated, user } = useAuth();
-  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip');
+  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip') && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
 
   // Ads mirroring web positions
   const { ads: readerTopAds } = useAds('manga-detail-top');
@@ -323,7 +325,15 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
 
       {/* Top Floating Controls */}
       {controlsVisible && (
-        <SafeAreaView edges={['top']} style={styles.topControlBar}>
+        <View
+          style={[
+            styles.topControlBar,
+            {
+              paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 44 : 14),
+              paddingBottom: 12,
+            },
+          ]}
+        >
           <TouchableOpacity
             style={styles.controlCircleBtn}
             onPress={() => navigation.goBack()}
@@ -369,7 +379,7 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
               <Ionicons name="share-social-outline" size={18} color="#FFF" />
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
+        </View>
       )}
 
       {/* Reader Scrollable Canvas */}
@@ -436,7 +446,15 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
 
       {/* Bottom Floating Reader Bar */}
       {controlsVisible && (
-        <SafeAreaView edges={['bottom']} style={styles.bottomControlBar}>
+        <View
+          style={[
+            styles.bottomControlBar,
+            {
+              paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12),
+              paddingTop: 12,
+            },
+          ]}
+        >
           <TouchableOpacity
             style={[styles.bottomNavBtn, !prevChapter && styles.bottomNavBtnDisabled]}
             disabled={!prevChapter}
@@ -487,7 +505,7 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
               color={nextChapter ? '#FFF' : COLORS.textMuted}
             />
           </TouchableOpacity>
-        </SafeAreaView>
+        </View>
       )}
 
       {/* Chapter Selector Modal / Drawer */}
@@ -543,15 +561,15 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
   );
 };
 
-// Subcomponent for each image with auto-ratio detection
+// Subcomponent for each image with auto-ratio detection and crisp rendering
 const ReaderImage = ({ uri, index, total }) => {
-  const [aspectRatio, setAspectRatio] = useState(1 / 1.4);
+  const [aspectRatio, setAspectRatio] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!uri) return;
-    Image.getSize(
+    RNImage.getSize(
       uri,
       (w, h) => {
         if (w > 0 && h > 0) {
@@ -562,8 +580,10 @@ const ReaderImage = ({ uri, index, total }) => {
     );
   }, [uri]);
 
+  const displayHeight = aspectRatio ? width / aspectRatio : width * 1.4;
+
   return (
-    <View style={[styles.imageWrapper, { width, height: width / aspectRatio }]}>
+    <View style={[styles.imageWrapper, { width, height: displayHeight }]}>
       {!loaded && !hasError && (
         <View style={styles.imagePlaceholder}>
           <ActivityIndicator size="small" color={COLORS.primary} />
@@ -575,8 +595,18 @@ const ReaderImage = ({ uri, index, total }) => {
       <Image
         source={{ uri }}
         style={styles.pageImage}
-        resizeMode="cover"
-        onLoad={() => setLoaded(true)}
+        contentFit="contain"
+        allowDownscaling={false}
+        cachePolicy="memory-disk"
+        priority="high"
+        onLoad={(event) => {
+          setLoaded(true);
+          const w = event?.source?.width;
+          const h = event?.source?.height;
+          if (w > 0 && h > 0) {
+            setAspectRatio(w / h);
+          }
+        }}
         onError={() => setHasError(true)}
       />
       {hasError && (
@@ -652,9 +682,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    backgroundColor: 'rgba(11, 15, 25, 0.92)',
+    backgroundColor: '#000000',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
   },
   controlCircleBtn: {
     width: 36,
@@ -689,18 +719,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    backgroundColor: 'rgba(11, 15, 25, 0.95)',
+    backgroundColor: '#000000',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
   },
   bottomNavBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: '#161922',
     paddingHorizontal: SPACING.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     gap: 4,
   },
   bottomNavBtnDisabled: {
@@ -717,28 +748,28 @@ const styles = StyleSheet.create({
   bottomChapterSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#11131A',
     paddingHorizontal: SPACING.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     gap: 6,
   },
   bottomSelectorText: {
-    color: COLORS.text,
+    color: '#FFF',
     fontSize: 12,
     fontWeight: '700',
   },
   autoScrollBtn: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#161922',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   autoScrollBtnActive: {
     backgroundColor: COLORS.primary,
@@ -790,11 +821,13 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   drawerSheet: {
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: '#0A0A0A',
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     maxHeight: '70%',
     padding: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   drawerHeader: {
     flexDirection: 'row',

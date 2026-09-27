@@ -26,7 +26,7 @@ const SLIDES = [
       'Nikmati pengalaman membaca ribuan judul komik favoritmu kapan saja dan di mana saja dengan kualitas gambar jernih, loading super cepat, dan tampilan responsif.',
     badgeIcon: 'book',
     badgeColor: '#EF4444',
-    gradient: ['#7F1D1D', '#1E1B4B', '#0B0F19'],
+    gradient: ['#7F1D1D', '#1E1B4B', '#000000'],
     featuresType: 'simple',
   },
   {
@@ -37,7 +37,7 @@ const SLIDES = [
       'Akses ribuan komik Manga, Manhwa, dan Manhua terpopuler dengan koleksi terlengkap dan terupdate setiap waktu.',
     badgeIcon: 'layers',
     badgeColor: '#F59E0B',
-    gradient: ['#78350F', '#1E1B4B', '#0B0F19'],
+    gradient: ['#78350F', '#1E1B4B', '#000000'],
     featuresType: 'checklist',
     checklist: [
       { id: 'c1', text: 'Update tercepat setiap hari' },
@@ -53,7 +53,7 @@ const SLIDES = [
       'Temukan, simpan, dan baca komik di mana saja dengan fitur-fitur pintar yang dirancang khusus untuk kenyamanan membaca.',
     badgeIcon: 'phone-portrait',
     badgeColor: '#3B82F6',
-    gradient: ['#1E3A8A', '#1E1B4B', '#0B0F19'],
+    gradient: ['#1E3A8A', '#1E1B4B', '#000000'],
     featuresType: 'points',
     points: [
       {
@@ -264,7 +264,7 @@ export const IntroScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#000000',
   },
   safeArea: {
     flex: 1,

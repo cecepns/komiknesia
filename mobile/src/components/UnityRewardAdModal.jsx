@@ -8,20 +8,18 @@ import {
   Dimensions,
   Animated,
   Alert,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
-import { UNITY_ADS_CONFIG } from '../services/unityAds';
+import { unityAdsService } from '../services/unityAds';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const REWARD_DURATION = 5; // 5 seconds rewarded ad duration
 
 export const UnityRewardAdModal = ({
   visible,
   type = 'chapter', // 'chapter' | 'download'
-  placementId,
   onReward,
   onClose,
 }) => {
@@ -30,15 +28,9 @@ export const UnityRewardAdModal = ({
   const [isMuted, setIsMuted] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const currentPlacement =
-    placementId ||
-    (type === 'download'
-      ? UNITY_ADS_CONFIG.downloadUnlockPlacementId
-      : UNITY_ADS_CONFIG.chapterUnlockPlacementId);
-
   const titleText =
     type === 'download'
-      ? 'Iklan Reward Unduhan (Kelipatan 5x)'
+      ? 'Iklan Reward Unduhan (Kelipatan 3x)'
       : 'Iklan Reward Chapter (Kelipatan 5x)';
 
   const rewardDescription =
@@ -54,11 +46,34 @@ export const UnityRewardAdModal = ({
       return;
     }
 
+    let isMounted = true;
+
+    // Coba putar video iklan native Unity LevelPlay secara otomatis
+    (async () => {
+      try {
+        const displayed = await unityAdsService.showNativeRewardedAd(
+          type,
+          () => {
+            if (isMounted && onReward) onReward();
+          },
+          () => {
+            if (isMounted && onClose) onClose();
+          }
+        );
+        if (displayed && isMounted) {
+          if (onClose) onClose();
+          return;
+        }
+      } catch (err) {
+        console.log('[UnityRewardAdModal] Native ad not ready, using fallback:', err?.message);
+      }
+    })();
+
     setSecondsLeft(REWARD_DURATION);
     setIsCompleted(false);
     progressAnim.setValue(0);
 
-    // Animate progress bar across 5 seconds
+    // Animasi progress bar selama durasi reward
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: REWARD_DURATION * 1000,
@@ -76,8 +91,11 @@ export const UnityRewardAdModal = ({
       });
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [visible, progressAnim]);
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, [visible, progressAnim, type, onReward, onClose]);
 
   const handleAttemptClose = () => {
     if (isCompleted) {
@@ -118,17 +136,12 @@ export const UnityRewardAdModal = ({
       onRequestClose={handleAttemptClose}
     >
       <View style={styles.container}>
-        {/* Top Unity Ads Header Bar */}
+        {/* Top Header Bar */}
         <View style={styles.topBar}>
           <View style={styles.brandRow}>
             <View style={styles.unityBadge}>
-              <Ionicons name="cube" size={14} color="#FFF" />
-              <Text style={styles.unityBrandText}>UNITY ADS</Text>
-            </View>
-            <View style={styles.placementPill}>
-              <Text numberOfLines={1} style={styles.placementPillText}>
-                ID: {currentPlacement}
-              </Text>
+              <Ionicons name="film" size={14} color="#FFF" />
+              <Text style={styles.unityBrandText}>IKLAN SPONSOR</Text>
             </View>
           </View>
 
@@ -177,7 +190,7 @@ export const UnityRewardAdModal = ({
           />
         </View>
 
-        {/* Main Ad Stage / Visual Card */}
+        {/* Main Ad Stage */}
         <View style={styles.adStage}>
           <LinearGradient
             colors={['#1E1B4B', '#0F172A', '#020617']}
@@ -193,7 +206,7 @@ export const UnityRewardAdModal = ({
               >
                 <Ionicons
                   name={type === 'download' ? 'cloud-download' : 'book'}
-                  size={56}
+                  size={52}
                   color="#FFF"
                 />
               </LinearGradient>
@@ -202,16 +215,12 @@ export const UnityRewardAdModal = ({
             <Text style={styles.rewardNoticeTitle}>{titleText}</Text>
             <Text style={styles.rewardNoticeDesc}>{rewardDescription}</Text>
 
-            {/* App Key & Info Box */}
-            <View style={styles.metaBox}>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>App Key:</Text>
-                <Text style={styles.metaVal}>{UNITY_ADS_CONFIG.appKey}</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Placement:</Text>
-                <Text style={styles.metaVal}>{currentPlacement}</Text>
-              </View>
+            {/* Sponsor Box (Privasi aman: tidak pernah menampilkan key/placement ke publik) */}
+            <View style={styles.sponsorNoticeBox}>
+              <Ionicons name="sparkles" size={18} color="#FBBF24" />
+              <Text style={styles.sponsorNoticeText}>
+                Iklan ini membantu KomikNesia tetap gratis dan update cepat setiap hari. Terima kasih atas dukunganmu!
+              </Text>
             </View>
 
             {/* Status Indicator */}
@@ -250,7 +259,7 @@ export const UnityRewardAdModal = ({
           ) : (
             <View style={styles.watchingStatusBox}>
               <Text style={styles.watchingStatusText}>
-                Menayangkan Iklan Unity Ads ({secondsLeft}s)...
+                Menayangkan Iklan Sponsor ({secondsLeft}s)...
               </Text>
             </View>
           )}
@@ -263,18 +272,17 @@ export const UnityRewardAdModal = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
     justifyContent: 'space-between',
   },
   topBar: {
-    paddingTop: 50,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
+    paddingTop: 48,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    zIndex: 10,
+    backgroundColor: '#0A0A0A',
   },
   brandRow: {
     flexDirection: 'row',
@@ -285,30 +293,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#000',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   unityBrandText: {
     color: '#FFF',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
-  },
-  placementPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: RADIUS.sm,
-    maxWidth: 140,
-  },
-  placementPillText: {
-    color: '#9CA3AF',
-    fontSize: 9,
-    fontWeight: '600',
   },
   topRightControls: {
     flexDirection: 'row',
@@ -378,9 +374,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   graphicCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -393,7 +389,7 @@ const styles = StyleSheet.create({
   },
   rewardNoticeTitle: {
     color: '#FFF',
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '900',
     textAlign: 'center',
     marginBottom: 8,
@@ -406,31 +402,23 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     paddingHorizontal: SPACING.sm,
   },
-  metaBox: {
-    width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    borderRadius: RADIUS.md,
-    padding: 10,
-    marginBottom: SPACING.lg,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  metaRow: {
+  sponsorNoticeBox: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  metaLabel: {
-    color: '#64748B',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  metaVal: {
+  sponsorNoticeText: {
+    flex: 1,
     color: '#CBD5E1',
-    fontSize: 10,
-    fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 11,
+    lineHeight: 16,
   },
   completedBadge: {
     flexDirection: 'row',
@@ -438,7 +426,7 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.3)',
@@ -446,18 +434,16 @@ const styles = StyleSheet.create({
   completedText: {
     color: '#10B981',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   rewardTimerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.25)',
   },
   timerNoticeText: {
     color: '#FBBF24',
@@ -465,41 +451,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   timerBold: {
-    fontWeight: '900',
-    color: '#FFF',
+    fontWeight: '800',
+    color: '#FDE68A',
   },
   footerBar: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: Platform.OS === 'ios' ? 44 : SPACING.xl,
-    paddingTop: SPACING.md,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingBottom: 36,
   },
   claimBtn: {
     width: '100%',
-    borderRadius: RADIUS.xl,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
   },
   claimBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
     gap: 8,
+    paddingVertical: 14,
   },
   claimBtnText: {
     color: '#FFF',
     fontSize: 15,
     fontWeight: '800',
-    letterSpacing: 0.2,
   },
   watchingStatusBox: {
-    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: RADIUS.lg,
   },
   watchingStatusText: {
     color: '#94A3B8',

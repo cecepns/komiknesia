@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
@@ -13,13 +14,25 @@ import { AccountScreen } from '../screens/AccountScreen';
 const Tab = createBottomTabNavigator();
 
 export const TabNavigator = () => {
+  const insets = useSafeAreaInsets();
+  // Safe bottom padding: when Android uses 3-button navigation (insets.bottom ~48dp),
+  // this pushes the tabs above the system navigation bar so they are never covered.
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 8);
+  const tabHeight = 56 + bottomPadding;
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: tabHeight,
+            paddingBottom: bottomPadding,
+          },
+        ],
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
@@ -79,11 +92,9 @@ export const TabNavigator = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#000000',
     borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceBorder,
-    height: Platform.OS === 'ios' ? 84 : 64,
-    paddingBottom: Platform.OS === 'ios' ? 26 : 8,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: 8,
   },
   tabLabel: {

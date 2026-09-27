@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -14,7 +13,8 @@ import {
   Modal,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,8 +37,10 @@ const ITEMS_PER_PAGE = 10;
 
 export const MangaDetailScreen = ({ navigation, route }) => {
   const { slug } = route.params || {};
+  const insets = useSafeAreaInsets();
+  const headerHeight = insets.top + 52;
   const { isAuthenticated, user } = useAuth();
-  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip');
+  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip') && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
 
   // Ads mirroring web positions
   const { ads: chapterTopAds } = useAds('chapter-top');
@@ -575,13 +577,19 @@ export const MangaDetailScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       {/* Header Navigation matching web */}
       <SafeAreaView edges={['top']} style={styles.navBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.navSquareBtn}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
-        </TouchableOpacity>
+        <View style={styles.navLeftWrapper}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.navSquareBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFF" />
+          </TouchableOpacity>
+
+          <Text numberOfLines={1} style={styles.navBarTitle}>
+            {manga?.title || ''}
+          </Text>
+        </View>
 
         <View style={styles.navRightActions}>
           <TouchableOpacity
@@ -604,7 +612,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight }]}
       >
         {/* Top Ads Banner (chapter-top) */}
         {chapterTopAds.length > 0 && (
@@ -614,7 +622,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
         )}
 
         {/* 1. HERO BANNER & POSTER CARD matching Web */}
-        <View style={[styles.heroCard, chapterTopAds.length === 0 && { marginTop: 56 }]}>
+        <View style={styles.heroCard}>
           {/* Blurred Background Poster */}
           <Image
             source={{ uri: coverUrl }}
@@ -622,7 +630,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
             blurRadius={20}
           />
           <LinearGradient
-            colors={['rgba(11, 15, 25, 0.45)', 'rgba(11, 15, 25, 0.85)', '#0B0F19']}
+            colors={['rgba(0, 0, 0, 0.45)', 'rgba(0, 0, 0, 0.85)', '#000000']}
             style={StyleSheet.absoluteFillObject}
           />
 
@@ -633,7 +641,8 @@ export const MangaDetailScreen = ({ navigation, route }) => {
                 <Image
                   source={{ uri: coverUrl }}
                   style={styles.posterImg}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                 />
               ) : (
                 <View style={styles.posterPlaceholder}>
@@ -930,7 +939,8 @@ export const MangaDetailScreen = ({ navigation, route }) => {
                         <Image
                           source={{ uri: getImageUrl(rec.cover || rec.image || rec.thumbnail) }}
                           style={styles.recCardCover}
-                          resizeMode="cover"
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
                         />
                       </View>
                       <View style={styles.recCardBody}>
@@ -1118,7 +1128,9 @@ export const MangaDetailScreen = ({ navigation, route }) => {
                   ]}
                 >
                   <Text style={styles.reactionEmoji}>{opt.emoji}</Text>
-                  <Text style={styles.reactionLabel}>{opt.label}</Text>
+                  <Text numberOfLines={1} style={styles.reactionLabel}>
+                    {opt.label}
+                  </Text>
                   <Text style={[styles.reactionCount, isSelected && { color: '#FFF' }]}>
                     {count}
                   </Text>
@@ -1336,11 +1348,11 @@ export const MangaDetailScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#000000',
   },
   centerLoading: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -1380,11 +1392,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 40,
+    backgroundColor: '#000000',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.xs,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  navLeftWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  navBarTitle: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   navSquareBtn: {
     width: 38,
@@ -1412,15 +1442,15 @@ const styles = StyleSheet.create({
 
   // Top Ads Wrapper
   topAdWrapper: {
-    marginTop: 54,
+    marginTop: SPACING.xs,
     paddingHorizontal: SPACING.md,
-    marginBottom: 0,
+    marginBottom: SPACING.xs,
   },
 
   // 1. HERO BANNER & POSTER CARD
   heroCard: {
     marginHorizontal: SPACING.md,
-    marginTop: 8,
+    marginTop: SPACING.xs,
     borderRadius: RADIUS.xxl,
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -1997,15 +2027,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: SPACING.sm,
+    alignItems: 'center',
+    gap: 10,
     width: '100%',
   },
   reactionBox: {
-    flex: 1,
-    minWidth: 56,
+    width: '29%',
+    minWidth: 88,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderRadius: RADIUS.lg,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
@@ -2016,18 +2047,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(220, 38, 38, 0.25)',
   },
   reactionEmoji: {
-    fontSize: 22,
-    marginBottom: 2,
+    fontSize: 24,
+    marginBottom: 4,
   },
   reactionLabel: {
     color: '#9CA3AF',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     marginBottom: 2,
+    textAlign: 'center',
   },
   reactionCount: {
     color: '#D1D5DB',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '900',
   },
 

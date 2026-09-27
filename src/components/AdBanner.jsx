@@ -19,6 +19,45 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
     }
   };
 
+  const renderMedia = (ad, alt, title) => {
+    const isVideo =
+      ad.media_type === 'video' ||
+      ad.ads_type?.includes('video') ||
+      !!ad.video_url ||
+      (ad.image && /\.(mp4|webm|ogg|mov)$/i.test(ad.image));
+
+    const mediaSrc = ad.video_url || getImageUrl(ad.image);
+
+    if (isVideo && mediaSrc) {
+      return (
+        <div className="relative w-full overflow-hidden bg-black/40">
+          <video
+            src={mediaSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-auto max-h-[500px] object-contain block mx-auto"
+            title={title || undefined}
+          />
+          <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-black/60 text-white rounded">
+            Video Ad
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <LazyImage
+        src={getImageUrl(ad.image)}
+        alt={alt}
+        title={title || undefined}
+        className="w-full h-auto object-contain block"
+        wrapperClassName="w-full block"
+      />
+    );
+  };
+
   if (layout === 'carousel') {
     return (
       <div className={`flex overflow-x-auto gap-0 scrollbar-hide w-full ${className}`}>
@@ -34,13 +73,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
               }`}
               title={title || undefined}
             >
-              <LazyImage
-                src={getImageUrl(ad.image)}
-                alt={alt}
-                title={title || undefined}
-                className="w-full h-auto object-contain block"
-                wrapperClassName="w-full block"
-              />
+              {renderMedia(ad, alt, title)}
             </div>
           );
         })}
@@ -72,13 +105,7 @@ const AdBanner = ({ ads, className = '', layout = 'grid', columns = 1 }) => {
             }`}
             title={title || undefined}
           >
-            <LazyImage
-              src={getImageUrl(ad.image)}
-              alt={alt}
-              title={title || undefined}
-              className="w-full h-auto object-contain block"
-              wrapperClassName="w-full block"
-            />
+            {renderMedia(ad, alt, title)}
           </div>
         );
       })}
