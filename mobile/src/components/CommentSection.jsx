@@ -451,6 +451,7 @@ export const CommentSection = ({
   externalSlug,
   scope,
   navigation,
+  style,
 }) => {
   const { isAuthenticated, user } = useAuth();
 
@@ -584,18 +585,15 @@ export const CommentSection = ({
       const asset = result.assets[0];
       setUploadingImage(true);
 
-      const formData = new FormData();
       const filename = asset.fileName || asset.uri.split('/').pop() || `comment_${Date.now()}.jpg`;
       const match = /\.(\w+)$/.exec(filename);
       const mime = match ? `image/${match[1].toLowerCase()}` : (asset.mimeType || 'image/jpeg');
 
-      formData.append('image', {
+      const res = await apiClient.uploadImage({
         uri: asset.uri,
         name: filename,
         type: mime,
       });
-
-      const res = await apiClient.uploadImage(formData);
       const imgPath = res?.image || res?.url || res?.path;
 
       if (imgPath) {
@@ -746,7 +744,7 @@ export const CommentSection = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {/* Section Header */}
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
@@ -1020,6 +1018,8 @@ export const CommentSection = ({
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
+    alignSelf: 'stretch',
     marginTop: SPACING.md,
   },
   sectionHeader: {

@@ -30,7 +30,7 @@ import { requiresChapterLogin } from '../utils/chapterAccess';
 import { ChapterAccessModal } from '../components/ChapterAccessModal';
 import { storage } from '../utils/storage';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const BANNER_WIDTH = width - SPACING.lg * 2;
 const BANNER_HEIGHT = BANNER_WIDTH * 0.54;
 
@@ -461,6 +461,19 @@ export const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // User Profile Picture & VIP status in Header
+  const userAvatarPath = user?.profile_image || user?.avatar || user?.image || user?.avatar_url || null;
+  const [avatarError, setAvatarError] = useState(false);
+  const membershipType = String(user?.membership_type || '').toLowerCase().trim();
+  const isMobileVip =
+    user?.role === 'admin' ||
+    (Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium') &&
+      (membershipType === 'mobile' || membershipType === 'both'));
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [userAvatarPath]);
+
   // Access Modal state for restricted chapters
   const [accessModalVisible, setAccessModalVisible] = useState(false);
   const [lockedChapterInfo, setLockedChapterInfo] = useState({ chapter: null, manga: null });
@@ -477,7 +490,6 @@ export const HomeScreen = ({ navigation }) => {
 
   // Ads mirroring web positions
   const { ads: homeTopAds } = useAds('home-top');
-  const { ads: homePopupAds } = useAds('home-popup');
   const { ads: projectTopAds } = useAds('project-top');
   const { ads: updateTopAds } = useAds('update-top');
   const { ads: homeManhwaAds } = useAds('home-manhwa-top');
@@ -485,20 +497,11 @@ export const HomeScreen = ({ navigation }) => {
   const { ads: homeManhuaAds } = useAds('home-manhua-top');
   const { ads: homeFooterAds } = useAds('home-footer');
 
-  // Home Popup Banner state & timing matching web Home.jsx
-  const [popupBannerVisible, setPopupBannerVisible] = useState(false);
-  const [homePopupIntervalMinutes, setHomePopupIntervalMinutes] = useState(10);
-  const [popupSettingsReady, setPopupSettingsReady] = useState(false);
-
   const loadData = useCallback(async () => {
     try {
-      // 1. Fetch settings (CDN domain, quick links, hero_banners, home_popup_interval_minutes)
+      // 1. Fetch settings (CDN domain, quick links, hero_banners)
       const settingsPromise = apiClient.getSettings().then((s) => {
         if (s?.cdn_domain) setCdnDomain(s.cdn_domain);
-        const v = s?.home_popup_interval_minutes;
-        if (Number.isFinite(v) && [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].includes(v)) {
-          setHomePopupIntervalMinutes(v);
-        }
         if (Array.isArray(s?.quick_links) && s.quick_links.length > 0) {
           const activeLinks = s.quick_links.filter((q) => q.is_active !== false);
           if (activeLinks.length > 0) setQuickLinks(activeLinks);
@@ -507,7 +510,7 @@ export const HomeScreen = ({ navigation }) => {
           return s.hero_banners.filter((b) => b.is_active !== false);
         }
         return [];
-      }).catch(() => []).finally(() => setPopupSettingsReady(true));
+      }).catch(() => []);
 
       // 2. Fetch all sections in parallel using allSettled for resilience
       const [
@@ -573,42 +576,6 @@ export const HomeScreen = ({ navigation }) => {
     loadData();
   }, [loadData]);
 
-  // Home-only popup banner: check interval against storage matching web Home.jsx
-  useEffect(() => {
-    if (!popupSettingsReady || homePopupAds.length === 0) return;
-
-    (async () => {
-      try {
-        const storageKey = 'homePopupLastShownAt';
-        const lastShownRaw = await storage.getString(storageKey);
-        const intervalMs = homePopupIntervalMinutes * 60 * 1000;
-
-        if (!lastShownRaw) {
-          setPopupBannerVisible(true);
-          return;
-        }
-
-        const lastShown = parseInt(lastShownRaw, 10);
-        if (Number.isNaN(lastShown) || Date.now() - lastShown >= intervalMs) {
-          setPopupBannerVisible(true);
-        }
-      } catch (error) {
-        console.warn('Error reading home popup timestamp:', error);
-        setPopupBannerVisible(true);
-      }
-    })();
-  }, [popupSettingsReady, homePopupIntervalMinutes, homePopupAds.length]);
-
-  const handleClosePopupBanner = async () => {
-    setPopupBannerVisible(false);
-    try {
-      const storageKey = 'homePopupLastShownAt';
-      await storage.setString(storageKey, Date.now().toString());
-    } catch (error) {
-      console.warn('Error saving home popup timestamp:', error);
-    }
-  };
-
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
@@ -657,12 +624,14 @@ export const HomeScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Akun')}
           >
             <View style={styles.userAvatarBox}>
-              {user.avatar ? (
+              {userAvatarPath && !avatarError ? (
                 <Image
-                  source={{ uri: getImageUrl(user.avatar) }}
+                  source={{ uri: getImageUrl(userAvatarPath) }}
                   style={styles.userAvatarImg}
                   contentFit="cover"
+                  cachePolicy="memory-disk"
                   transition={150}
+                  onError={() => setAvatarError(true)}
                 />
               ) : (
                 <LinearGradient
@@ -674,7 +643,7 @@ export const HomeScreen = ({ navigation }) => {
                   </Text>
                 </LinearGradient>
               )}
-              {!!user.membership_active && (
+              {isMobileVip && (
                 <View style={styles.vipBadgeDot}>
                   <Ionicons name="sparkles" size={8} color="#FFF" />
                 </View>
@@ -736,7 +705,7 @@ export const HomeScreen = ({ navigation }) => {
           <>
             {/* Home Top Ads (Sama seperti Web) */}
             {homeTopAds.length > 0 && (
-              <AdBanner ads={homeTopAds} columns={2} style={styles.sectionAdBanner} />
+              <AdBanner ads={homeTopAds} columns={1} style={styles.sectionAdBanner} />
             )}
 
             {/* 1. HERO BANNER SECTION (PALING PERTAMA) */}
@@ -750,7 +719,7 @@ export const HomeScreen = ({ navigation }) => {
 
             {/* 4. PROJEK KOMIKNESIA SECTION */}
             {projectTopAds.length > 0 && (
-              <AdBanner ads={projectTopAds} columns={2} style={styles.sectionAdBanner} />
+              <AdBanner ads={projectTopAds} columns={1} style={styles.sectionAdBanner} />
             )}
             {projectManga.length > 0 && (
               <View style={styles.section}>
@@ -778,7 +747,7 @@ export const HomeScreen = ({ navigation }) => {
 
             {/* 5. UPDATE TERBARU SECTION */}
             {updateTopAds.length > 0 && (
-              <AdBanner ads={updateTopAds} columns={2} style={styles.sectionAdBanner} />
+              <AdBanner ads={updateTopAds} columns={1} style={styles.sectionAdBanner} />
             )}
             {latestUpdates.length > 0 && (
               <View style={styles.section}>
@@ -806,7 +775,7 @@ export const HomeScreen = ({ navigation }) => {
 
             {/* 6. MANHWA SECTION (KOMIK KOREA / KR) */}
             {homeManhwaAds.length > 0 && (
-              <AdBanner ads={homeManhwaAds} columns={2} style={styles.sectionAdBanner} />
+              <AdBanner ads={homeManhwaAds} columns={1} style={styles.sectionAdBanner} />
             )}
             {manhwaList.length > 0 && (
               <View style={styles.section}>
@@ -834,7 +803,7 @@ export const HomeScreen = ({ navigation }) => {
 
             {/* 7. MANGA SECTION (KOMIK JEPANG / JP) */}
             {homeMangaAds.length > 0 && (
-              <AdBanner ads={homeMangaAds} columns={2} style={styles.sectionAdBanner} />
+              <AdBanner ads={homeMangaAds} columns={1} style={styles.sectionAdBanner} />
             )}
             {mangaList.length > 0 && (
               <View style={styles.section}>
@@ -862,7 +831,7 @@ export const HomeScreen = ({ navigation }) => {
 
             {/* 8. MANHUA SECTION (KOMIK CHINA / CN) */}
             {homeManhuaAds.length > 0 && (
-              <AdBanner ads={homeManhuaAds} columns={2} style={styles.sectionAdBanner} />
+              <AdBanner ads={homeManhuaAds} columns={1} style={styles.sectionAdBanner} />
             )}
             {manhuaList.length > 0 && (
               <View style={styles.section}>
@@ -890,40 +859,13 @@ export const HomeScreen = ({ navigation }) => {
 
             {/* Home Footer Ads (Sama seperti Web) */}
             {homeFooterAds.length > 0 && (
-              <AdBanner ads={homeFooterAds} columns={2} style={styles.footerAdBanner} />
+              <AdBanner ads={homeFooterAds} columns={1} style={styles.footerAdBanner} />
             )}
           </>
         )}
       </ScrollView>
 
-      {/* Home Popup Announcement Banner - Matching Web Home.jsx */}
-      {popupBannerVisible && homePopupAds.length > 0 && (
-        <Modal
-          visible={popupBannerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={handleClosePopupBanner}
-          statusBarTranslucent
-        >
-          <View style={styles.popupOverlay}>
-            <View style={styles.popupContainer}>
-              <TouchableOpacity
-                style={styles.popupCloseBtn}
-                onPress={handleClosePopupBanner}
-                activeOpacity={0.8}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={16} color="#FFF" />
-              </TouchableOpacity>
-              <AdBanner
-                ads={homePopupAds.slice(0, 1)}
-                columns={1}
-                containerPadding={0}
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
+      {/* Home Popup Announcement Banner - di-hide di mobile sesuai permintaan */}
       {/* Custom Modal Akses Terbatas */}
       <ChapterAccessModal
         visible={accessModalVisible}
@@ -1402,23 +1344,31 @@ const styles = StyleSheet.create({
   },
   popupOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.lg,
+    padding: SPACING.md,
   },
   popupContainer: {
     position: 'relative',
     width: '100%',
-    maxWidth: 290,
+    maxWidth: 380,
+    maxHeight: height * 0.8,
+  },
+  popupScrollView: {
+    width: '100%',
+  },
+  popupScrollContent: {
+    alignItems: 'center',
+    width: '100%',
   },
   popupCloseBtn: {
     position: 'absolute',
-    top: -12,
-    right: -12,
+    top: -14,
+    right: -10,
     zIndex: 50,
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
     borderRadius: RADIUS.full,
     backgroundColor: '#7F1D1D',
     borderWidth: 1.5,

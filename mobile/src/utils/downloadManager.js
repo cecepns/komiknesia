@@ -43,14 +43,18 @@ export const downloadManager = {
    * Cek apakah chapter tertentu sudah tersimpan offline di HP.
    */
   async isChapterDownloaded(mangaSlug, chapterSlug) {
-    if (!mangaSlug || !chapterSlug) return false;
+    if (!chapterSlug) return false;
     try {
       const all = await this.getAllDownloadedManga();
-      const mangaItem = all.find(
-        (m) => m.slug === mangaSlug || m.id === mangaSlug
-      );
-      if (!mangaItem) return false;
-      return mangaItem.chapters.some((c) => c.slug === chapterSlug);
+      if (mangaSlug) {
+        const mangaItem = all.find(
+          (m) => m.slug === mangaSlug || m.id === mangaSlug
+        );
+        if (mangaItem && mangaItem.chapters?.some((c) => c.slug === chapterSlug)) {
+          return true;
+        }
+      }
+      return all.some((m) => m.chapters?.some((c) => c.slug === chapterSlug));
     } catch {
       return false;
     }
@@ -60,14 +64,34 @@ export const downloadManager = {
    * Ambil data lengkap chapter offline beserta path gambar lokal file://.
    */
   async getDownloadedChapter(mangaSlug, chapterSlug) {
+    if (!chapterSlug) return null;
     try {
       const all = await this.getAllDownloadedManga();
-      const mangaItem = all.find(
-        (m) => m.slug === mangaSlug || m.id === mangaSlug
-      );
-      if (!mangaItem) return null;
-      const chapter = mangaItem.chapters.find((c) => c.slug === chapterSlug);
-      if (!chapter) return null;
+      let mangaItem = null;
+      let chapter = null;
+
+      if (mangaSlug) {
+        mangaItem = all.find(
+          (m) => m.slug === mangaSlug || m.id === mangaSlug
+        );
+        if (mangaItem && Array.isArray(mangaItem.chapters)) {
+          chapter = mangaItem.chapters.find((c) => c.slug === chapterSlug);
+        }
+      }
+
+      // Fallback: jika mangaSlug tidak cocok atau null, cari chapter di seluruh komik terunduh
+      if (!chapter) {
+        for (const m of all) {
+          const ch = m.chapters?.find((c) => c.slug === chapterSlug);
+          if (ch) {
+            mangaItem = m;
+            chapter = ch;
+            break;
+          }
+        }
+      }
+
+      if (!mangaItem || !chapter) return null;
       return {
         manga: mangaItem,
         chapter,
@@ -279,6 +303,30 @@ export const downloadManager = {
       await AsyncStorage.setItem(OFFLINE_INDEX_KEY, JSON.stringify(updatedAll));
     } catch (err) {
       console.warn('Error deleting chapter:', err);
+    }
+  },
+
+  /**
+   * Hapus seluruh data dan chapter terunduh dari suatu komik.
+   */
+  async deleteDownloadedManga(mangaSlug) {
+    try {
+      const all = await this.getAllDownloadedManga();
+      const mangaEntry = all.find((m) => m.slug === mangaSlug);
+      if (!mangaEntry) return;
+
+      const safeMangaSlug = sanitizeSlug(mangaSlug);
+      const mangaDir = `${FileSystem.documentDirectory}downloads/${safeMangaSlug}/`;
+      try {
+        await FileSystem.deleteAsync(mangaDir, { idempotent: true });
+      } catch (err) {
+        console.warn('Gagal menghapus folder manga:', err);
+      }
+
+      const updatedAll = all.filter((m) => m.slug !== mangaSlug);
+      await AsyncStorage.setItem(OFFLINE_INDEX_KEY, JSON.stringify(updatedAll));
+    } catch (err) {
+      console.warn('Error deleting manga:', err);
     }
   },
 

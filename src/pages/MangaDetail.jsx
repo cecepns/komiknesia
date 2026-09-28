@@ -876,11 +876,13 @@ const MangaDetail = () => {
                   <div
                     key={chapter.id}
                     onClick={() => openChapter(navigate, chapter, isLatest)}
-                    className={`rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between gap-3 p-3 bg-[#0a0a0e] border ${
+                    className={`rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex items-center justify-between gap-3 p-3 border transition-colors ${
                       chapterLocked
                         ? 'border-amber-500/30'
+                        : isRead
+                        ? 'border-white/5 hover:border-white/10'
                         : 'border-white/10 hover:border-red-500/50'
-                    }`}
+                    } ${isRead ? 'bg-[#05060a]/90 opacity-70' : 'bg-[#0a0a0e]'}`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-lg bg-gray-950 border border-white/10">

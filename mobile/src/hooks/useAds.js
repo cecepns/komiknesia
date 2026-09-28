@@ -39,8 +39,14 @@ async function getAdsWithCache() {
 
 export const useAds = (adsType, limit = null, enabled = true) => {
   const { user, loading: authLoading } = useAuth();
-  // User is premium on mobile if membership_active AND (membership_type is 'mobile', 'both', or legacy undefined)
-  const isPremiumUser = !!user?.membership_active && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
+  // Khusus Mobile: Pengguna berstatus bebas iklan HANYA jika:
+  // 1. Role admin, ATAU
+  // 2. Memiliki VIP / membership_active DAN membership_type secara spesifik adalah 'mobile' atau 'both'.
+  // Jika membership_type adalah 'web', kosong, atau selain mobile/both, pengguna di APK mobile BUKAN VIP dan TETAP melihat iklan!
+  const membershipType = String(user?.membership_type || '').toLowerCase().trim();
+  const isMobileMembership = membershipType === 'mobile' || membershipType === 'both';
+  const hasVipOrActive = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
+  const isPremiumUser = user?.role === 'admin' || (hasVipOrActive && isMobileMembership);
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,13 +62,22 @@ export const useAds = (adsType, limit = null, enabled = true) => {
 
         if (!isMounted) return;
 
-        // Filter by ads_type, target_platform ('mobile' or 'both'), and active/unexpired
+        // Filter by ads_type, platform (hanya 'mobile', 'both', 'keduanya', 'all') and active/unexpired (tanpa limit)
         let filteredAds = allAds.filter((ad) => {
           if (ad.ads_type !== adsType) return false;
-          const platform = (ad.target_platform || 'web').toLowerCase();
-          if (platform !== 'mobile' && platform !== 'both' && platform !== 'all' && platform !== 'keduanya') {
+
+          // Khusus mobile: hanya munculkan jika category Platform di apinya mobile / keduanya (both/keduanya/all).
+          // Jangan munculkan jika web saja.
+          const platform = String(ad.target_platform || '').toLowerCase().trim();
+          const isAllowedPlatform =
+            platform === 'mobile' ||
+            platform === 'both' ||
+            platform === 'keduanya' ||
+            platform === 'all';
+          if (!isAllowedPlatform) {
             return false;
           }
+
           if (ad.is_active === 0 || ad.is_active === false) return false;
           if (!ad.expired_at) return true;
           const expiresAt = new Date(ad.expired_at).getTime();
@@ -72,10 +87,7 @@ export const useAds = (adsType, limit = null, enabled = true) => {
         // Sort by display_order ascending
         filteredAds.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
-        if (limit && limit > 0) {
-          filteredAds = filteredAds.slice(0, limit);
-        }
-
+        // TIDAK ADA LIMIT untuk banner ads - tampilkan semua iklan aktif
         setAds(filteredAds);
       } catch (err) {
         if (!isMounted) return;

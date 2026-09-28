@@ -1,5 +1,6 @@
 import { decryptResponseAddress } from '../utils/decryptor';
 import { storage } from '../utils/storage';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export const API_BASE_URL = 'https://api-be.komiknesia.my.id/api';
 export const API_BASE_URL_WITHOUT_API = 'https://api-be.komiknesia.my.id/';
@@ -128,6 +129,17 @@ class APIClient {
       return responseData;
     } catch (error) {
       console.warn(`[APIClient] Request failed for ${endpoint}:`, error.message);
+      if (
+        error?.message?.includes('UnknownHostException') ||
+        error?.message?.includes('Network request failed') ||
+        error?.message?.includes('Failed to fetch') ||
+        error?.message?.includes('fetch failed') ||
+        error?.name === 'TypeError'
+      ) {
+        const netErr = new Error('Koneksi internet tidak tersedia. Periksa jaringan internet kamu.');
+        netErr.isNetworkError = true;
+        throw netErr;
+      }
       throw error;
     }
   }
@@ -396,18 +408,115 @@ class APIClient {
   }
 
   // Upload Image for Chat & Comments
-  async uploadImage(formData) {
-    try {
-      return await this.request('/comments/upload-image', {
-        method: 'POST',
-        body: formData,
-      });
-    } catch (err) {
-      return await this.request('/upload-image', {
-        method: 'POST',
-        body: formData,
-      });
+  async uploadImage(fileData) {
+    let fileUri = null;
+    let mimeType = 'image/jpeg';
+    let fileName = 'upload.jpg';
+
+    if (typeof fileData === 'string') {
+      fileUri = fileData;
+    } else if (fileData?.uri) {
+      fileUri = fileData.uri;
+      mimeType = fileData.type || mimeType;
+      fileName = fileData.name || fileName;
+    } else if (fileData?._parts && Array.isArray(fileData._parts)) {
+      const part = fileData._parts.find(([key]) => key === 'image')?.[1];
+      if (part?.uri) {
+        fileUri = part.uri;
+        mimeType = part.type || mimeType;
+        fileName = part.name || fileName;
+      }
     }
+
+    const token = await storage.getAuthToken();
+    const deviceId = await storage.getDeviceId();
+
+    // Strategy 1: FileSystem.uploadAsync (Native OkHttp/URLSession - 100% reliable in Expo)
+    if (fileUri) {
+      const endpoints = ['/comments/upload-image', '/upload-image'];
+      for (const endpoint of endpoints) {
+        try {
+          const targetUrl = `${API_BASE_URL}${endpoint}`;
+          const headers = {
+            'X-Device-Id': deviceId,
+            'X-App-Client': 'komiknesia-mobile',
+            'Origin': 'https://www.komiknesia.asia',
+            'Referer': 'https://www.komiknesia.asia/',
+          };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const res = await FileSystem.uploadAsync(targetUrl, fileUri, {
+            fieldName: 'image',
+            httpMethod: 'POST',
+            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+            mimeType,
+            headers,
+          });
+
+          if (res.status >= 200 && res.status < 300) {
+            const data = JSON.parse(res.body);
+            if (data && (data.image || data.url || data.path || data.status)) {
+              return data;
+            }
+          }
+        } catch (err) {
+          console.warn(`FileSystem.uploadAsync to ${endpoint} failed:`, err);
+        }
+      }
+    }
+
+    // Strategy 2: XMLHttpRequest fallback (Native React Native bridge - bypasses Expo fetch convertFormData)
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      if (fileUri) {
+        formData.append('image', {
+          uri: fileUri,
+          name: fileName,
+          type: mimeType,
+        });
+      } else if (fileData instanceof FormData) {
+        fileData._parts?.forEach(([k, v]) => formData.append(k, v));
+      }
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/comments/upload-image`);
+      xhr.setRequestHeader('X-Device-Id', deviceId);
+      xhr.setRequestHeader('X-App-Client', 'komiknesia-mobile');
+      xhr.setRequestHeader('Origin', 'https://www.komiknesia.asia');
+      xhr.setRequestHeader('Referer', 'https://www.komiknesia.asia/');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            resolve({ status: true, image: xhr.responseText });
+          }
+        } else {
+          const xhr2 = new XMLHttpRequest();
+          xhr2.open('POST', `${API_BASE_URL}/upload-image`);
+          xhr2.setRequestHeader('X-Device-Id', deviceId);
+          xhr2.setRequestHeader('X-App-Client', 'komiknesia-mobile');
+          if (token) xhr2.setRequestHeader('Authorization', `Bearer ${token}`);
+          xhr2.onload = () => {
+            if (xhr2.status >= 200 && xhr2.status < 300) {
+              try {
+                resolve(JSON.parse(xhr2.responseText));
+              } catch {
+                resolve({ status: true, image: xhr2.responseText });
+              }
+            } else {
+              reject(new Error(`Upload failed with status ${xhr2.status}`));
+            }
+          };
+          xhr2.onerror = () => reject(new Error('Network error during upload'));
+          xhr2.send(formData);
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(formData);
+    });
   }
 
   // Ads

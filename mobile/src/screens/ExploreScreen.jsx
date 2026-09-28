@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
-  FlatList,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
@@ -11,8 +10,10 @@ import {
   Dimensions,
   TextInput,
   Platform,
+  Animated,
+  StatusBar,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +22,7 @@ import { COLORS, RADIUS, SPACING } from '../constants/theme';
 import { MangaCard } from '../components/MangaCard';
 import { SearchInput } from '../components/SearchInput';
 import { EmptyState } from '../components/EmptyState';
+import { AdBanner } from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 import { useAuth } from '../contexts/AuthContext';
 import { ChapterAccessModal } from '../components/ChapterAccessModal';
@@ -62,6 +64,14 @@ const SOURCE_OPTIONS = [
 
 export const ExploreScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top || 0,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0
+  );
+  const bottomInset = Math.max(
+    insets.bottom || 0,
+    Platform.OS === 'android' ? 12 : 0
+  );
   const modalBottomInset = Math.max(
     insets.bottom || 0,
     Platform.OS === 'android' ? 24 : 16
@@ -102,10 +112,21 @@ export const ExploreScreen = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   const flatListRef = useRef(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [adHeight, setAdHeight] = useState(0);
+  const [searchFilterHeight, setSearchFilterHeight] = useState(140);
 
   // Ads
   const { ads: comicTopAds } = useAds('comic-top');
   const { ads: comicFooterAds } = useAds('comic-footer');
+
+  const effectiveAdHeight = comicTopAds?.length > 0 ? adHeight : 0;
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, Math.max(1, effectiveAdHeight)],
+    outputRange: [0, -Math.max(1, effectiveAdHeight)],
+    extrapolate: 'clamp',
+  });
+  const totalHeaderHeight = effectiveAdHeight + searchFilterHeight;
 
   // Sync route params when navigating
   useEffect(() => {
@@ -481,123 +502,180 @@ export const ExploreScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
-      {/* Header & Search */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Katalog Komik</Text>
-        <SearchInput
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          placeholder="Cari manga, manhwa, manhua..."
-          onClear={() => {
-            setSearchQuery('');
-            setDebouncedQuery('');
-          }}
-        />
-      </View>
+    <View style={styles.container}>
+      {/* Status Bar Shield: prevents scrolled content/ads from overlapping the status bar */}
+      <View
+        pointerEvents="none"
+        style={[styles.statusBarShield, { height: topInset }]}
+      />
 
-      {/* Control Bar: View Mode Switcher + Filter Button + Quick Pills */}
-      <View style={styles.controlBarWrapper}>
-        <View style={styles.controlBarLeft}>
-          {/* Filter Modal Trigger Button */}
-          <TouchableOpacity
-            style={[styles.filterTriggerBtn, activeFilterCount > 0 && styles.filterTriggerBtnActive]}
-            activeOpacity={0.8}
-            onPress={() => setFilterModalVisible(true)}
+      {/* Collapsible Top Ad + Sticky Search & Filter Header */}
+      <Animated.View
+        style={[
+          styles.headerContainer,
+          {
+            top: topInset,
+            transform: [{ translateY: headerTranslateY }],
+          },
+        ]}
+      >
+        {/* Top Banner Ads - Scrollable (tidak fixed ketika di-scroll) */}
+        {comicTopAds?.length > 0 && (
+          <View
+            style={styles.topAdWrapper}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0 && Math.abs(h - adHeight) > 1) {
+                setAdHeight(h);
+              }
+            }}
           >
-            <Ionicons
-              name="options"
-              size={16}
-              color={activeFilterCount > 0 ? '#FFF' : '#DC2626'}
-            />
-            <Text
-              style={[
-                styles.filterTriggerBtnText,
-                activeFilterCount > 0 && styles.filterTriggerBtnTextActive,
-              ]}
-            >
-              Filter {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
-            </Text>
-          </TouchableOpacity>
+            <AdBanner ads={comicTopAds} columns={1} style={styles.topAd} containerPadding={0} />
+          </View>
+        )}
 
-          {/* View Mode Toggle Pill (Grid / List) matching Content.jsx */}
-          <View style={styles.viewModeToggle}>
-            <TouchableOpacity
-              style={[styles.viewModeBtn, viewMode === 'grid' && styles.viewModeBtnActive]}
-              onPress={() => setViewMode('grid')}
+        {/* Sticky Search & Filter Content */}
+        <View
+          style={styles.stickyHeaderContent}
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            if (h > 0 && Math.abs(h - searchFilterHeight) > 1) {
+              setSearchFilterHeight(h);
+            }
+          }}
+        >
+          {/* Header & Search */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Katalog Komik</Text>
+            <SearchInput
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              placeholder="Cari manga, manhwa, manhua..."
+              onClear={() => {
+                setSearchQuery('');
+                setDebouncedQuery('');
+              }}
+            />
+          </View>
+
+          {/* Control Bar: View Mode Switcher + Filter Button + Quick Pills */}
+          <View style={styles.controlBarWrapper}>
+            <View style={styles.controlBarLeft}>
+              {/* Filter Modal Trigger Button */}
+              <TouchableOpacity
+                style={[styles.filterTriggerBtn, activeFilterCount > 0 && styles.filterTriggerBtnActive]}
+                activeOpacity={0.8}
+                onPress={() => setFilterModalVisible(true)}
+              >
+                <Ionicons
+                  name="options"
+                  size={16}
+                  color={activeFilterCount > 0 ? '#FFF' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.filterTriggerBtnText,
+                    activeFilterCount > 0 && styles.filterTriggerBtnTextActive,
+                  ]}
+                >
+                  Filter {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+                </Text>
+              </TouchableOpacity>
+
+              {/* View Mode Toggle Pill (Grid / List) matching Content.jsx */}
+              <View style={styles.viewModeToggle}>
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'grid' && styles.viewModeBtnActive]}
+                  onPress={() => setViewMode('grid')}
+                >
+                  <Ionicons
+                    name="grid"
+                    size={14}
+                    color={viewMode === 'grid' ? '#FFF' : '#9CA3AF'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'list' && styles.viewModeBtnActive]}
+                  onPress={() => setViewMode('list')}
+                >
+                  <Ionicons
+                    name="list"
+                    size={16}
+                    color={viewMode === 'list' ? '#FFF' : '#9CA3AF'}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Quick Order Selector */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickFiltersScroll}
             >
-              <Ionicons
-                name="grid"
-                size={14}
-                color={viewMode === 'grid' ? '#FFF' : '#9CA3AF'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.viewModeBtn, viewMode === 'list' && styles.viewModeBtnActive]}
-              onPress={() => setViewMode('list')}
-            >
-              <Ionicons
-                name="list"
-                size={16}
-                color={viewMode === 'list' ? '#FFF' : '#9CA3AF'}
-              />
-            </TouchableOpacity>
+              {ORDER_OPTIONS.map((ord) => (
+                <TouchableOpacity
+                  key={ord.value}
+                  style={[
+                    styles.quickPill,
+                    selectedOrder === ord.value && styles.quickPillActive,
+                  ]}
+                  onPress={() => setSelectedOrder(ord.value)}
+                >
+                  <Text
+                    style={[
+                      styles.quickPillText,
+                      selectedOrder === ord.value && styles.quickPillTextActive,
+                    ]}
+                  >
+                    {ord.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
-
-        {/* Quick Order Selector */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickFiltersScroll}
-        >
-          {ORDER_OPTIONS.map((ord) => (
-            <TouchableOpacity
-              key={ord.value}
-              style={[
-                styles.quickPill,
-                selectedOrder === ord.value && styles.quickPillActive,
-              ]}
-              onPress={() => setSelectedOrder(ord.value)}
-            >
-              <Text
-                style={[
-                  styles.quickPillText,
-                  selectedOrder === ord.value && styles.quickPillTextActive,
-                ]}
-              >
-                {ord.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      </Animated.View>
 
       {/* Comic List / Grid */}
       {loading ? (
-        <View style={styles.centerLoading}>
+        <View style={[styles.centerLoading, { paddingTop: topInset + totalHeaderHeight }]}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Memuat komik...</Text>
         </View>
       ) : mangaList.length === 0 ? (
-        <EmptyState
-          icon="search-outline"
-          title="Tidak Ada Komik Ditemukan"
-          description="Coba ubah kata kunci pencarian atau reset filter yang dipilih."
-          buttonText={hasActiveFilters ? 'Reset Semua Filter' : undefined}
-          onButtonPress={clearAllFilters}
-        />
+        <View style={[styles.emptyContainer, { paddingTop: topInset + totalHeaderHeight }]}>
+          <EmptyState
+            icon="search-outline"
+            title="Tidak Ada Komik Ditemukan"
+            description="Coba ubah kata kunci pencarian atau reset filter yang dipilih."
+            buttonText={hasActiveFilters ? 'Reset Semua Filter' : undefined}
+            onButtonPress={clearAllFilters}
+          />
+        </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           ref={flatListRef}
           data={mangaList}
           key={viewMode} // Re-mount when switching between 1-col list and 2-col grid
           keyExtractor={(item, idx) => `${item.id || item.slug}-${idx}`}
           numColumns={viewMode === 'grid' ? 2 : 1}
           columnWrapperStyle={viewMode === 'grid' ? styles.columnWrapper : null}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              paddingTop: topInset + totalHeaderHeight + SPACING.xs,
+              paddingBottom: bottomInset + SPACING.xxxl * 2,
+            },
+          ]}
+          scrollIndicatorInsets={{ top: topInset + totalHeaderHeight }}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
           renderItem={
             viewMode === 'grid'
               ? ({ item }) => (
@@ -612,18 +690,13 @@ export const ExploreScreen = ({ navigation, route }) => {
                 )
               : renderListItem
           }
-          ListHeaderComponent={
-            comicTopAds.length > 0 ? (
-              <AdBanner ads={comicTopAds} columns={2} style={styles.topAd} />
-            ) : null
-          }
           ListFooterComponent={
             <View>
               {/* Pagination controls at the bottom */}
               {renderPagination()}
 
-              {comicFooterAds.length > 0 && (
-                <AdBanner ads={comicFooterAds} columns={2} style={styles.footerAd} />
+              {comicFooterAds?.length > 0 && (
+                <AdBanner ads={comicFooterAds} columns={1} style={styles.footerAd} containerPadding={0} />
               )}
             </View>
           }
@@ -936,7 +1009,7 @@ export const ExploreScreen = ({ navigation, route }) => {
           navigation.navigate('Register');
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -945,9 +1018,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  statusBarShield: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.background,
+    zIndex: 30,
+  },
+  headerContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 20,
+    backgroundColor: COLORS.background,
+  },
+  stickyHeaderContent: {
+    backgroundColor: COLORS.background,
+  },
+  emptyContainer: {
+    flex: 1,
+  },
   header: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.xs,
   },
   headerTitle: {
@@ -1193,8 +1287,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 13,
   },
+  topAdWrapper: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.xs,
+  },
   topAd: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   footerAd: {
     marginVertical: SPACING.md,

@@ -41,7 +41,10 @@ export const MangaDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + 52;
   const { isAuthenticated, user } = useAuth();
-  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip') && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
+  const membershipType = String(user?.membership_type || '').toLowerCase().trim();
+  const isMobileMembership = membershipType === 'mobile' || membershipType === 'both';
+  const hasVipOrActive = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
+  const isVip = isAuthenticated && (user?.role === 'admin' || (hasVipOrActive && isMobileMembership));
 
   // Ads mirroring web positions
   const { ads: chapterTopAds } = useAds('chapter-top');
@@ -124,11 +127,8 @@ export const MangaDetailScreen = ({ navigation, route }) => {
         }
       }).catch(() => {});
 
-      // Load read chapters from local history
-      const history = await storage.getHistory();
-      const readSlugs = new Set(
-        history.filter((h) => h.mangaSlug === slug).map((h) => h.chapterSlug)
-      );
+      // Load read chapters from local storage
+      const readSlugs = await storage.getReadChapterSlugs();
       setReadChapterSlugs(readSlugs);
 
       // Load downloaded chapters from offline storage
@@ -142,7 +142,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
     }
   }, [slug, isAuthenticated]);
 
-  // Refresh downloaded status whenever screen is focused
+  // Refresh downloaded and read status whenever screen is focused
   useFocusEffect(
     useCallback(() => {
       if (slug && downloadManager?.getDownloadedChapters) {
@@ -153,6 +153,13 @@ export const MangaDetailScreen = ({ navigation, route }) => {
           })
           .catch(() => {});
       }
+
+      storage
+        .getReadChapterSlugs()
+        .then((set) => {
+          setReadChapterSlugs(set);
+        })
+        .catch(() => {});
     }, [slug])
   );
 
@@ -357,7 +364,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  // Open Chapter with login check and Unity Ads (every 5x)
+  // Open Chapter with login check and Unity Ads (every 3x)
   const openChapter = async (chapter) => {
     if (!chapter) return;
     const isLocked = isChapterAccessLocked(chapters, chapter.slug, isAuthenticated);
@@ -367,15 +374,19 @@ export const MangaDetailScreen = ({ navigation, route }) => {
       return;
     }
 
+    const isDownloaded = downloadedSlugs.has(chapter.slug);
+
     const proceedToReader = () => {
       navigation.navigate('ChapterReader', {
         chapterSlug: chapter.slug,
         mangaSlug: slug,
         mangaTitle: manga?.title,
+        isOffline: isDownloaded,
+        adChecked: true,
       });
     };
 
-    // Iklan Reward (Kelipatan 5x, bypass for VIP)
+    // Iklan Reward (Kelipatan 3x, bypass for VIP)
     try {
       const adCheck = await unityAdsService.trackChapterRead(isVip);
       if (adCheck?.shouldShow) {
@@ -411,6 +422,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
                 mangaSlug: slug,
                 mangaTitle: manga?.title,
                 isOffline: true,
+                adChecked: true,
               });
             },
           },
@@ -654,7 +666,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
         {/* Top Ads Banner (chapter-top) */}
         {chapterTopAds.length > 0 && (
           <View style={styles.topAdWrapper}>
-            <AdBanner ads={chapterTopAds} columns={2} containerPadding={0} />
+            <AdBanner ads={chapterTopAds} columns={1} containerPadding={0} />
           </View>
         )}
 
@@ -997,7 +1009,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
         <View style={styles.chaptersSection}>
           {listChapterAds.length > 0 && (
             <View style={styles.listChapterAdWrapper}>
-              <AdBanner ads={listChapterAds} columns={2} containerPadding={0} />
+              <AdBanner ads={listChapterAds} columns={1} containerPadding={0} />
             </View>
           )}
 
@@ -1189,7 +1201,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
         {/* 9. BOTTOM ADS BANNER (top-upvote) */}
         {topUpvoteAds.length > 0 && (
           <View style={styles.bottomAdWrapper}>
-            <AdBanner ads={topUpvoteAds} columns={2} containerPadding={0} />
+            <AdBanner ads={topUpvoteAds} columns={1} containerPadding={0} />
           </View>
         )}
       </ScrollView>

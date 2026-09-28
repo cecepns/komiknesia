@@ -78,6 +78,9 @@ export const ChapterItem = ({
               >
                 {chapterTitle}
               </Text>
+              {isRead ? (
+                <Ionicons name="checkmark-done" size={13} color={COLORS.textMuted} />
+              ) : null}
               {isLocked ? (
                 <Ionicons name="lock-closed" size={13} color="#F59E0B" />
               ) : null}
@@ -228,6 +231,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   readContainer: {
+    backgroundColor: '#05060A',
+    borderColor: 'rgba(255, 255, 255, 0.04)',
     opacity: 0.7,
   },
   leftSection: {
@@ -261,7 +266,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   readText: {
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
   },
   chapterTitle: {
     color: COLORS.textMuted,
@@ -297,7 +302,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: SPACING.sm + 2,
-    backgroundColor: '#0A0A0E',
+    backgroundColor: '#0E1118',
     borderRadius: RADIUS.xl,
     marginBottom: SPACING.sm,
     borderWidth: 1,
@@ -307,7 +312,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 158, 11, 0.35)',
   },
   readRichContainer: {
-    opacity: 0.82,
+    backgroundColor: '#05060A',
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    opacity: 0.7,
   },
   activeRichContainer: {
     borderColor: COLORS.primary,

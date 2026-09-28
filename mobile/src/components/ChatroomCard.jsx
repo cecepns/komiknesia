@@ -433,18 +433,15 @@ export const ChatroomCard = ({ navigation }) => {
       const asset = result.assets[0];
       setUploadingImage(true);
 
-      const formData = new FormData();
       const filename = asset.fileName || asset.uri.split('/').pop() || `chat_${Date.now()}.jpg`;
       const match = /\.(\w+)$/.exec(filename);
       const mime = match ? `image/${match[1].toLowerCase()}` : (asset.mimeType || 'image/jpeg');
 
-      formData.append('image', {
+      const res = await apiClient.uploadImage({
         uri: asset.uri,
         name: filename,
         type: mime,
       });
-
-      const res = await apiClient.uploadImage(formData);
       const imgPath = res?.image || res?.url || res?.path;
 
       if (imgPath) {
@@ -498,7 +495,7 @@ export const ChatroomCard = ({ navigation }) => {
       id: tempId,
       name: user?.name || user?.username || 'Saya',
       username: user?.username || 'user',
-      profile_image: user?.avatar || null,
+      profile_image: user?.profile_image || user?.avatar || null,
       message: trimmed,
       created_at: new Date().toISOString(),
       membership_active: user?.membership_active || false,
@@ -772,7 +769,7 @@ export const ChatroomCard = ({ navigation }) => {
                           <Text style={styles.msgVipTagText}>VIP</Text>
                         </View>
                       )}
-                      <Text style={styles.msgTimeText}>
+                      <Text style={[styles.msgTimeText, isMe && styles.msgTimeTextMe]}>
                         {timeAgo(msg.created_at)}
                       </Text>
                     </View>
@@ -1196,9 +1193,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   msgTimeText: {
-    color: '#6B7280',
+    color: '#9CA3AF',
     fontSize: 9.5,
     marginLeft: 'auto',
+  },
+  msgTimeTextMe: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
   },
   msgBubbleText: {
     color: '#D1D5DB',

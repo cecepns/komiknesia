@@ -244,7 +244,7 @@ export const PopularScreen = ({ navigation }) => {
           onEndReachedThreshold={0.5}
           ListHeaderComponent={
             popularTopAds.length > 0 ? (
-              <AdBanner ads={popularTopAds} columns={2} style={styles.topAd} />
+              <AdBanner ads={popularTopAds} columns={1} style={styles.topAd} containerPadding={0} />
             ) : null
           }
           ListFooterComponent={
@@ -255,7 +255,7 @@ export const PopularScreen = ({ navigation }) => {
                 </View>
               )}
               {popularFooterAds.length > 0 && (
-                <AdBanner ads={popularFooterAds} columns={2} style={styles.footerAd} />
+                <AdBanner ads={popularFooterAds} columns={1} style={styles.footerAd} containerPadding={0} />
               )}
             </View>
           }

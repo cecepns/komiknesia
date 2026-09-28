@@ -25,6 +25,7 @@ const authenticateToken = async (req, res, next) => {
         profile_image,
         points,
         is_membership,
+        COALESCE(membership_type, 'web') AS membership_type,
         membership_expires_at,
         role,
         CASE
@@ -72,6 +73,7 @@ const optionalAuthenticate = async (req, res, next) => {
         profile_image,
         points,
         is_membership,
+        COALESCE(membership_type, 'web') AS membership_type,
         membership_expires_at,
         role,
         CASE

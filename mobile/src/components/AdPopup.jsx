@@ -4,12 +4,14 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  Image,
+  Image as RNImage,
   StyleSheet,
   Dimensions,
   Linking,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -17,9 +19,7 @@ import { apiClient, getImageUrl } from '../api/client';
 import { useAds } from '../hooks/useAds';
 import { useAuth } from '../contexts/AuthContext';
 import { storage } from '../utils/storage';
-import { COLORS, RADIUS, SPACING } from '../constants/theme';
-
-const { width, height } = Dimensions.get('window');
+import { RADIUS, SPACING } from '../constants/theme';
 
 const POPUP_INTERVAL_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
 const POPUP_INITIAL_DELAY_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30];
@@ -45,7 +45,78 @@ const STARS = Array.from({ length: 24 }).map((_, i) => ({
   opacity: 0.35 + (i % 5) * 0.12,
 }));
 
+const PopupAdCard = ({ ad, onAdClick }) => {
+  const [aspectRatio, setAspectRatio] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const imageUrl = getImageUrl(ad?.image);
+
+  useEffect(() => {
+    if (!imageUrl) return;
+    let isMounted = true;
+    RNImage.getSize(
+      imageUrl,
+      (origWidth, origHeight) => {
+        if (isMounted && origWidth && origHeight && origHeight > 0) {
+          setAspectRatio(origWidth / origHeight);
+        }
+      },
+      (err) => {
+        console.warn('Failed to get popup ad size:', err);
+      }
+    );
+    return () => {
+      isMounted = false;
+    };
+  }, [imageUrl]);
+
+  if (!imageUrl) return null;
+
+  // Rasio aspek gambar asli (fallback 16/9 jika belum selesai terukur)
+  const cardRatio = aspectRatio && aspectRatio > 0 ? aspectRatio : 16 / 9;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.92}
+      onPress={() => onAdClick(ad)}
+      style={[
+        styles.popupCard,
+        {
+          aspectRatio: cardRatio,
+        },
+        !loaded && { minHeight: 180 },
+      ]}
+    >
+      {!loaded && (
+        <View style={styles.skeletonPlaceholder}>
+          <Ionicons name="megaphone-outline" size={20} color="#4B5563" />
+        </View>
+      )}
+      <Image
+        source={{ uri: imageUrl }}
+        style={styles.popupImage}
+        contentFit="fill"
+        cachePolicy="memory-disk"
+        onLoad={(e) => {
+          setLoaded(true);
+          const { width: imgW, height: imgH } = e?.source || {};
+          if (imgW && imgH && imgH > 0) {
+            setAspectRatio(imgW / imgH);
+          }
+        }}
+      />
+      <View style={styles.adBadge}>
+        <Text style={styles.adBadgeText}>AD</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
 export const AdPopup = () => {
+  // Ads popup di mobile di-hide sesuai permintaan
+  return null;
+};
+
+const _DisabledAdPopup = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { ads, loading } = useAds('popup');
@@ -268,9 +339,6 @@ export const AdPopup = () => {
     return null;
   }
 
-  const currentAd = ads[0];
-  const adImgUrl = getImageUrl(currentAd?.image);
-
   return (
     <Modal
       visible={isOpen}
@@ -343,22 +411,22 @@ export const AdPopup = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Ad Image Container */}
-        <View style={styles.adContent}>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => handleAdClick(currentAd)}
-            style={styles.adImageWrapper}
-          >
-            {adImgUrl ? (
-              <Image
-                source={{ uri: adImgUrl }}
-                style={styles.adImage}
-                resizeMode="contain"
+        {/* Scrollable Ads List (1-Grid Layout: single column, full width, no cropping) */}
+        <ScrollView
+          style={styles.adScrollView}
+          contentContainerStyle={styles.adScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.adGridContainer}>
+            {ads.map((ad, idx) => (
+              <PopupAdCard
+                key={ad.id || `popup-ad-${idx}`}
+                ad={ad}
+                onAdClick={handleAdClick}
               />
-            ) : null}
-          </TouchableOpacity>
-        </View>
+            ))}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );
@@ -455,23 +523,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
-  adContent: {
+  adScrollView: {
     flex: 1,
+    width: '100%',
+  },
+  adScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.lg,
   },
-  adImageWrapper: {
+  adGridContainer: {
     width: '100%',
-    maxHeight: height * 0.78,
+    maxWidth: 480,
+    flexDirection: 'column', // Single column 1-grid
+    gap: SPACING.md,
+    alignItems: 'center',
+  },
+  popupCard: {
+    width: '100%',
+    alignSelf: 'stretch',
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#121622',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  adImage: {
+  popupImage: {
     width: '100%',
     height: '100%',
-    aspectRatio: 16 / 9,
+  },
+  skeletonPlaceholder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#151C2C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  adBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 5,
+  },
+  adBadgeText: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

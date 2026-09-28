@@ -42,24 +42,30 @@ export const AccountScreen = ({ navigation }) => {
   // CS Modal
   const [csModalOpen, setCsModalOpen] = useState(false);
   const [adminWhatsapp, setAdminWhatsapp] = useState('');
+  const [adminTelegram, setAdminTelegram] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('https://komiknesia.id');
 
   useEffect(() => {
     let isMounted = true;
     apiClient.getContactInfo(true).then((res) => {
-      if (isMounted && res?.whatsapp) {
-        const raw = String(res.whatsapp).trim();
-        if (raw && raw !== '-') {
-          setAdminWhatsapp(raw);
+      if (isMounted && res) {
+        if (res.whatsapp) {
+          const raw = String(res.whatsapp).trim();
+          if (raw && raw !== '-') {
+            setAdminWhatsapp(raw);
+          }
+        }
+        if (res.telegram) {
+          const rawTg = String(res.telegram).trim();
+          if (rawTg && rawTg !== '-') {
+            setAdminTelegram(rawTg);
+          }
         }
       }
     }).catch(() => {});
 
-    apiClient.getSettings().then((res) => {
-      if (isMounted && (res?.website_url || res?.web_url)) {
-        setWebsiteUrl(res.website_url || res.web_url);
-      }
-    }).catch(() => {});
+    // Pastikan link website resmi selalu ke domain utama komiknesia.id
+    setWebsiteUrl('https://komiknesia.id');
 
     return () => {
       isMounted = false;
@@ -75,6 +81,14 @@ export const AccountScreen = ({ navigation }) => {
     if (digits.startsWith('0')) digits = '62' + digits.slice(1);
     return digits;
   }, [adminWhatsapp]);
+
+  const telegramUrl = useMemo(() => {
+    const raw = (adminTelegram || '').trim();
+    if (!raw || raw === '-') return 'https://t.me/KomikNesiaOfficial';
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    const handle = raw.startsWith('@') ? raw.slice(1) : raw;
+    return `https://t.me/${handle}`;
+  }, [adminTelegram]);
 
   const loadAccountData = useCallback(async () => {
     try {
@@ -171,23 +185,32 @@ export const AccountScreen = ({ navigation }) => {
   };
 
   const avatarUrl = user?.avatar || user?.profile_image ? getImageUrl(user.avatar || user.profile_image) : null;
-  const isVip = !!user?.membership_active || user?.role === 'vip';
-  const membershipType = (user?.membership_type || '').toLowerCase();
-  const isMobileVip = isVip && (!membershipType || membershipType === 'mobile' || membershipType === 'both');
+  const membershipType = String(user?.membership_type || '').toLowerCase().trim();
+  const isAdmin = user?.role === 'admin';
+  const hasActiveMembership = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
+
+  // Khusus Mobile VIP: Hanya admin atau langganan aktif tipe 'mobile' / 'both'
+  const isMobileVip = isAdmin || (hasActiveMembership && (membershipType === 'mobile' || membershipType === 'both'));
+  const isWebOnlyVip = !isAdmin && hasActiveMembership && (membershipType === 'web' || !membershipType);
   const joinDate = user?.created_at ? formatDate(user.created_at) : 'Baru bergabung';
 
   const getVipBadgeLabel = () => {
-    if (!isVip) return isAuthenticated ? 'Member Reguler' : 'Tamu (Guest)';
-    if (membershipType === 'mobile') return '📱 VIP Mobile';
-    if (membershipType === 'both') return '👑 VIP Web & Mobile';
-    if (membershipType === 'web') return '🌐 VIP Web (Web Saja)';
-    return '👑 VIP Premium';
+    if (!isAuthenticated) return 'Tamu (Guest)';
+    if (isAdmin) return '👑 Administrator';
+    if (isMobileVip) {
+      if (membershipType === 'both') return '👑 VIP Web & Mobile';
+      return '📱 VIP Mobile';
+    }
+    if (isWebOnlyVip) {
+      return '🌐 VIP Web (Web Saja)';
+    }
+    return 'Member Reguler';
   };
 
   const getVipPillLabel = () => {
-    if (membershipType === 'mobile') return 'VIP MOBILE';
+    if (isAdmin) return 'ADMIN';
     if (membershipType === 'both') return 'VIP ALL';
-    if (membershipType === 'web') return 'VIP WEB';
+    if (membershipType === 'mobile') return 'VIP MOBILE';
     return 'VIP';
   };
 
@@ -213,7 +236,7 @@ export const AccountScreen = ({ navigation }) => {
                     </Text>
                   </View>
                 )}
-                {isVip && (
+                {isMobileVip && (
                   <View style={styles.crownBadge}>
                     <Ionicons name="sparkles" size={10} color="#FFF" />
                   </View>
@@ -226,9 +249,14 @@ export const AccountScreen = ({ navigation }) => {
                   <Text numberOfLines={1} style={styles.userName}>
                     {user.name || user.username}
                   </Text>
-                  {isVip && (
+                  {isMobileVip && (
                     <View style={styles.vipTag}>
                       <Text style={styles.vipTagText}>{getVipPillLabel()}</Text>
+                    </View>
+                  )}
+                  {isWebOnlyVip && (
+                    <View style={styles.webVipTag}>
+                      <Text style={styles.webVipTagText}>VIP WEB</Text>
                     </View>
                   )}
                 </View>
@@ -314,12 +342,39 @@ export const AccountScreen = ({ navigation }) => {
                 <Ionicons name="person-circle-outline" size={18} color={COLORS.textMuted} />
                 <Text style={styles.infoLabel}>Status Pengguna</Text>
               </View>
-              <View style={[styles.statusBadge, isVip ? styles.statusBadgeVip : styles.statusBadgeNormal]}>
-                <Text style={[styles.statusBadgeText, isVip ? styles.statusBadgeVipText : styles.statusBadgeNormalText]}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  isMobileVip
+                    ? styles.statusBadgeVip
+                    : isWebOnlyVip
+                    ? styles.statusBadgeWebVip
+                    : styles.statusBadgeNormal,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    isMobileVip
+                      ? styles.statusBadgeVipText
+                      : isWebOnlyVip
+                      ? styles.statusBadgeWebVipText
+                      : styles.statusBadgeNormalText,
+                  ]}
+                >
                   {getVipBadgeLabel()}
                 </Text>
               </View>
             </View>
+
+            {isWebOnlyVip && (
+              <View style={styles.webVipNoticeBox}>
+                <Ionicons name="information-circle-outline" size={16} color="#38BDF8" />
+                <Text style={styles.webVipNoticeText}>
+                  Akun kamu berstatus VIP Web (khusus website). Di aplikasi mobile (APK), iklan banner dan Unity Ads tetap aktif. Upgrade ke VIP Mobile untuk bebas iklan di HP.
+                </Text>
+              </View>
+            )}
 
             <View style={styles.infoDivider} />
 
@@ -508,6 +563,25 @@ export const AccountScreen = ({ navigation }) => {
               </TouchableOpacity>
             )}
 
+            {/* Telegram CS & Pembayaran */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                setCsModalOpen(false);
+                Linking.openURL(telegramUrl).catch(() => {});
+              }}
+              style={[styles.csOptionRow, { borderColor: '#229ED9' }]}
+            >
+              <View style={[styles.csIconBox, { backgroundColor: '#229ED9' }]}>
+                <Ionicons name="paper-plane" size={18} color="#FFF" />
+              </View>
+              <View style={styles.csTextCol}>
+                <Text style={styles.csOptionTitle}>Telegram Customer Care</Text>
+                <Text style={styles.csOptionDesc}>Bantuan admin & pembayaran VIP via Telegram</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => {
@@ -530,7 +604,7 @@ export const AccountScreen = ({ navigation }) => {
               activeOpacity={0.85}
               onPress={() => {
                 setCsModalOpen(false);
-                Linking.openURL(websiteUrl || 'https://komiknesia.id').catch(() => {});
+                Linking.openURL('https://komiknesia.id').catch(() => {});
               }}
               style={[styles.csOptionRow, { borderColor: '#F59E0B' }]}
             >
@@ -538,8 +612,8 @@ export const AccountScreen = ({ navigation }) => {
                 <Ionicons name="globe-outline" size={20} color="#0B0F19" />
               </View>
               <View style={styles.csTextCol}>
-                <Text style={styles.csOptionTitle}>Website Resmi</Text>
-                <Text style={styles.csOptionDesc}>Kunjungi website untuk akses lengkap & langganan VIP</Text>
+                <Text style={styles.csOptionTitle}>Website Resmi (komiknesia.id)</Text>
+                <Text style={styles.csOptionDesc}>Kunjungi domain utama untuk akses lengkap & langganan VIP</Text>
               </View>
               <Ionicons name="open-outline" size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -947,6 +1021,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
+  statusBadgeWebVip: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  statusBadgeWebVipText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   statusBadgeNormal: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
@@ -954,6 +1038,38 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  webVipTag: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: RADIUS.sm,
+  },
+  webVipTagText: {
+    color: '#38BDF8',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  webVipNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  webVipNoticeText: {
+    flex: 1,
+    color: '#93C5FD',
+    fontSize: 11,
+    lineHeight: 15,
   },
 
   // 4. Menu Items

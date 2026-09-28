@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   StyleSheet,
   Alert,
@@ -12,6 +11,7 @@ import {
   TextInput,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -288,6 +288,17 @@ export const LibraryScreen = ({ navigation, route }) => {
     />
   );
 
+  const renderFooterAd = useCallback(() => {
+    if (!libraryFooterAds || libraryFooterAds.length === 0) {
+      return <View style={styles.footerSpacing} />;
+    }
+    return (
+      <View style={styles.footerContainer}>
+        <AdBanner ads={libraryFooterAds} columns={1} style={styles.footerAd} containerPadding={0} />
+      </View>
+    );
+  }, [libraryFooterAds]);
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       {/* Header */}
@@ -310,6 +321,11 @@ export const LibraryScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Library Top Ads - DI ATAS TAB NYA */}
+        {libraryTopAds?.length > 0 && (
+          <AdBanner ads={libraryTopAds} columns={1} style={styles.topAd} containerPadding={0} />
+        )}
 
         {/* Tab Switcher */}
         <View style={styles.tabsRow}>
@@ -336,20 +352,24 @@ export const LibraryScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Library Top Ads */}
-      {libraryTopAds.length > 0 && (
-        <AdBanner ads={libraryTopAds} columns={2} style={styles.topAd} />
-      )}
-
       {/* Tab Contents with Pull-to-Refresh */}
       {activeTab === 'bookmark' && (
         !isAuthenticated ? (
-          <EmptyState
-            icon="log-in-outline"
-            title="Masuk untuk Akses Bookmark"
-            description="Simpan dan sinkronkan komik favoritmu di semua perangkat dengan masuk ke akun KomikNesia."
-            buttonText="Masuk / Daftar"
-            onButtonPress={() => navigation.navigate('Login')}
+          <FlatList
+            data={[]}
+            key="empty-auth-bookmark"
+            contentContainerStyle={[styles.listContent, styles.emptyListGrow]}
+            refreshControl={renderRefreshControl()}
+            ListEmptyComponent={
+              <EmptyState
+                icon="log-in-outline"
+                title="Masuk untuk Akses Bookmark"
+                description="Simpan dan sinkronkan komik favoritmu di semua perangkat dengan masuk ke akun KomikNesia."
+                buttonText="Masuk / Daftar"
+                onButtonPress={() => navigation.navigate('Login')}
+              />
+            }
+            ListFooterComponent={renderFooterAd}
           />
         ) : bookmarksLoading && !refreshing ? (
           <View style={styles.centerLoading}>
@@ -358,7 +378,10 @@ export const LibraryScreen = ({ navigation, route }) => {
         ) : (
           <FlatList
             data={bookmarks}
+            key="grid-bookmark"
             keyExtractor={(item, idx) => `${item.id || item.slug}-${idx}`}
+            numColumns={2}
+            columnWrapperStyle={bookmarks.length > 0 ? styles.columnWrapper : undefined}
             contentContainerStyle={[
               styles.listContent,
               bookmarks.length === 0 && styles.emptyListGrow,
@@ -373,6 +396,7 @@ export const LibraryScreen = ({ navigation, route }) => {
                 onButtonPress={() => navigation.navigate('Jelajah')}
               />
             }
+            ListFooterComponent={renderFooterAd}
             renderItem={({ item }) => {
               const manga = item.manga || item;
               const coverUrl = getImageUrl(manga.cover || manga.image);
@@ -382,33 +406,46 @@ export const LibraryScreen = ({ navigation, route }) => {
 
               return (
                 <TouchableOpacity
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                   onPress={() => navigation.navigate('MangaDetail', { slug, title })}
-                  style={styles.itemRow}
+                  style={styles.gridCard}
                 >
-                  <View style={styles.coverWrapper}>
+                  <View style={styles.gridCardCoverWrapper}>
                     {coverUrl ? (
-                      <Image source={{ uri: coverUrl }} style={styles.coverImage} resizeMode="cover" />
+                      <Image
+                        source={{ uri: coverUrl }}
+                        style={styles.gridCardCover}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
                     ) : (
                       <View style={styles.placeholderCover}>
-                        <Ionicons name="book-outline" size={20} color={COLORS.textMuted} />
+                        <Ionicons name="book-outline" size={24} color={COLORS.textMuted} />
                       </View>
                     )}
-                  </View>
 
-                  <View style={styles.itemInfo}>
-                    <Text numberOfLines={2} style={styles.itemTitle}>{title}</Text>
+                    {/* Floating Delete Bookmark */}
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => handleRemoveBookmark(item)}
+                      style={styles.floatingDeleteBtn}
+                    >
+                      <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                    </TouchableOpacity>
+
+                    {/* Latest Chapter Pill */}
                     {latestChapter ? (
-                      <Text style={styles.chapterBadge}>Ch. {latestChapter}</Text>
+                      <View style={styles.floatingChapterBadge}>
+                        <Text style={styles.floatingChapterText}>Ch. {latestChapter}</Text>
+                      </View>
                     ) : null}
                   </View>
 
-                  <TouchableOpacity
-                    onPress={() => handleRemoveBookmark(item)}
-                    style={styles.actionBtn}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
-                  </TouchableOpacity>
+                  <View style={styles.gridCardBody}>
+                    <Text numberOfLines={2} style={styles.gridCardTitle}>
+                      {title}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             }}
@@ -424,7 +461,10 @@ export const LibraryScreen = ({ navigation, route }) => {
         ) : (
           <FlatList
             data={historyList}
+            key="grid-history"
             keyExtractor={(item, idx) => `${item.chapterSlug || idx}`}
+            numColumns={2}
+            columnWrapperStyle={historyList.length > 0 ? styles.columnWrapper : undefined}
             contentContainerStyle={[
               styles.listContent,
               historyList.length === 0 && styles.emptyListGrow,
@@ -439,11 +479,12 @@ export const LibraryScreen = ({ navigation, route }) => {
                 onButtonPress={() => navigation.navigate('Jelajah')}
               />
             }
+            ListFooterComponent={renderFooterAd}
             renderItem={({ item }) => {
               const coverUrl = getImageUrl(item.cover);
               return (
                 <TouchableOpacity
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                   onPress={() => {
                     if (item.chapterSlug) {
                       navigation.navigate('ChapterReader', {
@@ -455,32 +496,45 @@ export const LibraryScreen = ({ navigation, route }) => {
                       navigation.navigate('MangaDetail', { slug: item.mangaSlug });
                     }
                   }}
-                  style={styles.itemRow}
+                  style={styles.gridCard}
                 >
-                  <View style={styles.coverWrapper}>
+                  <View style={styles.gridCardCoverWrapper}>
                     {coverUrl ? (
-                      <Image source={{ uri: coverUrl }} style={styles.coverImage} resizeMode="cover" />
+                      <Image
+                        source={{ uri: coverUrl }}
+                        style={styles.gridCardCover}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
                     ) : (
                       <View style={styles.placeholderCover}>
-                        <Ionicons name="book-outline" size={20} color={COLORS.textMuted} />
+                        <Ionicons name="book-outline" size={24} color={COLORS.textMuted} />
                       </View>
                     )}
+
+                    {/* Floating Delete History */}
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => handleRemoveHistoryItem(item.chapterSlug)}
+                      style={styles.floatingDeleteBtn}
+                    >
+                      <Ionicons name="close" size={13} color="#CBD5E1" />
+                    </TouchableOpacity>
+
+                    {/* Chapter Badge */}
+                    <View style={styles.floatingChapterBadge}>
+                      <Text style={styles.floatingChapterText}>
+                        Ch. {item.chapterNumber || '?'}
+                      </Text>
+                    </View>
                   </View>
 
-                  <View style={styles.itemInfo}>
-                    <Text numberOfLines={1} style={styles.itemTitle}>{item.mangaTitle}</Text>
-                    <Text style={styles.chapterBadge}>
-                      Terakhir dibaca: Ch. {item.chapterNumber || '?'}
+                  <View style={styles.gridCardBody}>
+                    <Text numberOfLines={2} style={styles.gridCardTitle}>
+                      {item.mangaTitle || 'Komik'}
                     </Text>
-                    <Text style={styles.historyTime}>{timeAgo(item.readAt)}</Text>
+                    <Text style={styles.gridCardTime}>{timeAgo(item.readAt)}</Text>
                   </View>
-
-                  <TouchableOpacity
-                    onPress={() => handleRemoveHistoryItem(item.chapterSlug)}
-                    style={styles.actionBtn}
-                  >
-                    <Ionicons name="close" size={18} color={COLORS.textMuted} />
-                  </TouchableOpacity>
                 </TouchableOpacity>
               );
             }}
@@ -490,12 +544,21 @@ export const LibraryScreen = ({ navigation, route }) => {
 
       {activeTab === 'readlist' && (
         !isAuthenticated ? (
-          <EmptyState
-            icon="list-outline"
-            title="Masuk untuk Kelola Readlist"
-            description="Buat daftar koleksi komik kustom sesuai seleramu."
-            buttonText="Masuk / Daftar"
-            onButtonPress={() => navigation.navigate('Login')}
+          <FlatList
+            data={[]}
+            key="empty-auth-readlist"
+            contentContainerStyle={[styles.listContent, styles.emptyListGrow]}
+            refreshControl={renderRefreshControl()}
+            ListEmptyComponent={
+              <EmptyState
+                icon="list-outline"
+                title="Masuk untuk Kelola Readlist"
+                description="Buat daftar koleksi komik kustom sesuai seleramu."
+                buttonText="Masuk / Daftar"
+                onButtonPress={() => navigation.navigate('Login')}
+              />
+            }
+            ListFooterComponent={renderFooterAd}
           />
         ) : readlistsLoading && !refreshing ? (
           <View style={styles.centerLoading}>
@@ -519,6 +582,7 @@ export const LibraryScreen = ({ navigation, route }) => {
                 onButtonPress={() => setCreateModalOpen(true)}
               />
             }
+            ListFooterComponent={renderFooterAd}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.readlistItem}
@@ -544,11 +608,6 @@ export const LibraryScreen = ({ navigation, route }) => {
             )}
           />
         )
-      )}
-
-      {/* Library Footer Ads */}
-      {libraryFooterAds.length > 0 && (
-        <AdBanner ads={libraryFooterAds} columns={2} style={styles.footerAd} />
       )}
 
       {/* Modal Buat Readlist */}
@@ -705,8 +764,16 @@ const styles = StyleSheet.create({
   topAd: {
     marginVertical: SPACING.xs,
   },
+  footerContainer: {
+    width: '100%',
+    paddingTop: SPACING.md,
+    paddingBottom: 80,
+  },
+  footerSpacing: {
+    height: 60,
+  },
   footerAd: {
-    marginVertical: SPACING.md,
+    marginVertical: SPACING.xs,
   },
   header: {
     paddingHorizontal: SPACING.lg,
@@ -788,6 +855,69 @@ const styles = StyleSheet.create({
   emptyListGrow: {
     flexGrow: 1,
     justifyContent: 'center',
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  gridCard: {
+    width: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  gridCardCoverWrapper: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    backgroundColor: '#0F121C',
+    position: 'relative',
+  },
+  gridCardCover: {
+    width: '100%',
+    height: '100%',
+  },
+  gridCardBody: {
+    padding: 8,
+  },
+  gridCardTitle: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  gridCardTime: {
+    color: '#9CA3AF',
+    fontSize: 10,
+    marginTop: 4,
+  },
+  floatingDeleteBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  floatingChapterBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(220, 38, 38, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.xs,
+    zIndex: 5,
+  },
+  floatingChapterText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   itemRow: {
     flexDirection: 'row',

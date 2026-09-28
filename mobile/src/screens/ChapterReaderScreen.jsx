@@ -12,6 +12,7 @@ import {
   StatusBar,
   Share,
   Platform,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -84,11 +85,16 @@ const ReaderImage = React.memo(({ uri, index, total, onToggleControls }) => {
   );
 });
 
+ReaderImage.displayName = 'ReaderImage';
+
 export const ChapterReaderScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { chapterSlug, mangaSlug, mangaTitle } = route.params || {};
   const { isAuthenticated, user } = useAuth();
-  const isVip = isAuthenticated && (!!user?.membership_active || user?.role === 'vip') && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
+  const membershipType = String(user?.membership_type || '').toLowerCase().trim();
+  const isMobileMembership = membershipType === 'mobile' || membershipType === 'both';
+  const hasVipOrActive = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
+  const isVip = isAuthenticated && (user?.role === 'admin' || (hasVipOrActive && isMobileMembership));
 
   // Ads mirroring web positions
   const { ads: readerTopAds } = useAds('manga-detail-top');
@@ -116,33 +122,51 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
   const [unityAdModalVisible, setUnityAdModalVisible] = useState(false);
   const [unityAdType, setUnityAdType] = useState('chapter'); // 'chapter' | 'download'
   const pendingActionRef = useRef(null);
+  const trackedChapterRef = useRef(null);
 
   const fetchChapter = useCallback(async () => {
     if (!chapterSlug) return;
     setLoading(true);
     setError(null);
 
-    // 1. OFFLINE MODE
-    if (isOfflineMode) {
-      try {
-        const offlineData = await downloadManager.getDownloadedChapter(mangaSlug, chapterSlug);
-        if (offlineData?.chapter && Array.isArray(offlineData.chapter.images)) {
+    // 1. Cek terlebih dahulu apakah chapter tersedia di penyimpanan offline HP
+    try {
+      const offlineData = await downloadManager.getDownloadedChapter(mangaSlug, chapterSlug);
+      const hasOfflineImages =
+        offlineData?.chapter &&
+        Array.isArray(offlineData.chapter.images) &&
+        offlineData.chapter.images.length > 0;
+
+      // Jika sengaja dibuka dari mode offline ATAU memang sudah terunduh di HP
+      if (isOfflineMode || hasOfflineImages) {
+        if (hasOfflineImages) {
           setImages(offlineData.chapter.images);
           setChapterData({
             content: {
               title: mangaTitle || offlineData.manga?.title,
-              slug: mangaSlug,
+              slug: mangaSlug || offlineData.manga?.slug,
             },
             chapters: offlineData.manga?.chapters || [offlineData.chapter],
           });
           setIsLocked(false);
           setIsDownloaded(true);
+          storage.markChapterRead(chapterSlug);
+          storage.saveHistoryItem({
+            mangaSlug: mangaSlug || offlineData.manga?.slug,
+            mangaTitle: mangaTitle || offlineData.manga?.title || 'Komik',
+            cover: offlineData.manga?.cover,
+            chapterSlug: chapterSlug,
+            chapterNumber: offlineData.chapter?.number,
+            chapterTitle: offlineData.chapter?.title || null,
+          });
           setLoading(false);
           return;
-        } else {
+        } else if (isOfflineMode) {
           throw new Error('Chapter offline tidak ditemukan di penyimpanan HP.');
         }
-      } catch (err) {
+      }
+    } catch (err) {
+      if (isOfflineMode) {
         setError(err.message || 'Gagal memuat chapter offline');
         setLoading(false);
         return;
@@ -151,7 +175,10 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
 
     // 2. ONLINE MODE
     try {
-      downloadManager.isChapterDownloaded(mangaSlug, chapterSlug).then(setIsDownloaded).catch(() => {});
+      downloadManager
+        .isChapterDownloaded(mangaSlug, chapterSlug)
+        .then(setIsDownloaded)
+        .catch(() => {});
 
       const response = await apiClient.getChapterDetail(chapterSlug);
       if (response?.status && response?.data) {
@@ -166,6 +193,9 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
           const rawImages = data.images || [];
           const normalized = rawImages.map(normalizeChapterImage).filter((img) => !!img.src);
           setImages(normalized);
+
+          // Mark chapter as read
+          storage.markChapterRead(chapterSlug);
 
           // Find current chapter
           const currentIndex = chapters.findIndex((c) => c.slug === chapterSlug);
@@ -189,25 +219,71 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
             apiClient.recordView(currentMangaSlug);
           }
 
-          // Iklan Reward (Kelipatan 5x, bypass for VIP)
-          try {
-            const adCheck = await unityAdsService.trackChapterRead(isVip);
-            if (adCheck?.shouldShow) {
-              setUnityAdType('chapter');
-              setUnityAdModalVisible(true);
-            }
-          } catch {}
+          // Iklan Reward (Kelipatan 3x, bypass for VIP)
+          if (!route.params?.adChecked && trackedChapterRef.current !== chapterSlug) {
+            trackedChapterRef.current = chapterSlug;
+            try {
+              const adCheck = await unityAdsService.trackChapterRead(isVip);
+              if (adCheck?.shouldShow) {
+                setUnityAdType('chapter');
+                setUnityAdModalVisible(true);
+              }
+            } catch {}
+          } else if (route.params?.adChecked) {
+            trackedChapterRef.current = chapterSlug;
+          }
         }
       } else {
         throw new Error('Gagal memuat isi chapter');
       }
     } catch (err) {
       console.warn('Error reading chapter:', err);
-      setError(err.message || 'Gagal memuat chapter');
+
+      // Jika gagal memuat online (karena offline / jaringan terputus),
+      // coba fallback otomatis ke offline storage
+      try {
+        const fallbackOffline = await downloadManager.getDownloadedChapter(mangaSlug, chapterSlug);
+        if (
+          fallbackOffline?.chapter &&
+          Array.isArray(fallbackOffline.chapter.images) &&
+          fallbackOffline.chapter.images.length > 0
+        ) {
+          setImages(fallbackOffline.chapter.images);
+          setChapterData({
+            content: {
+              title: mangaTitle || fallbackOffline.manga?.title,
+              slug: mangaSlug || fallbackOffline.manga?.slug,
+            },
+            chapters: fallbackOffline.manga?.chapters || [fallbackOffline.chapter],
+          });
+          setIsLocked(false);
+          setIsDownloaded(true);
+          storage.markChapterRead(chapterSlug);
+          setLoading(false);
+          return;
+        }
+      } catch {}
+
+      const isNetworkError =
+        err?.isNetworkError ||
+        err?.message?.includes('UnknownHostException') ||
+        err?.message?.includes('Network request failed') ||
+        err?.message?.includes('fetch failed') ||
+        err?.message?.includes('Failed to fetch') ||
+        err?.message?.includes('Tidak dapat terhubung') ||
+        err?.message?.includes('internet tidak tersedia');
+
+      if (isNetworkError) {
+        setError(
+          'Koneksi internet tidak tersedia. Silakan periksa jaringan internet kamu atau baca chapter yang telah diunduh di tab Unduhan.'
+        );
+      } else {
+        setError(err.message || 'Gagal memuat chapter');
+      }
     } finally {
       setLoading(false);
     }
-  }, [chapterSlug, mangaSlug, mangaTitle, isAuthenticated, isOfflineMode]);
+  }, [chapterSlug, mangaSlug, mangaTitle, isAuthenticated, isOfflineMode, isVip]);
 
   useEffect(() => {
     fetchChapter();
@@ -227,9 +303,9 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
     } else {
       setAutoScrolling(true);
       scrollIntervalRef.current = setInterval(() => {
-        scrollPosRef.current += 3;
+        scrollPosRef.current += 5;
         scrollRef.current?.scrollToOffset({ offset: scrollPosRef.current, animated: false });
-      }, 30);
+      }, 25);
     }
   };
 
@@ -262,6 +338,8 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
       chapterSlug: targetChapter.slug,
       mangaSlug: mangaSlug || chapterData?.content?.slug,
       mangaTitle: mangaTitle || chapterData?.content?.title,
+      isOffline: isOfflineMode,
+      adChecked: false,
     });
   };
 
@@ -295,7 +373,7 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
   };
 
   const checkAdAndDownload = async () => {
-    // Iklan Reward (Kelipatan 5x, bypass for VIP)
+    // Iklan Reward (Kelipatan 3x, bypass for VIP)
     const adCheck = await unityAdsService.trackDownload(isVip);
     if (adCheck?.shouldShow) {
       pendingActionRef.current = executeDownload;
@@ -342,46 +420,37 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
 
   const renderHeader = useCallback(() => {
     if (readerTopAds.length === 0) return null;
+    const headerOffset = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 14) + 54;
     return (
-      <View style={styles.readerAdWrapper}>
-        <AdBanner ads={readerTopAds} columns={1} />
+      <View
+        style={[
+          styles.readerTopAdWrapper,
+          {
+            paddingTop: headerOffset,
+          },
+        ]}
+      >
+        <AdBanner ads={readerTopAds} columns={1} containerPadding={0} />
       </View>
     );
-  }, [readerTopAds]);
+  }, [readerTopAds, insets.top]);
 
   const renderFooter = useCallback(() => {
+    const bottomNavPadding = Math.max(insets.bottom, Platform.OS === 'ios' ? 34 : 20) + 120;
     return (
-      <View style={styles.footerContainer}>
+      <View
+        style={[
+          styles.footerContainer,
+          {
+            paddingBottom: bottomNavPadding,
+          },
+        ]}
+      >
         {readerBottomAds.length > 0 && (
-          <View style={styles.readerAdWrapper}>
-            <AdBanner ads={readerBottomAds} columns={2} />
+          <View style={styles.readerBottomAdWrapper}>
+            <AdBanner ads={readerBottomAds} columns={1} containerPadding={0} />
           </View>
         )}
-
-        {/* End of chapter action card */}
-        <View style={styles.endChapterCard}>
-          <Text style={styles.endChapterTitle}>Kamu telah menyelesaikan chapter ini 🎉</Text>
-          <View style={styles.endNavButtons}>
-            {prevChapter && (
-              <TouchableOpacity
-                style={styles.endNavBtn}
-                onPress={() => navigateToChapter(prevChapter)}
-              >
-                <Ionicons name="arrow-back" size={16} color="#FFF" />
-                <Text style={styles.endNavBtnText}>Chapter Sebelumnya</Text>
-              </TouchableOpacity>
-            )}
-            {nextChapter && (
-              <TouchableOpacity
-                style={[styles.endNavBtn, styles.endNavBtnPrimary]}
-                onPress={() => navigateToChapter(nextChapter)}
-              >
-                <Text style={styles.endNavBtnText}>Chapter Selanjutnya</Text>
-                <Ionicons name="arrow-forward" size={16} color="#FFF" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
 
         {/* Comments Section matching Web */}
         {!isOfflineMode && (
@@ -396,7 +465,15 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
         )}
       </View>
     );
-  }, [readerBottomAds, prevChapter, nextChapter, navigateToChapter, isOfflineMode, currentChapter, chapterData, chapterSlug, navigation]);
+  }, [
+    readerBottomAds,
+    isOfflineMode,
+    currentChapter,
+    chapterData,
+    chapterSlug,
+    navigation,
+    insets.bottom,
+  ]);
 
   if (loading) {
     return (
@@ -439,11 +516,51 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
   }
 
   if (error || images.length === 0) {
+    const isNetworkErr =
+      error?.includes('internet') ||
+      error?.includes('jaringan') ||
+      error?.includes('UnknownHostException') ||
+      error?.includes('terhubung');
+
     return (
       <SafeAreaView style={styles.centerLoading}>
-        <Ionicons name="alert-circle-outline" size={48} color={COLORS.danger} />
-        <Text style={styles.errorText}>{error || 'Tidak ada gambar di chapter ini.'}</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Ionicons
+          name={isNetworkErr ? 'cloud-offline-outline' : 'alert-circle-outline'}
+          size={52}
+          color={COLORS.danger}
+        />
+        <Text style={styles.errorTitle}>
+          {isNetworkErr ? 'Mode Offline' : 'Gagal Memuat Chapter'}
+        </Text>
+        <Text style={styles.errorText}>
+          {error || 'Tidak ada gambar di chapter ini.'}
+        </Text>
+
+        <View style={styles.errorActionsRow}>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => fetchChapter()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh" size={15} color="#FFF" />
+            <Text style={styles.retryBtnText}>Coba Lagi</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.downloadsNavBtn}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Unduhan' })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="download-outline" size={15} color="#FFF" />
+            <Text style={styles.downloadsNavBtnText}>Buka Unduhan</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
           <Text style={styles.backBtnText}>Kembali</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -659,19 +776,27 @@ const styles = StyleSheet.create({
   readerCanvas: {
     backgroundColor: '#000',
     alignItems: 'center',
-    paddingBottom: 80,
+    paddingBottom: 0,
   },
-  readerAdWrapper: {
+  readerTopAdWrapper: {
+    width,
+    alignSelf: 'stretch',
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  readerBottomAdWrapper: {
     width: '100%',
+    alignSelf: 'stretch',
     marginVertical: SPACING.md,
   },
   footerContainer: {
-    width: '100%',
+    width,
+    alignSelf: 'stretch',
     paddingHorizontal: SPACING.md,
-    paddingBottom: 90,
   },
   readerCommentSectionWrapper: {
     width: '100%',
+    alignSelf: 'stretch',
     marginTop: SPACING.md,
   },
   imageWrapper: {
@@ -816,46 +941,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  endChapterCard: {
-    width: width - SPACING.lg * 2,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginVertical: SPACING.xxl,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
-  },
-  endChapterTitle: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: SPACING.md,
-    textAlign: 'center',
-  },
-  endNavButtons: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    width: '100%',
-  },
-  endNavBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surfaceElevated,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    gap: 6,
-  },
-  endNavBtnPrimary: {
-    backgroundColor: COLORS.primary,
-  },
-  endNavBtnText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
   drawerOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
@@ -956,19 +1041,66 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
   },
-  errorText: {
-    color: COLORS.danger,
-    fontSize: 14,
-    marginVertical: SPACING.md,
+  errorTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+    marginTop: SPACING.sm,
+    textAlign: 'center',
   },
-  backBtn: {
-    backgroundColor: COLORS.primary,
+  errorText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginVertical: SPACING.sm,
+    textAlign: 'center',
     paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
+    lineHeight: 19,
+  },
+  errorActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
     borderRadius: RADIUS.md,
   },
-  backBtnText: {
+  retryBtnText: {
     color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  downloadsNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    borderRadius: RADIUS.md,
+  },
+  downloadsNavBtnText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  backBtn: {
+    marginTop: SPACING.xs,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+  },
+  backBtnText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
     fontWeight: '700',
   },
   topSubtitleRow: {

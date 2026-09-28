@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   USER_CACHE: 'komiknesia_user_cache',
   DEVICE_ID: 'komiknesia_device_id',
   READING_HISTORY: 'komiknesia_reading_history',
+  READ_CHAPTERS: 'komiknesia_read_chapters',
   SETTINGS: 'komiknesia_settings',
 };
 
@@ -97,9 +98,13 @@ export const storage = {
 
   async saveHistoryItem(item) {
     try {
+      if (item?.chapterSlug) {
+        await this.markChapterRead(item.chapterSlug);
+      }
+
       const current = await this.getHistory();
       const filtered = current.filter(
-        (h) => h.mangaSlug !== item.mangaSlug && h.chapterSlug !== item.chapterSlug
+        (h) => h.mangaSlug !== item.mangaSlug
       );
       const updated = [
         {
@@ -113,6 +118,40 @@ export const storage = {
     } catch (e) {
       console.warn('Failed saving history:', e);
       return [];
+    }
+  },
+
+  // Read Chapter Tracking
+  async getReadChapterSlugs() {
+    try {
+      const set = new Set();
+      const raw = await this.getString(STORAGE_KEYS.READ_CHAPTERS);
+      if (raw) {
+        raw.split(',').forEach((s) => {
+          if (s) set.add(s.trim());
+        });
+      }
+      // Also merge any chapterSlugs already recorded in history
+      const history = await this.getHistory();
+      history.forEach((h) => {
+        if (h.chapterSlug) set.add(h.chapterSlug);
+      });
+      return set;
+    } catch {
+      return new Set();
+    }
+  },
+
+  async markChapterRead(chapterSlug) {
+    if (!chapterSlug) return;
+    try {
+      const slugStr = String(chapterSlug).trim();
+      const raw = (await this.getString(STORAGE_KEYS.READ_CHAPTERS)) || '';
+      if ((',' + raw + ',').includes(',' + slugStr + ',')) return;
+      const updated = raw ? `${raw},${slugStr}` : slugStr;
+      await this.setString(STORAGE_KEYS.READ_CHAPTERS, updated);
+    } catch (e) {
+      console.warn('Failed marking chapter read:', e);
     }
   },
 
