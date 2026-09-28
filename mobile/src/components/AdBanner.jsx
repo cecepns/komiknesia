@@ -164,7 +164,7 @@ const AdBannerComponent = ({
   const membershipType = String(user?.membership_type || '').toLowerCase().trim();
   const isMobileMembership = membershipType === 'mobile' || membershipType === 'both';
   const hasVipOrActive = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
-  const isVip = isAuthenticated && (user?.role === 'admin' || (hasVipOrActive && isMobileMembership));
+  const isVip = isAuthenticated && (hasVipOrActive && isMobileMembership);
 
   if (isVip) return null; // Premium Mobile = No Iklan Banner
 

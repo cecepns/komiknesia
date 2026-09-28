@@ -167,7 +167,7 @@ const createUser = async (req, res) => {
           emailTrim || null,
           pointsVal,
           membershipVal ? 1 : 0,
-          membershipVal ? membershipType : 'web',
+          membershipType,
           membershipVal ? membershipExpireDate : null,
           roleVal,
         ]
@@ -275,10 +275,8 @@ const updateUser = async (req, res) => {
       params.push(membershipVal ? 1 : 0);
       updates.push('membership_expires_at = ?');
       params.push(membershipVal ? membershipExpireDate : null);
-      if (membership_type !== undefined || membershipVal) {
-        updates.push('membership_type = ?');
-        params.push(membershipType);
-      }
+      updates.push('membership_type = ?');
+      params.push(membershipType);
     }
 
     if (role !== undefined) {

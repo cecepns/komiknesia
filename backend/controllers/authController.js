@@ -115,31 +115,38 @@ const register = async (req, res) => {
       return res.status(400).json({ status: false, error: 'Nama, username, email, dan password wajib diisi' });
     }
 
-    if (!otp_code || String(otp_code).trim().length === 0) {
+    const emailTrim = String(email).trim().toLowerCase();
+    const isMobile =
+      Boolean(req.isMobileClient) ||
+      req.headers['x-app-client'] === 'komiknesia-mobile' ||
+      req.headers['x-app-platform'] === 'android' ||
+      req.headers['x-app-platform'] === 'ios' ||
+      req.headers['x-app-key'] === 'komiknesia-mobile-app-2026';
+
+    // If OTP is provided or if not on mobile app, require and verify OTP
+    if (otp_code && String(otp_code).trim().length > 0) {
+      const otpTrim = String(otp_code).trim();
+      // Verify OTP
+      const [otpRows] = await db.execute(
+        `SELECT id FROM email_otps
+         WHERE email = ? AND purpose = 'register' AND otp_code = ? AND is_used = 0 AND expires_at >= NOW()
+         ORDER BY id DESC LIMIT 1`,
+        [emailTrim, otpTrim]
+      );
+
+      if (otpRows.length === 0) {
+        return res.status(400).json({
+          status: false,
+          error: 'Kode OTP tidak valid atau sudah kedaluwarsa. Silakan minta kode baru.',
+        });
+      }
+
+      const otpId = otpRows[0].id;
+      // Mark OTP as used
+      await db.execute('UPDATE email_otps SET is_used = 1 WHERE id = ?', [otpId]);
+    } else if (!isMobile) {
       return res.status(400).json({ status: false, error: 'Kode OTP verifikasi wajib diisi' });
     }
-
-    const emailTrim = String(email).trim().toLowerCase();
-    const otpTrim = String(otp_code).trim();
-
-    // Verify OTP
-    const [otpRows] = await db.execute(
-      `SELECT id FROM email_otps
-       WHERE email = ? AND purpose = 'register' AND otp_code = ? AND is_used = 0 AND expires_at >= NOW()
-       ORDER BY id DESC LIMIT 1`,
-      [emailTrim, otpTrim]
-    );
-
-    if (otpRows.length === 0) {
-      return res.status(400).json({
-        status: false,
-        error: 'Kode OTP tidak valid atau sudah kedaluwarsa. Silakan minta kode baru.',
-      });
-    }
-
-    const otpId = otpRows[0].id;
-
-    const nameTrim = String(name).trim();
     if (!nameTrim) {
       return res.status(400).json({ status: false, error: 'Nama wajib diisi' });
     }

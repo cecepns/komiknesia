@@ -44,7 +44,7 @@ export const MangaDetailScreen = ({ navigation, route }) => {
   const membershipType = String(user?.membership_type || '').toLowerCase().trim();
   const isMobileMembership = membershipType === 'mobile' || membershipType === 'both';
   const hasVipOrActive = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
-  const isVip = isAuthenticated && (user?.role === 'admin' || (hasVipOrActive && isMobileMembership));
+  const isVip = isAuthenticated && (hasVipOrActive && isMobileMembership);
 
   // Ads mirroring web positions
   const { ads: chapterTopAds } = useAds('chapter-top');

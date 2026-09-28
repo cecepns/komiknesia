@@ -466,9 +466,8 @@ export const HomeScreen = ({ navigation }) => {
   const [avatarError, setAvatarError] = useState(false);
   const membershipType = String(user?.membership_type || '').toLowerCase().trim();
   const isMobileVip =
-    user?.role === 'admin' ||
-    (Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium') &&
-      (membershipType === 'mobile' || membershipType === 'both'));
+    Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium') &&
+    (membershipType === 'mobile' || membershipType === 'both');
 
   useEffect(() => {
     setAvatarError(false);

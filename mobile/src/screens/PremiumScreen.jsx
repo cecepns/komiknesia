@@ -95,8 +95,8 @@ export const PremiumScreen = ({ navigation }) => {
   const membershipType = String(user?.membership_type || '').toLowerCase().trim();
   const isAdmin = user?.role === 'admin';
   const hasActiveMembership = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
-  const isMobileVip = isAdmin || (hasActiveMembership && (membershipType === 'mobile' || membershipType === 'both'));
-  const isWebOnlyVip = !isAdmin && hasActiveMembership && (membershipType === 'web' || !membershipType);
+  const isMobileVip = hasActiveMembership && (membershipType === 'mobile' || membershipType === 'both');
+  const isWebOnlyVip = hasActiveMembership && (membershipType === 'web' || !membershipType);
   const [selectedPlan, setSelectedPlan] = useState('6m');
   const [adminWhatsapp, setAdminWhatsapp] = useState('');
   const [adminTelegram, setAdminTelegram] = useState('');

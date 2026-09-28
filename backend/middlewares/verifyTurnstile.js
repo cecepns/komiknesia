@@ -13,6 +13,21 @@ async function verifyTurnstile(req, res, next) {
   // Always allow preflight CORS OPTIONS requests
   if (req.method === 'OPTIONS') return next();
 
+  // 1. Mobile app requests bypass Turnstile (native mobile app does not render web Turnstile widget)
+  const appClient = req.headers['x-app-client'];
+  const appPlatform = req.headers['x-app-platform'];
+  const appKey = req.headers['x-app-key'];
+  const isMobileClient =
+    appClient === 'komiknesia-mobile' ||
+    appPlatform === 'android' ||
+    appPlatform === 'ios' ||
+    appKey === 'komiknesia-mobile-app-2026';
+
+  if (isMobileClient) {
+    req.isMobileClient = true;
+    return next();
+  }
+
   const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || "0x4AAAAAAEWaUvw7hJ7ke3d-kdSOCjir6PQ";
 
   // If secret key is explicitly not configured, allow request
@@ -20,7 +35,7 @@ async function verifyTurnstile(req, res, next) {
     return next();
   }
 
-  // 1. Extract Turnstile token from header or body
+  // 2. Extract Turnstile token from header or body
   const turnstileToken =
     req.headers['x-turnstile-token'] ||
     req.headers['cf-turnstile-response'] ||

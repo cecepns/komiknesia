@@ -189,14 +189,23 @@ export const AccountScreen = ({ navigation }) => {
   const isAdmin = user?.role === 'admin';
   const hasActiveMembership = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
 
-  // Khusus Mobile VIP: Hanya admin atau langganan aktif tipe 'mobile' / 'both'
-  const isMobileVip = isAdmin || (hasActiveMembership && (membershipType === 'mobile' || membershipType === 'both'));
-  const isWebOnlyVip = !isAdmin && hasActiveMembership && (membershipType === 'web' || !membershipType);
+  // Khusus Mobile VIP: Hanya langganan aktif tipe 'mobile' / 'both' (admin tanpa mobile VIP bukan mobile VIP)
+  const isMobileVip = hasActiveMembership && (membershipType === 'mobile' || membershipType === 'both');
+  const isWebOnlyVip = hasActiveMembership && (membershipType === 'web' || !membershipType);
   const joinDate = user?.created_at ? formatDate(user.created_at) : 'Baru bergabung';
 
   const getVipBadgeLabel = () => {
     if (!isAuthenticated) return 'Tamu (Guest)';
-    if (isAdmin) return '👑 Administrator';
+    if (isAdmin) {
+      if (isMobileVip) {
+        if (membershipType === 'both') return '👑 Administrator (VIP Web & Mobile)';
+        return '👑 Administrator (VIP Mobile)';
+      }
+      if (isWebOnlyVip) {
+        return '👑 Administrator (VIP Web)';
+      }
+      return '👑 Administrator';
+    }
     if (isMobileVip) {
       if (membershipType === 'both') return '👑 VIP Web & Mobile';
       return '📱 VIP Mobile';

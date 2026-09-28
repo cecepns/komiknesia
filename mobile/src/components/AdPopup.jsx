@@ -182,7 +182,9 @@ const _DisabledAdPopup = () => {
     }
   };
 
-  const isMobileVip = (!!user?.membership_active || user?.role === 'vip') && (!user?.membership_type || user?.membership_type === 'mobile' || user?.membership_type === 'both');
+  const isMobileVip =
+    (Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium')) &&
+    (user?.membership_type === 'mobile' || user?.membership_type === 'both');
 
   // Schedule check loop (runs every second, matching web)
   useEffect(() => {

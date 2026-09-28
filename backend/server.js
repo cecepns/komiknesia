@@ -474,6 +474,7 @@ const runSqlMigration = async () => {
     'ALTER TABLE users ADD COLUMN points INT NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN is_membership TINYINT(1) NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN membership_expires_at DATETIME NULL',
+    'ALTER TABLE users ADD COLUMN membership_type VARCHAR(20) NOT NULL DEFAULT \'web\'',
     'ALTER TABLE users ADD COLUMN bio TEXT NULL AFTER email',
     `CREATE TABLE IF NOT EXISTS user_chapter_reads (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

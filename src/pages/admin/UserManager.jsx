@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, Loader2, X, Globe, Smartphone, Crown, Filter } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2, X, Globe, Smartphone, Crown, Filter, Check } from 'lucide-react';
 import { apiClient, formatToInputString, formatToLocaleString } from '../../utils/api';
 
 const initialForm = {
@@ -111,8 +111,8 @@ export default function UserManager() {
         email: form.email.trim(),
         points: Number(form.points || 0),
         is_membership: !!form.is_membership,
-        membership_type: form.is_membership ? (form.membership_type || 'web') : 'web',
-        membership_expires_at: form.membership_expires_at || null,
+        membership_type: form.membership_type || 'web',
+        membership_expires_at: form.is_membership && form.membership_expires_at ? form.membership_expires_at : null,
         role: form.role === 'admin' ? 'admin' : 'user',
       };
       if (form.password.trim()) {
@@ -436,108 +436,99 @@ export default function UserManager() {
               {/* MEMBERSHIP VIP SECTION WITH SEPARATE PLATFORM (WEB / MOBILE / BOTH) */}
               <div className="space-y-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
-                  <label className="inline-flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!form.is_membership}
-                      onChange={(e) => setForm((prev) => ({ ...prev, is_membership: e.target.checked }))}
-                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4"
-                    />
-                    Status VIP Membership Aktif
-                  </label>
-                  {form.is_membership && (
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100 block">
+                      Status Membership VIP
+                    </label>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Pilih platform VIP untuk akun user ini
+                    </p>
+                  </div>
+                  {form.is_membership ? (
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" />
                       VIP AKTIF
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium text-gray-500 bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded-full">
+                      NON-VIP
                     </span>
                   )}
                 </div>
 
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {/* Option 1: Non-Member */}
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, is_membership: false }))}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all cursor-pointer ${
+                      !form.is_membership
+                        ? 'border-gray-400 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-bold ring-2 ring-gray-400'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <X className="w-5 h-5 mb-1 text-gray-400" />
+                    <span className="text-xs font-semibold">Non-VIP</span>
+                    <span className="text-[10px] text-gray-500">Bukan Member</span>
+                  </button>
+
+                  {/* Option 2: VIP Web */}
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, is_membership: true, membership_type: 'web' }))}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all cursor-pointer ${
+                      form.is_membership && (form.membership_type === 'web' || !form.membership_type)
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold ring-2 ring-blue-500'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <Globe className="w-5 h-5 mb-1 text-blue-500" />
+                    <span className="text-xs font-semibold">🌐 VIP Web</span>
+                    <span className="text-[10px] text-gray-500">Website Saja</span>
+                  </button>
+
+                  {/* Option 3: VIP Mobile */}
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, is_membership: true, membership_type: 'mobile' }))}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all cursor-pointer ${
+                      form.is_membership && form.membership_type === 'mobile'
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-bold ring-2 ring-purple-500'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <Smartphone className="w-5 h-5 mb-1 text-purple-500" />
+                    <span className="text-xs font-semibold">📱 VIP Mobile</span>
+                    <span className="text-[10px] text-gray-500">App HP Saja</span>
+                  </button>
+
+                  {/* Option 4: VIP Keduanya */}
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, is_membership: true, membership_type: 'both' }))}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all cursor-pointer ${
+                      form.is_membership && form.membership_type === 'both'
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-bold ring-2 ring-amber-500'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <Crown className="w-5 h-5 mb-1 text-amber-500" />
+                    <span className="text-xs font-semibold">👑 VIP Keduanya</span>
+                    <span className="text-[10px] text-gray-500">Web & Mobile</span>
+                  </button>
+                </div>
+
                 {form.is_membership && (
-                  <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div>
-                      <label className="text-xs font-bold uppercase tracking-wider block mb-2 text-gray-700 dark:text-gray-300">
-                        Platform VIP (Default: Web)
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <label
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-xs font-medium transition-all ${
-                            form.membership_type === 'web'
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-bold ring-1 ring-blue-400'
-                              : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="membership_type"
-                            value="web"
-                            checked={form.membership_type === 'web'}
-                            onChange={() => setForm((prev) => ({ ...prev, membership_type: 'web' }))}
-                            className="sr-only"
-                          />
-                          <Globe className="w-4 h-4 text-blue-500" />
-                          <div>
-                            <div>🌐 Web Saja</div>
-                            <div className="text-[10px] text-gray-500 font-normal">VIP di Website</div>
-                          </div>
-                        </label>
-
-                        <label
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-xs font-medium transition-all ${
-                            form.membership_type === 'mobile'
-                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-bold ring-1 ring-purple-400'
-                              : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="membership_type"
-                            value="mobile"
-                            checked={form.membership_type === 'mobile'}
-                            onChange={() => setForm((prev) => ({ ...prev, membership_type: 'mobile' }))}
-                            className="sr-only"
-                          />
-                          <Smartphone className="w-4 h-4 text-purple-500" />
-                          <div>
-                            <div>📱 Mobile Saja</div>
-                            <div className="text-[10px] text-gray-500 font-normal">VIP di App HP</div>
-                          </div>
-                        </label>
-
-                        <label
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-xs font-medium transition-all ${
-                            form.membership_type === 'both'
-                              ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-bold ring-1 ring-amber-400'
-                              : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="membership_type"
-                            value="both"
-                            checked={form.membership_type === 'both'}
-                            onChange={() => setForm((prev) => ({ ...prev, membership_type: 'both' }))}
-                            className="sr-only"
-                          />
-                          <Crown className="w-4 h-4 text-amber-500" />
-                          <div>
-                            <div>👑 Keduanya</div>
-                            <div className="text-[10px] text-gray-500 font-normal">Web & Mobile</div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold block mb-1 text-gray-700 dark:text-gray-300">
-                        Expired Membership (Kosongkan jika Permanen)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={form.membership_expires_at}
-                        onChange={(e) => setForm((prev) => ({ ...prev, membership_expires_at: e.target.value }))}
-                        className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                      />
-                    </div>
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <label className="text-xs font-semibold block mb-1 text-gray-700 dark:text-gray-300">
+                      Masa Berlaku VIP (Kosongkan jika Permanen / Seumur Hidup)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={form.membership_expires_at}
+                      onChange={(e) => setForm((prev) => ({ ...prev, membership_expires_at: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                    />
                   </div>
                 )}
               </div>

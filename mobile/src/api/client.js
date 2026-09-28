@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { decryptResponseAddress } from '../utils/decryptor';
 import { storage } from '../utils/storage';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -71,6 +72,8 @@ class APIClient {
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'X-Device-Id': deviceId,
       'X-App-Client': 'komiknesia-mobile',
+      'X-App-Platform': Platform?.OS || 'android',
+      'X-App-Key': 'komiknesia-mobile-app-2026',
       'Origin': 'https://www.komiknesia.asia',
       'Referer': 'https://www.komiknesia.asia/',
       ...options.headers,

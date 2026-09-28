@@ -39,14 +39,13 @@ async function getAdsWithCache() {
 
 export const useAds = (adsType, limit = null, enabled = true) => {
   const { user, loading: authLoading } = useAuth();
-  // Khusus Mobile: Pengguna berstatus bebas iklan HANYA jika:
-  // 1. Role admin, ATAU
-  // 2. Memiliki VIP / membership_active DAN membership_type secara spesifik adalah 'mobile' atau 'both'.
-  // Jika membership_type adalah 'web', kosong, atau selain mobile/both, pengguna di APK mobile BUKAN VIP dan TETAP melihat iklan!
+  // Khusus Mobile: Pengguna berstatus bebas iklan HANYA jika memiliki VIP / membership aktif
+  // DAN membership_type secara spesifik adalah 'mobile' atau 'both'.
+  // Admin tanpa VIP mobile TETAP melihat iklan!
   const membershipType = String(user?.membership_type || '').toLowerCase().trim();
   const isMobileMembership = membershipType === 'mobile' || membershipType === 'both';
   const hasVipOrActive = Boolean(user?.membership_active || user?.role === 'vip' || user?.role === 'premium');
-  const isPremiumUser = user?.role === 'admin' || (hasVipOrActive && isMobileMembership);
+  const isPremiumUser = hasVipOrActive && isMobileMembership;
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
