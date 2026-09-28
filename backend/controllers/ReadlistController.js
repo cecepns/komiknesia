@@ -3,8 +3,26 @@ const db = require('../db');
 const MAX_TITLE = 200;
 
 async function resolveMangaIds(body) {
-  const rawIds = Array.isArray(body.manga_ids) ? body.manga_ids : [];
-  const rawSlugs = Array.isArray(body.slugs) ? body.slugs : [];
+  let rawIds = [];
+  if (Array.isArray(body?.manga_ids)) {
+    rawIds = body.manga_ids;
+  } else if (body?.manga_ids != null) {
+    rawIds = [body.manga_ids];
+  } else if (body?.manga_id != null) {
+    rawIds = [body.manga_id];
+  } else if (body?.mangaId != null) {
+    rawIds = [body.mangaId];
+  }
+
+  let rawSlugs = [];
+  if (Array.isArray(body?.slugs)) {
+    rawSlugs = body.slugs;
+  } else if (body?.slugs != null) {
+    rawSlugs = [body.slugs];
+  } else if (body?.slug != null) {
+    rawSlugs = [body.slug];
+  }
+
   const ids = new Set();
 
   for (const v of rawIds) {

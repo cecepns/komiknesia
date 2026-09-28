@@ -5,17 +5,12 @@ import {
   Modal,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
-  Animated,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
 import { unityAdsService } from '../services/unityAds';
-
-const { width } = Dimensions.get('window');
-const REWARD_DURATION = 5; // 5 seconds rewarded ad duration
 
 export const UnityRewardAdModal = ({
   visible,
@@ -23,244 +18,159 @@ export const UnityRewardAdModal = ({
   onReward,
   onClose,
 }) => {
-  const [secondsLeft, setSecondsLeft] = useState(REWARD_DURATION);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const [adState, setAdState] = useState('loading'); // 'loading' | 'failed' | 'playing'
+  const [errorMessage, setErrorMessage] = useState('');
+  const isMountedRef = useRef(true);
 
-  const titleText =
-    type === 'download'
-      ? 'Iklan Reward Unduhan (Kelipatan 3x)'
-      : 'Iklan Reward Chapter (Kelipatan 5x)';
+  const startAdPlayback = async () => {
+    setAdState('loading');
+    setErrorMessage('');
 
-  const rewardDescription =
-    type === 'download'
-      ? 'Tonton hingga selesai untuk mengunduh chapter ke penyimpanan HP.'
-      : 'Tonton hingga selesai untuk membuka dan membaca chapter.';
-
-  useEffect(() => {
-    if (!visible) {
-      setSecondsLeft(REWARD_DURATION);
-      setIsCompleted(false);
-      progressAnim.setValue(0);
-      return;
-    }
-
-    let isMounted = true;
-
-    // Coba putar video iklan native Unity LevelPlay secara otomatis
-    (async () => {
-      try {
-        const displayed = await unityAdsService.showNativeRewardedAd(
-          type,
-          () => {
-            if (isMounted && onReward) onReward();
-          },
-          () => {
-            if (isMounted && onClose) onClose();
+    try {
+      const res = await unityAdsService.showNativeRewardedAd(
+        type,
+        () => {
+          if (isMountedRef.current && onReward) {
+            onReward();
           }
-        );
-        if (displayed && isMounted) {
-          if (onClose) onClose();
-          return;
-        }
-      } catch (err) {
-        console.log('[UnityRewardAdModal] Native ad not ready, using fallback:', err?.message);
-      }
-    })();
-
-    setSecondsLeft(REWARD_DURATION);
-    setIsCompleted(false);
-    progressAnim.setValue(0);
-
-    // Animasi progress bar selama durasi reward
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: REWARD_DURATION * 1000,
-      useNativeDriver: false,
-    }).start();
-
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsCompleted(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(timer);
-    };
-  }, [visible, progressAnim, type, onReward, onClose]);
-
-  const handleAttemptClose = () => {
-    if (isCompleted) {
-      if (onReward) onReward();
-      if (onClose) onClose();
-      return;
-    }
-
-    Alert.alert(
-      'Lewati Iklan Reward?',
-      'Jika kamu menutup iklan sekarang, reward tidak akan diberikan dan chapter/unduhan tidak akan diproses.',
-      [
-        { text: 'Lanjut Nonton', style: 'cancel' },
-        {
-          text: 'Tutup Saja',
-          style: 'destructive',
-          onPress: () => {
-            if (onClose) onClose();
-          },
         },
-      ]
-    );
+        () => {
+          if (isMountedRef.current && onClose) {
+            onClose();
+          }
+        }
+      );
+
+      if (!isMountedRef.current) return;
+
+      if (res && res.success) {
+        setAdState('playing');
+      } else {
+        setAdState('failed');
+        setErrorMessage(res?.error || 'Iklan gagal dimuat dari server sponsor.');
+      }
+    } catch (err) {
+      if (!isMountedRef.current) return;
+      setAdState('failed');
+      setErrorMessage(err?.message || 'Terjadi kesalahan saat memuat iklan.');
+    }
   };
 
-  const handleClaim = () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (visible) {
+      startAdPlayback();
+    } else {
+      setAdState('loading');
+      setErrorMessage('');
+    }
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [visible, type]);
+
+  const handleBypassOrContinue = () => {
     if (onReward) onReward();
+    if (onClose) onClose();
+  };
+
+  const handleClose = () => {
     if (onClose) onClose();
   };
 
   if (!visible) return null;
 
+  // When native ad is playing, keep the modal invisible/transparent so LevelPlay takes over
+  if (adState === 'playing') {
+    return null;
+  }
+
   return (
     <Modal
       visible={visible}
-      transparent={false}
+      transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={handleAttemptClose}
+      onRequestClose={handleClose}
     >
-      <View style={styles.container}>
-        {/* Top Header Bar */}
-        <View style={styles.topBar}>
-          <View style={styles.brandRow}>
-            <View style={styles.unityBadge}>
-              <Ionicons name="film" size={14} color="#FFF" />
-              <Text style={styles.unityBrandText}>IKLAN SPONSOR</Text>
-            </View>
-          </View>
+      <View style={styles.backdrop}>
+        <View style={styles.cardContainer}>
+          {adState === 'loading' ? (
+            /* Loading State */
+            <View style={styles.contentBox}>
+              <View style={styles.iconCircleLoading}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              </View>
 
-          <View style={styles.topRightControls}>
-            <TouchableOpacity
-              style={styles.controlCircle}
-              onPress={() => setIsMuted(!isMuted)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={isMuted ? 'volume-mute' : 'volume-high'}
-                size={16}
-                color="#FFF"
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.closeCircle,
-                isCompleted ? styles.closeCircleActive : styles.closeCircleDisabled,
-              ]}
-              onPress={handleAttemptClose}
-              activeOpacity={0.7}
-            >
-              {isCompleted ? (
-                <Ionicons name="close" size={18} color="#FFF" />
-              ) : (
-                <Text style={styles.countdownNumber}>{secondsLeft}s</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Progress Bar filling */}
-        <View style={styles.progressBarBackground}>
-          <Animated.View
-            style={[
-              styles.progressBarFill,
-              {
-                width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
-          />
-        </View>
-
-        {/* Main Ad Stage */}
-        <View style={styles.adStage}>
-          <LinearGradient
-            colors={['#1E1B4B', '#0F172A', '#020617']}
-            style={styles.creativeCard}
-          >
-            {/* Ambient Graphic Halo */}
-            <View style={styles.haloGlow} />
-
-            <View style={styles.graphicIconWrapper}>
-              <LinearGradient
-                colors={['#6366F1', '#4338CA', '#312E81']}
-                style={styles.graphicCircle}
-              >
-                <Ionicons
-                  name={type === 'download' ? 'cloud-download' : 'book'}
-                  size={52}
-                  color="#FFF"
-                />
-              </LinearGradient>
-            </View>
-
-            <Text style={styles.rewardNoticeTitle}>{titleText}</Text>
-            <Text style={styles.rewardNoticeDesc}>{rewardDescription}</Text>
-
-            {/* Sponsor Box (Privasi aman: tidak pernah menampilkan key/placement ke publik) */}
-            <View style={styles.sponsorNoticeBox}>
-              <Ionicons name="sparkles" size={18} color="#FBBF24" />
-              <Text style={styles.sponsorNoticeText}>
-                Iklan ini membantu KomikNesia tetap gratis dan update cepat setiap hari. Terima kasih atas dukunganmu!
+              <Text style={styles.title}>Menyiapkan Iklan Sponsor</Text>
+              <Text style={styles.description}>
+                {type === 'download'
+                  ? 'Sedang memuat video reward unduhan chapter...'
+                  : 'Sedang memuat video reward chapter...'}
               </Text>
-            </View>
 
-            {/* Status Indicator */}
-            {isCompleted ? (
-              <View style={styles.completedBadge}>
-                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-                <Text style={styles.completedText}>Reward Berhasil Diperoleh!</Text>
+              <View style={styles.badgeRow}>
+                <Ionicons name="film" size={13} color="#94A3B8" />
+                <Text style={styles.badgeText}>Unity LevelPlay Ads</Text>
               </View>
-            ) : (
-              <View style={styles.rewardTimerRow}>
-                <Ionicons name="timer-outline" size={16} color="#FBBF24" />
-                <Text style={styles.timerNoticeText}>
-                  Reward dalam <Text style={styles.timerBold}>{secondsLeft} detik</Text>
-                </Text>
-              </View>
-            )}
-          </LinearGradient>
-        </View>
 
-        {/* Bottom Action Footer */}
-        <View style={styles.footerBar}>
-          {isCompleted ? (
-            <TouchableOpacity
-              style={styles.claimBtn}
-              activeOpacity={0.85}
-              onPress={handleClaim}
-            >
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.claimBtnGradient}
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                activeOpacity={0.8}
+                onPress={handleClose}
               >
-                <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
-                <Text style={styles.claimBtnText}>Klaim Reward & Lanjutkan</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <Text style={styles.cancelBtnText}>Batal</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <View style={styles.watchingStatusBox}>
-              <Text style={styles.watchingStatusText}>
-                Menayangkan Iklan Sponsor ({secondsLeft}s)...
+            /* Failed State - As requested: "kalo gagal load ya tampilkan iklan gagal dimuat" */
+            <View style={styles.contentBox}>
+              <View style={styles.iconCircleError}>
+                <Ionicons name="alert-circle" size={48} color="#EF4444" />
+              </View>
+
+              <Text style={styles.errorTitle}>Iklan Gagal Dimuat</Text>
+              <Text style={styles.errorDescription}>
+                {errorMessage ||
+                  'Video iklan sponsor gagal dimuat saat ini. Periksa koneksi internet kamu atau coba beberapa saat lagi.'}
               </Text>
+
+              <View style={styles.actionButtonsCol}>
+                <TouchableOpacity
+                  style={styles.retryBtn}
+                  activeOpacity={0.85}
+                  onPress={startAdPlayback}
+                >
+                  <LinearGradient
+                    colors={['#DC2626', '#991B1B']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.btnGradient}
+                  >
+                    <Ionicons name="refresh" size={16} color="#FFF" />
+                    <Text style={styles.retryBtnText}>Coba Lagi</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.continueBtn}
+                  activeOpacity={0.85}
+                  onPress={handleBypassOrContinue}
+                >
+                  <Ionicons name="arrow-forward-circle" size={18} color="#10B981" />
+                  <Text style={styles.continueBtnText}>
+                    {type === 'download' ? 'Lanjutkan Unduhan' : 'Lanjutkan Membaca'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  activeOpacity={0.7}
+                  onPress={handleClose}
+                >
+                  <Text style={styles.closeBtnText}>Tutup</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -270,220 +180,152 @@ export const UnityRewardAdModal = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'space-between',
-  },
-  topBar: {
-    paddingTop: 48,
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#0A0A0A',
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  unityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  unityBrandText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  topRightControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  controlCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeCircleActive: {
-    backgroundColor: '#EF4444',
-  },
-  closeCircleDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  countdownNumber: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  progressBarBackground: {
-    height: 3,
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#10B981',
-  },
-  adStage: {
-    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
   },
-  creativeCard: {
+  cardContainer: {
     width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#111827',
     borderRadius: RADIUS.xxl,
-    padding: SPACING.xl,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
-    overflow: 'hidden',
-    position: 'relative',
+    padding: SPACING.xl,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  haloGlow: {
-    position: 'absolute',
-    top: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(99, 102, 241, 0.18)',
+  contentBox: {
+    width: '100%',
+    alignItems: 'center',
   },
-  graphicIconWrapper: {
-    marginBottom: SPACING.lg,
-  },
-  graphicCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+  iconCircleLoading: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 8,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.25)',
   },
-  rewardNoticeTitle: {
+  iconCircleError: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  title: {
     color: '#FFF',
-    fontSize: 19,
-    fontWeight: '900',
+    fontSize: 17,
+    fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  rewardNoticeDesc: {
-    color: '#94A3B8',
+  description: {
+    color: '#9CA3AF',
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: SPACING.lg,
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
   },
-  sponsorNoticeBox: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
     marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  sponsorNoticeText: {
-    flex: 1,
-    color: '#CBD5E1',
+  badgeText: {
+    color: '#94A3B8',
     fontSize: 11,
-    lineHeight: 16,
-  },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  completedText: {
-    color: '#10B981',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  rewardTimerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-  },
-  timerNoticeText: {
-    color: '#FBBF24',
-    fontSize: 12,
     fontWeight: '600',
   },
-  timerBold: {
-    fontWeight: '800',
-    color: '#FDE68A',
+  errorTitle: {
+    color: '#EF4444',
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  footerBar: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: 36,
+  errorDescription: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: SPACING.xl,
+    paddingHorizontal: SPACING.xs,
   },
-  claimBtn: {
+  actionButtonsCol: {
+    width: '100%',
+    gap: 10,
+  },
+  retryBtn: {
     width: '100%',
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
   },
-  claimBtnGradient: {
+  btnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
-  claimBtnText: {
+  retryBtnText: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
   },
-  watchingStatusBox: {
+  continueBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
     borderRadius: RADIUS.lg,
+    paddingVertical: 12,
   },
-  watchingStatusText: {
-    color: '#94A3B8',
+  continueBtnText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cancelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  cancelBtnText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  closeBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  closeBtnText: {
+    color: '#6B7280',
     fontSize: 13,
     fontWeight: '600',
   },

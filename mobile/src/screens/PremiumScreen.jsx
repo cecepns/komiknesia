@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
 
@@ -92,35 +93,99 @@ const BENEFITS = [
 export const PremiumScreen = ({ navigation }) => {
   const { user, isAuthenticated } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState('6m');
+  const [adminWhatsapp, setAdminWhatsapp] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('https://komiknesia.id');
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   const selectedPackage = PREMIUM_PACKAGES.find((p) => p.id === selectedPlan) || PREMIUM_PACKAGES[2];
 
+  useEffect(() => {
+    let isMounted = true;
+    const fetchContactAndSettings = async () => {
+      try {
+        // Ambil data WhatsApp admin dari API Contact Info (Admin Panel)
+        const contactRes = await apiClient.getContactInfo(true);
+        if (isMounted && contactRes?.whatsapp) {
+          const raw = String(contactRes.whatsapp).trim();
+          if (raw && raw !== '-') {
+            setAdminWhatsapp(raw);
+          }
+        }
+
+        // Ambil link website resmi dari API Settings
+        const settingsRes = await apiClient.getSettings();
+        if (isMounted && settingsRes) {
+          const web =
+            settingsRes.website_url ||
+            settingsRes.web_url ||
+            (Array.isArray(settingsRes.quick_links) &&
+              settingsRes.quick_links.find((l) => l.id === 'premium')?.href);
+          if (web) {
+            setWebsiteUrl(web);
+          }
+        }
+      } catch (err) {
+        console.warn('[PremiumScreen] Failed to load contact/settings:', err);
+      } finally {
+        if (isMounted) setLoadingSettings(false);
+      }
+    };
+
+    fetchContactAndSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const cleanPhone = useMemo(() => {
+    if (!adminWhatsapp) return '';
+    const trimmed = adminWhatsapp.trim();
+    if (!trimmed || trimmed === '-') return '';
+    let digits = trimmed.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0')) {
+      digits = '62' + digits.slice(1);
+    }
+    return digits;
+  }, [adminWhatsapp]);
+
+  const hasWhatsapp = cleanPhone.length >= 8;
+
+  const websiteHost = useMemo(() => {
+    try {
+      const url = new URL(websiteUrl);
+      return url.hostname;
+    } catch {
+      return websiteUrl.replace(/^https?:\/\//, '').split('/')[0] || 'komiknesia.id';
+    }
+  }, [websiteUrl]);
+
   const handleSubscribeWhatsApp = () => {
+    if (!hasWhatsapp) return;
     const username = user?.username || user?.name || (isAuthenticated ? 'Pengguna' : 'Tamu');
     const message = encodeURIComponent(
       `Halo Admin KomikNesia, saya ingin berlangganan Paket Premium ${selectedPackage.duration} (${selectedPackage.priceStr}) untuk akun saya:\nUsername: ${username}\nEmail: ${user?.email || '-'}`
     );
-    const waUrl = `https://wa.me/6281234567890?text=${message}`;
+    const waUrl = `https://wa.me/${cleanPhone}?text=${message}`;
 
     Linking.openURL(waUrl).catch(() => {
-      // Fallback web url
-      Linking.openURL('https://komiknesia.id');
+      handleOpenWebPayment();
     });
   };
 
   const handleOpenWebPayment = async () => {
-    const webUrl = 'https://komiknesia.id';
+    const targetUrl = websiteUrl || 'https://komiknesia.id';
     try {
-      const supported = await Linking.canOpenURL(webUrl);
+      const supported = await Linking.canOpenURL(targetUrl);
       if (supported) {
-        await Linking.openURL(webUrl);
+        await Linking.openURL(targetUrl);
       } else {
-        await Linking.openURL(webUrl);
+        await Linking.openURL(targetUrl);
       }
     } catch (err) {
       Alert.alert(
         'Kunjungi Website KomikNesia',
-        'Silakan buka browser Anda dan akses https://komiknesia.id untuk melakukan pembayaran paket premium.',
+        `Silakan buka browser Anda dan akses ${targetUrl} untuk melakukan pembayaran paket premium.`,
         [{ text: 'OK' }]
       );
     }
@@ -247,7 +312,7 @@ export const PremiumScreen = ({ navigation }) => {
         <View style={styles.actionSection}>
           <Text style={styles.paymentSectionHeader}>PILIH CARA PEMBAYARAN</Text>
 
-          {/* Opsi 1: Bayar via Website komiknesia.id */}
+          {/* Opsi 1: Bayar via Website */}
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleOpenWebPayment}
@@ -263,26 +328,28 @@ export const PremiumScreen = ({ navigation }) => {
                 <Ionicons name="globe-outline" size={20} color="#0B0F19" />
               </View>
               <View style={styles.webPayTextCol}>
-                <Text style={styles.webPayTitle}>Bayar via Website (komiknesia.id)</Text>
-                <Text style={styles.webPaySubtitle}>
-                  Buka link https://komiknesia.id ({selectedPackage.priceStr})
-                </Text>
+                <Text style={styles.webPayTitle}>Bayar via Website</Text>
+                {/* <Text style={styles.webPaySubtitle}>
+                  Buka link {websiteUrl} ({selectedPackage.priceStr})
+                </Text> */}
               </View>
               <Ionicons name="open-outline" size={18} color="#0B0F19" />
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Opsi 2: Beli via WhatsApp Admin */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleSubscribeWhatsApp}
-            style={styles.subscribeBtn}
-          >
-            <Ionicons name="logo-whatsapp" size={19} color="#22C55E" />
-            <Text style={styles.subscribeBtnText}>
-              Beli via WhatsApp Admin ({selectedPackage.duration})
-            </Text>
-          </TouchableOpacity>
+          {/* Opsi 2: Beli via WhatsApp Admin - Hanya muncul jika nomor WA tersedia dari settings */}
+          {hasWhatsapp && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleSubscribeWhatsApp}
+              style={styles.subscribeBtn}
+            >
+              <Ionicons name="logo-whatsapp" size={19} color="#22C55E" />
+              <Text style={styles.subscribeBtnText}>
+                Beli via WhatsApp Admin ({selectedPackage.duration})
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Direct URL quick link */}
           <TouchableOpacity
@@ -291,12 +358,14 @@ export const PremiumScreen = ({ navigation }) => {
             style={styles.directLinkRow}
           >
             <Text style={styles.directLinkLabel}>Link Website Resmi: </Text>
-            <Text style={styles.directLinkUrl}>komiknesia.id</Text>
-            <Ionicons name="arrow-forward" size={12} color="#F59E0B" />
+            <Text style={styles.directLinkUrl}>{websiteHost}</Text>
+            <Ionicons name="open-outline" size={12} color="#F59E0B" />
           </TouchableOpacity>
 
           <Text style={styles.guaranteeText}>
-            🔒 Pembayaran aman melalui website resmi komiknesia.id atau konfirmasi langsung dengan Admin Customer Service.
+            {hasWhatsapp
+              ? `🔒 Pembayaran aman melalui website resmi ${websiteHost} atau konfirmasi langsung dengan Admin Customer Service.`
+              : `🔒 Pembayaran aman dilakukan melalui website resmi ${websiteHost}.`}
           </Text>
         </View>
       </ScrollView>

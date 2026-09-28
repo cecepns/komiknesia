@@ -28,6 +28,7 @@ import { UnityRewardAdModal } from '../components/UnityRewardAdModal';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
 import { ChapterItem } from '../components/ChapterItem';
 import { ChapterAccessModal } from '../components/ChapterAccessModal';
+import { CommentSection } from '../components/CommentSection';
 import { AdBanner } from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 import { REACTION_OPTIONS, emptyReactionCounts, sumReactionCounts } from '../constants/reactions';
@@ -252,21 +253,42 @@ export const MangaDetailScreen = ({ navigation, route }) => {
 
   // Add comic to existing readlist
   const addMangaToReadlist = async (readlistId) => {
-    if (!slug) return;
+    const targetSlug = slug || manga?.slug;
+    const targetId = manga?.id;
+    if (!targetSlug && !targetId) return;
+
     setReadlistAddSubmitting(readlistId);
     try {
+      const body = {};
+      if (targetId) {
+        body.manga_ids = [Number(targetId)];
+        body.manga_id = Number(targetId);
+      }
+      if (targetSlug) {
+        body.slugs = [targetSlug];
+        body.slug = targetSlug;
+      }
+
       const res = await apiClient.request(`/readlists/${readlistId}/items`, {
         method: 'POST',
-        body: { slugs: [slug], slug },
+        body,
       });
+
       if (res?.status) {
-        Alert.alert('Sukses', 'Komik berhasil ditambahkan ke readlist.');
+        const targetRl = readlists.find((r) => r.id === readlistId);
+        const title = targetRl?.title || 'readlist';
+        if (res.added === 0) {
+          Alert.alert('Info', `Komik ini sudah ada di readlist "${title}".`);
+        } else {
+          Alert.alert('Sukses', `Komik berhasil ditambahkan ke readlist "${title}".`);
+        }
         setReadlistPickerOpen(false);
       } else {
         Alert.alert('Info', res?.error || 'Komik sudah ada di readlist ini.');
       }
-    } catch {
-      Alert.alert('Error', 'Gagal menambahkan ke readlist.');
+    } catch (err) {
+      console.warn('Readlist add error:', err);
+      Alert.alert('Error', err?.message || 'Gagal menambahkan ke readlist.');
     } finally {
       setReadlistAddSubmitting(null);
     }
@@ -283,18 +305,33 @@ export const MangaDetailScreen = ({ navigation, route }) => {
     try {
       const res = await apiClient.createReadlist(title);
       if (res?.status && res?.data?.id) {
-        await apiClient.request(`/readlists/${res.data.id}/items`, {
+        const newId = res.data.id;
+        const targetSlug = slug || manga?.slug;
+        const targetId = manga?.id;
+        const body = {};
+        if (targetId) {
+          body.manga_ids = [Number(targetId)];
+          body.manga_id = Number(targetId);
+        }
+        if (targetSlug) {
+          body.slugs = [targetSlug];
+          body.slug = targetSlug;
+        }
+
+        await apiClient.request(`/readlists/${newId}/items`, {
           method: 'POST',
-          body: { slugs: [slug], slug },
+          body,
         });
-        Alert.alert('Sukses', `Readlist "${title}" dibuat & komik ditambahkan!`);
+
+        Alert.alert('Sukses', `Readlist "${title}" dibuat & komik berhasil ditambahkan!`);
         setNewReadlistTitle('');
         setReadlistPickerOpen(false);
       } else {
         Alert.alert('Error', res?.error || 'Gagal membuat readlist');
       }
-    } catch {
-      Alert.alert('Error', 'Gagal membuat readlist.');
+    } catch (err) {
+      console.warn('Error creating readlist:', err);
+      Alert.alert('Error', err?.message || 'Gagal membuat readlist.');
     } finally {
       setCreatingNewReadlist(false);
     }
@@ -1140,6 +1177,15 @@ export const MangaDetailScreen = ({ navigation, route }) => {
           </View>
         </View>
 
+        {/* 8. COMMENT SECTION */}
+        <View style={styles.commentSectionWrapper}>
+          <CommentSection
+            mangaId={manga?.id}
+            externalSlug={slug}
+            navigation={navigation}
+          />
+        </View>
+
         {/* 9. BOTTOM ADS BANNER (top-upvote) */}
         {topUpvoteAds.length > 0 && (
           <View style={styles.bottomAdWrapper}>
@@ -1819,11 +1865,12 @@ const styles = StyleSheet.create({
   recommendationGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.sm,
+    justifyContent: 'space-between',
+    rowGap: SPACING.md,
     marginTop: SPACING.xs,
   },
   recCard: {
-    width: (width - SPACING.md * 4 - SPACING.sm) / 2,
+    width: '48%',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
@@ -1846,6 +1893,12 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+
+  // 4.5 COMMENT SECTION
+  commentSectionWrapper: {
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.lg,
   },
 
   // 5. LIST CHAPTER SECTION

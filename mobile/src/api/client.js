@@ -202,6 +202,13 @@ class APIClient {
     return this.request('/settings');
   }
 
+  async getContactInfo(active = true) {
+    const params = new URLSearchParams();
+    if (active !== null) params.append('active', active.toString());
+    const q = params.toString();
+    return this.request(`/contact-info${q ? `?${q}` : ''}`);
+  }
+
   async getFeaturedItems(type = 'banner', active = true) {
     const params = new URLSearchParams();
     if (type) params.append('type', type);
@@ -215,18 +222,12 @@ class APIClient {
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.per_page) queryParams.append('per_page', params.per_page.toString());
     if (params.q) queryParams.append('q', params.q);
-    if (params.genre) {
-      if (Array.isArray(params.genre)) {
-        params.genre.forEach((g) => queryParams.append('genre[]', g));
+    const genreList = params.genre || params.genreId || params.genres;
+    if (genreList) {
+      if (Array.isArray(genreList)) {
+        genreList.forEach((g) => queryParams.append('genre[]', g.toString()));
       } else {
-        queryParams.append('genre', params.genre);
-      }
-    }
-    if (params.genreId) {
-      if (Array.isArray(params.genreId)) {
-        params.genreId.forEach((id) => queryParams.append('genreId[]', id.toString()));
-      } else {
-        queryParams.append('genreId', params.genreId.toString());
+        queryParams.append('genre[]', genreList.toString());
       }
     }
     if (params.status && params.status !== 'All') queryParams.append('status', params.status);
@@ -322,10 +323,20 @@ class APIClient {
   }
 
   async addReadlistItem(id, mangaIdOrSlug) {
-    const key = Number.isNaN(Number(mangaIdOrSlug)) ? 'slug' : 'manga_id';
+    const isNum = !Number.isNaN(Number(mangaIdOrSlug));
+    const body = isNum
+      ? { manga_ids: [Number(mangaIdOrSlug)], manga_id: Number(mangaIdOrSlug) }
+      : { slugs: [String(mangaIdOrSlug)], slug: String(mangaIdOrSlug) };
     return this.request(`/readlists/${encodeURIComponent(id)}/items`, {
       method: 'POST',
-      body: { [key]: mangaIdOrSlug },
+      body,
+    });
+  }
+
+  async addReadlistItems(id, body) {
+    return this.request(`/readlists/${encodeURIComponent(id)}/items`, {
+      method: 'POST',
+      body,
     });
   }
 
@@ -376,6 +387,27 @@ class APIClient {
     return this.request(`/comments/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // Stickers
+  async getStickers(params = {}) {
+    const q = new URLSearchParams(params).toString();
+    return this.request(`/stickers${q ? `?${q}` : ''}`);
+  }
+
+  // Upload Image for Chat & Comments
+  async uploadImage(formData) {
+    try {
+      return await this.request('/comments/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+    } catch (err) {
+      return await this.request('/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+    }
   }
 
   // Ads

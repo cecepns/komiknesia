@@ -397,14 +397,15 @@ const list = async (req, res) => {
         source,
       } = req.query;
 
+      const targetGenre = genre || req.query.genreId || req.query.genre_id || req.query['genre[]'] || req.query['genreId[]'];
       let genreArray = [];
-      if (genre) {
-        if (Array.isArray(genre)) {
-          genreArray = genre;
-        } else if (typeof genre === 'object') {
-          genreArray = Object.values(genre);
+      if (targetGenre) {
+        if (Array.isArray(targetGenre)) {
+          genreArray = targetGenre;
+        } else if (typeof targetGenre === 'object') {
+          genreArray = Object.values(targetGenre);
         } else {
-          genreArray = [genre];
+          genreArray = [targetGenre];
         }
       }
 

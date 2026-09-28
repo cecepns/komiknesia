@@ -25,6 +25,7 @@ import { unityAdsService } from '../services/unityAds';
 import { UnityRewardAdModal } from '../components/UnityRewardAdModal';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
 import { ChapterItem } from '../components/ChapterItem';
+import { CommentSection } from '../components/CommentSection';
 import { AdBanner } from '../components/AdBanner';
 import { useAds } from '../hooks/useAds';
 
@@ -381,9 +382,21 @@ export const ChapterReaderScreen = ({ navigation, route }) => {
             )}
           </View>
         </View>
+
+        {/* Comments Section matching Web */}
+        {!isOfflineMode && (
+          <View style={styles.readerCommentSectionWrapper}>
+            <CommentSection
+              chapterId={currentChapter?.id}
+              mangaId={chapterData?.content?.id || chapterData?.manga_id}
+              externalSlug={chapterSlug}
+              navigation={navigation}
+            />
+          </View>
+        )}
       </View>
     );
-  }, [readerBottomAds, prevChapter, nextChapter, navigateToChapter]);
+  }, [readerBottomAds, prevChapter, nextChapter, navigateToChapter, isOfflineMode, currentChapter, chapterData, chapterSlug, navigation]);
 
   if (loading) {
     return (
@@ -654,7 +667,12 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     width: '100%',
-    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingBottom: 90,
+  },
+  readerCommentSectionWrapper: {
+    width: '100%',
+    marginTop: SPACING.md,
   },
   imageWrapper: {
     backgroundColor: '#000000',

@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +32,7 @@ const TABS = [
 export const LibraryScreen = ({ navigation, route }) => {
   const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState(route?.params?.initialTab || 'bookmark');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (route?.params?.initialTab) {
@@ -56,6 +58,11 @@ export const LibraryScreen = ({ navigation, route }) => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newReadlistTitle, setNewReadlistTitle] = useState('');
   const [creatingReadlist, setCreatingReadlist] = useState(false);
+
+  // Readlist Detail Modal
+  const [selectedReadlist, setSelectedReadlist] = useState(null);
+  const [readlistDetailLoading, setReadlistDetailLoading] = useState(false);
+  const [readlistDetailModalOpen, setReadlistDetailModalOpen] = useState(false);
 
   // Load Bookmarks
   const loadBookmarks = useCallback(async () => {
@@ -107,6 +114,22 @@ export const LibraryScreen = ({ navigation, route }) => {
       setReadlistsLoading(false);
     }
   }, [isAuthenticated]);
+
+  // Pull to refresh handler across all tabs
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (activeTab === 'bookmark') {
+        await loadBookmarks();
+      } else if (activeTab === 'history') {
+        await loadHistory();
+      } else if (activeTab === 'readlist') {
+        await loadReadlists();
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [activeTab, loadBookmarks, loadHistory, loadReadlists]);
 
   useEffect(() => {
     if (activeTab === 'bookmark') {
@@ -160,42 +183,110 @@ export const LibraryScreen = ({ navigation, route }) => {
 
   // Create Readlist
   const handleCreateReadlist = async () => {
-    if (!newReadlistTitle.trim()) return;
+    const trimmed = newReadlistTitle.trim();
+    if (!trimmed) {
+      Alert.alert('Peringatan', 'Nama readlist tidak boleh kosong');
+      return;
+    }
+
     setCreatingReadlist(true);
     try {
-      const res = await apiClient.createReadlist(newReadlistTitle.trim());
-      if (res?.status) {
+      const response = await apiClient.createReadlist(trimmed);
+      if (response?.status && response.data) {
+        setReadlists((prev) => [response.data, ...prev]);
         setNewReadlistTitle('');
         setCreateModalOpen(false);
-        loadReadlists();
+        Alert.alert('Sukses', `Readlist "${trimmed}" berhasil dibuat.`);
       } else {
-        Alert.alert('Gagal', res?.error || 'Gagal membuat readlist');
+        Alert.alert('Gagal', response?.error || 'Gagal membuat readlist');
       }
     } catch (err) {
-      Alert.alert('Gagal', err.message || 'Gagal membuat readlist');
+      Alert.alert('Gagal', err.message || 'Terjadi kesalahan');
     } finally {
       setCreatingReadlist(false);
     }
   };
 
   // Delete Readlist
-  const handleDeleteReadlist = (readlistId, title) => {
-    Alert.alert('Hapus Readlist', `Hapus koleksi "${title}"?`, [
+  const handleDeleteReadlist = (id, title) => {
+    Alert.alert('Hapus Readlist', `Apakah kamu yakin ingin menghapus readlist "${title}"?`, [
       { text: 'Batal', style: 'cancel' },
       {
         text: 'Hapus',
         style: 'destructive',
         onPress: async () => {
           try {
-            await apiClient.deleteReadlist(readlistId);
-            setReadlists((prev) => prev.filter((r) => r.id !== readlistId));
+            await apiClient.deleteReadlist(id);
+            setReadlists((prev) => prev.filter((r) => r.id !== id));
+            if (selectedReadlist?.id === id) {
+              setReadlistDetailModalOpen(false);
+              setSelectedReadlist(null);
+            }
           } catch {
-            Alert.alert('Gagal', 'Gagal menghapus readlist');
+            Alert.alert('Gagal', 'Tidak dapat menghapus readlist');
           }
         },
       },
     ]);
   };
+
+  // Open Readlist Detail Modal
+  const handleOpenReadlistDetail = async (item) => {
+    setSelectedReadlist(item);
+    setReadlistDetailModalOpen(true);
+    setReadlistDetailLoading(true);
+    try {
+      const res = await apiClient.getReadlist(item.id);
+      if (res?.status && res?.data) {
+        setSelectedReadlist(res.data);
+      }
+    } catch (err) {
+      console.warn('Error fetching readlist detail:', err);
+    } finally {
+      setReadlistDetailLoading(false);
+    }
+  };
+
+  // Remove item from Readlist
+  const handleRemoveFromReadlist = async (mangaIdOrSlug, mangaTitle) => {
+    if (!selectedReadlist) return;
+    Alert.alert('Hapus dari Readlist', `Hapus "${mangaTitle || 'komik'}" dari readlist ini?`, [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Hapus',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await apiClient.removeReadlistItem(selectedReadlist.id, mangaIdOrSlug);
+            setSelectedReadlist((prev) => ({
+              ...prev,
+              items: (prev?.items || []).filter(
+                (m) => m.manga_id !== mangaIdOrSlug && m.slug !== mangaIdOrSlug
+              ),
+            }));
+            setReadlists((prev) =>
+              prev.map((r) =>
+                r.id === selectedReadlist.id
+                  ? { ...r, manga_count: Math.max(0, (r.manga_count || 1) - 1) }
+                  : r
+              )
+            );
+          } catch {
+            Alert.alert('Gagal', 'Tidak dapat menghapus komik dari readlist.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const renderRefreshControl = () => (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      tintColor={COLORS.primary}
+      colors={[COLORS.primary]}
+    />
+  );
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
@@ -205,8 +296,8 @@ export const LibraryScreen = ({ navigation, route }) => {
           <Text style={styles.headerTitle}>Perpustakaan</Text>
           {activeTab === 'history' && historyList.length > 0 && (
             <TouchableOpacity onPress={handleClearAllHistory} style={styles.clearHistoryBtn}>
-              <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
-              <Text style={styles.clearHistoryText}>Hapus</Text>
+              <Ionicons name="trash-outline" size={15} color={COLORS.danger} />
+              <Text style={styles.clearHistoryText}>Hapus Semua</Text>
             </TouchableOpacity>
           )}
           {activeTab === 'readlist' && isAuthenticated && (
@@ -220,20 +311,20 @@ export const LibraryScreen = ({ navigation, route }) => {
           )}
         </View>
 
-        {/* Tab Buttons */}
+        {/* Tab Switcher */}
         <View style={styles.tabsRow}>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <TouchableOpacity
                 key={tab.id}
-                activeOpacity={0.8}
                 onPress={() => setActiveTab(tab.id)}
                 style={[styles.tabButton, isActive && styles.tabButtonActive]}
+                activeOpacity={0.8}
               >
                 <Ionicons
-                  name={isActive ? tab.icon : `${tab.icon}-outline`}
-                  size={16}
+                  name={tab.icon}
+                  size={15}
                   color={isActive ? '#FFF' : COLORS.textSecondary}
                 />
                 <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
@@ -245,12 +336,12 @@ export const LibraryScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Library Top Ads (Sama seperti Web) */}
+      {/* Library Top Ads */}
       {libraryTopAds.length > 0 && (
         <AdBanner ads={libraryTopAds} columns={2} style={styles.topAd} />
       )}
 
-      {/* Tab Contents */}
+      {/* Tab Contents with Pull-to-Refresh */}
       {activeTab === 'bookmark' && (
         !isAuthenticated ? (
           <EmptyState
@@ -260,23 +351,28 @@ export const LibraryScreen = ({ navigation, route }) => {
             buttonText="Masuk / Daftar"
             onButtonPress={() => navigation.navigate('Login')}
           />
-        ) : bookmarksLoading ? (
+        ) : bookmarksLoading && !refreshing ? (
           <View style={styles.centerLoading}>
             <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
-        ) : bookmarks.length === 0 ? (
-          <EmptyState
-            icon="bookmark-outline"
-            title="Belum Ada Bookmark"
-            description="Kamu belum menyimpan komik apa pun ke daftar bookmark."
-            buttonText="Cari Komik Menarik"
-            onButtonPress={() => navigation.navigate('Jelajah')}
-          />
         ) : (
           <FlatList
             data={bookmarks}
             keyExtractor={(item, idx) => `${item.id || item.slug}-${idx}`}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              bookmarks.length === 0 && styles.emptyListGrow,
+            ]}
+            refreshControl={renderRefreshControl()}
+            ListEmptyComponent={
+              <EmptyState
+                icon="bookmark-outline"
+                title="Belum Ada Bookmark"
+                description="Kamu belum menyimpan komik apa pun ke daftar bookmark. Tarik ke bawah untuk refresh."
+                buttonText="Cari Komik Menarik"
+                onButtonPress={() => navigation.navigate('Jelajah')}
+              />
+            }
             renderItem={({ item }) => {
               const manga = item.manga || item;
               const coverUrl = getImageUrl(manga.cover || manga.image);
@@ -321,23 +417,28 @@ export const LibraryScreen = ({ navigation, route }) => {
       )}
 
       {activeTab === 'history' && (
-        historyLoading ? (
+        historyLoading && !refreshing ? (
           <View style={styles.centerLoading}>
             <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
-        ) : historyList.length === 0 ? (
-          <EmptyState
-            icon="time-outline"
-            title="Riwayat Baca Kosong"
-            description="Komik yang kamu baca akan otomatis tersimpan di sini."
-            buttonText="Mulai Membaca"
-            onButtonPress={() => navigation.navigate('Jelajah')}
-          />
         ) : (
           <FlatList
             data={historyList}
             keyExtractor={(item, idx) => `${item.chapterSlug || idx}`}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              historyList.length === 0 && styles.emptyListGrow,
+            ]}
+            refreshControl={renderRefreshControl()}
+            ListEmptyComponent={
+              <EmptyState
+                icon="time-outline"
+                title="Riwayat Baca Kosong"
+                description="Komik yang kamu baca akan otomatis tersimpan di sini. Tarik ke bawah untuk refresh."
+                buttonText="Mulai Membaca"
+                onButtonPress={() => navigation.navigate('Jelajah')}
+              />
+            }
             renderItem={({ item }) => {
               const coverUrl = getImageUrl(item.cover);
               return (
@@ -396,32 +497,41 @@ export const LibraryScreen = ({ navigation, route }) => {
             buttonText="Masuk / Daftar"
             onButtonPress={() => navigation.navigate('Login')}
           />
-        ) : readlistsLoading ? (
+        ) : readlistsLoading && !refreshing ? (
           <View style={styles.centerLoading}>
             <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
-        ) : readlists.length === 0 ? (
-          <EmptyState
-            icon="folder-open-outline"
-            title="Belum Ada Readlist"
-            description="Buat koleksi pertamamu untuk mengelompokkan komik favorit."
-            buttonText="Buat Readlist Sekarang"
-            onButtonPress={() => setCreateModalOpen(true)}
-          />
         ) : (
           <FlatList
             data={readlists}
             keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              readlists.length === 0 && styles.emptyListGrow,
+            ]}
+            refreshControl={renderRefreshControl()}
+            ListEmptyComponent={
+              <EmptyState
+                icon="folder-open-outline"
+                title="Belum Ada Readlist"
+                description="Buat koleksi pertamamu untuk mengelompokkan komik favorit. Tarik ke bawah untuk refresh."
+                buttonText="Buat Readlist Sekarang"
+                onButtonPress={() => setCreateModalOpen(true)}
+              />
+            }
             renderItem={({ item }) => (
-              <View style={styles.readlistItem}>
+              <TouchableOpacity
+                style={styles.readlistItem}
+                activeOpacity={0.8}
+                onPress={() => handleOpenReadlistDetail(item)}
+              >
                 <View style={styles.readlistIconCircle}>
                   <Ionicons name="bookmarks" size={20} color={COLORS.primary} />
                 </View>
                 <View style={styles.readlistInfo}>
                   <Text style={styles.readlistTitle}>{item.title}</Text>
                   <Text style={styles.readlistCount}>
-                    {item.items?.length || 0} komik tersimpan
+                    {item.manga_count ?? (item.items?.length || 0)} komik tersimpan • Ketuk untuk lihat
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -430,13 +540,13 @@ export const LibraryScreen = ({ navigation, route }) => {
                 >
                   <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )
       )}
 
-      {/* Library Footer Ads (Sama seperti Web) */}
+      {/* Library Footer Ads */}
       {libraryFooterAds.length > 0 && (
         <AdBanner ads={libraryFooterAds} columns={2} style={styles.footerAd} />
       )}
@@ -481,6 +591,105 @@ export const LibraryScreen = ({ navigation, route }) => {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Detail Isi Readlist */}
+      <Modal
+        visible={readlistDetailModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReadlistDetailModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.readlistDetailCard}>
+            <View style={styles.readlistDetailHeader}>
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={styles.readlistDetailTitle}>
+                  {selectedReadlist?.title || 'Daftar Readlist'}
+                </Text>
+                <Text style={styles.readlistDetailSubtitle}>
+                  {selectedReadlist?.items?.length || 0} komik dalam koleksi ini
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setReadlistDetailModalOpen(false)}
+                style={styles.modalCloseCircle}
+              >
+                <Ionicons name="close" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            {readlistDetailLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={{ color: COLORS.textMuted, marginTop: 8, fontSize: 12 }}>
+                  Memuat komik di readlist...
+                </Text>
+              </View>
+            ) : !selectedReadlist?.items || selectedReadlist.items.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center', paddingHorizontal: 20 }}>
+                <Ionicons name="book-outline" size={36} color={COLORS.textMuted} />
+                <Text style={{ color: '#D1D5DB', marginTop: 10, fontSize: 13, fontWeight: '700' }}>
+                  Belum ada komik di readlist ini
+                </Text>
+                <Text style={{ color: COLORS.textMuted, fontSize: 11, textAlign: 'center', marginTop: 4 }}>
+                  Buka halaman detail komik dan klik "Simpan ke Readlist" untuk menambahkan komik.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={selectedReadlist.items}
+                keyExtractor={(item, idx) => `${item.manga_id || item.slug}-${idx}`}
+                style={{ maxHeight: 380 }}
+                contentContainerStyle={{ paddingVertical: 8 }}
+                renderItem={({ item }) => {
+                  const coverUrl = getImageUrl(item.cover);
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setReadlistDetailModalOpen(false);
+                        navigation.navigate('MangaDetail', {
+                          slug: item.slug,
+                          title: item.title,
+                        });
+                      }}
+                      style={styles.readlistDetailItemRow}
+                    >
+                      <View style={styles.readlistDetailCoverBox}>
+                        {coverUrl ? (
+                          <Image
+                            source={{ uri: coverUrl }}
+                            style={{ width: '100%', height: '100%' }}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Ionicons name="book" size={16} color={COLORS.textMuted} />
+                        )}
+                      </View>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text numberOfLines={1} style={styles.readlistDetailItemTitle}>
+                          {item.title}
+                        </Text>
+                        <Text style={styles.readlistDetailItemTime}>
+                          Ditambahkan: {timeAgo(item.created_at)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() =>
+                          handleRemoveFromReadlist(item.manga_id || item.slug, item.title)
+                        }
+                        style={{ padding: 6 }}
+                      >
+                        <Ionicons name="trash-outline" size={17} color={COLORS.danger} />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -575,6 +784,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     paddingBottom: SPACING.xxxl,
+  },
+  emptyListGrow: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   itemRow: {
     flexDirection: 'row',
@@ -719,5 +932,73 @@ const styles = StyleSheet.create({
   modalSubmitText: {
     color: '#FFF',
     fontWeight: '700',
+  },
+
+  // READLIST DETAIL MODAL
+  readlistDetailCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#111522',
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  readlistDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: SPACING.sm,
+  },
+  readlistDetailTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  readlistDetailSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  modalCloseCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  readlistDetailItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: RADIUS.md,
+    padding: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  readlistDetailCoverBox: {
+    width: 38,
+    height: 52,
+    borderRadius: RADIUS.xs,
+    overflow: 'hidden',
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  readlistDetailItemTitle: {
+    color: '#E5E7EB',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  readlistDetailItemTime: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    marginTop: 2,
   },
 });

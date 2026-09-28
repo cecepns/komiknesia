@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { storage } from '../utils/storage';
 import { downloadManager } from '../utils/downloadManager';
-import { getImageUrl } from '../api/client';
+import { apiClient, getImageUrl } from '../api/client';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
 import { formatDate } from '../utils/timeAgo';
 
@@ -41,6 +41,40 @@ export const AccountScreen = ({ navigation }) => {
 
   // CS Modal
   const [csModalOpen, setCsModalOpen] = useState(false);
+  const [adminWhatsapp, setAdminWhatsapp] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('https://komiknesia.id');
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient.getContactInfo(true).then((res) => {
+      if (isMounted && res?.whatsapp) {
+        const raw = String(res.whatsapp).trim();
+        if (raw && raw !== '-') {
+          setAdminWhatsapp(raw);
+        }
+      }
+    }).catch(() => {});
+
+    apiClient.getSettings().then((res) => {
+      if (isMounted && (res?.website_url || res?.web_url)) {
+        setWebsiteUrl(res.website_url || res.web_url);
+      }
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const cleanPhone = useMemo(() => {
+    if (!adminWhatsapp) return '';
+    const trimmed = adminWhatsapp.trim();
+    if (!trimmed || trimmed === '-') return '';
+    let digits = trimmed.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+    return digits;
+  }, [adminWhatsapp]);
 
   const loadAccountData = useCallback(async () => {
     try {
@@ -396,7 +430,11 @@ export const AccountScreen = ({ navigation }) => {
             </View>
             <View style={styles.menuItemTextCol}>
               <Text style={styles.menuItemText}>Customer Service</Text>
-              <Text style={styles.menuItemSubtext}>Hubungi admin via WhatsApp & Discord</Text>
+              <Text style={styles.menuItemSubtext}>
+                {cleanPhone.length >= 8
+                  ? 'Hubungi admin via WhatsApp & Komunitas'
+                  : 'Bantuan & Komunitas KomikNesia'}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
@@ -450,23 +488,25 @@ export const AccountScreen = ({ navigation }) => {
               Ada pertanyaan, laporan kendala, atau ingin konfirmasi langganan VIP? Hubungi kami langsung:
             </Text>
 
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => {
-                setCsModalOpen(false);
-                Linking.openURL('https://wa.me/6281234567890?text=Halo%20Admin%20KomikNesia,%20saya%20butuh%20bantuan').catch(() => {});
-              }}
-              style={[styles.csOptionRow, { borderColor: '#22C55E' }]}
-            >
-              <View style={[styles.csIconBox, { backgroundColor: '#22C55E' }]}>
-                <Ionicons name="logo-whatsapp" size={20} color="#FFF" />
-              </View>
-              <View style={styles.csTextCol}>
-                <Text style={styles.csOptionTitle}>WhatsApp Customer Care</Text>
-                <Text style={styles.csOptionDesc}>Respon cepat setiap hari 09:00 - 22:00 WIB</Text>
-              </View>
-              <Ionicons name="open-outline" size={16} color="#9CA3AF" />
-            </TouchableOpacity>
+            {cleanPhone.length >= 8 && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => {
+                  setCsModalOpen(false);
+                  Linking.openURL(`https://wa.me/${cleanPhone}?text=Halo%20Admin%20KomikNesia,%20saya%20butuh%20bantuan`).catch(() => {});
+                }}
+                style={[styles.csOptionRow, { borderColor: '#22C55E' }]}
+              >
+                <View style={[styles.csIconBox, { backgroundColor: '#22C55E' }]}>
+                  <Ionicons name="logo-whatsapp" size={20} color="#FFF" />
+                </View>
+                <View style={styles.csTextCol}>
+                  <Text style={styles.csOptionTitle}>WhatsApp Customer Care</Text>
+                  <Text style={styles.csOptionDesc}>Respon cepat setiap hari 09:00 - 22:00 WIB</Text>
+                </View>
+                <Ionicons name="open-outline" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               activeOpacity={0.85}
@@ -490,7 +530,7 @@ export const AccountScreen = ({ navigation }) => {
               activeOpacity={0.85}
               onPress={() => {
                 setCsModalOpen(false);
-                Linking.openURL('https://komiknesia.id').catch(() => {});
+                Linking.openURL(websiteUrl || 'https://komiknesia.id').catch(() => {});
               }}
               style={[styles.csOptionRow, { borderColor: '#F59E0B' }]}
             >
@@ -498,7 +538,7 @@ export const AccountScreen = ({ navigation }) => {
                 <Ionicons name="globe-outline" size={20} color="#0B0F19" />
               </View>
               <View style={styles.csTextCol}>
-                <Text style={styles.csOptionTitle}>Website Resmi (komiknesia.id)</Text>
+                <Text style={styles.csOptionTitle}>Website Resmi</Text>
                 <Text style={styles.csOptionDesc}>Kunjungi website untuk akses lengkap & langganan VIP</Text>
               </View>
               <Ionicons name="open-outline" size={16} color="#9CA3AF" />

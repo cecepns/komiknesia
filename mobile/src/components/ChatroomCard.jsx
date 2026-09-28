@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   StyleSheet,
   Dimensions,
@@ -13,10 +12,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { apiClient, getImageUrl } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
@@ -50,10 +51,22 @@ function getAvatarColor(name) {
   return AVATAR_COLORS[seed % AVATAR_COLORS.length];
 }
 
+const STICKER_MESSAGE_PREFIX = 'KN_STICKER:';
+
+function parseStickerMessage(text) {
+  if (typeof text !== 'string' || !text.startsWith(STICKER_MESSAGE_PREFIX)) return null;
+  const path = text.slice(STICKER_MESSAGE_PREFIX.length).trim();
+  return path || null;
+}
+
 function cleanMessageText(text) {
   if (typeof text !== 'string') return '';
-  if (text.startsWith('KN_STICKER:')) return '🖼️ [Stiker]';
-  return text.replace(/\[\/?spoiler\]/gi, '⚠️ ');
+  if (text.startsWith(STICKER_MESSAGE_PREFIX)) return '🖼️ [Stiker]';
+  let cleaned = text;
+  cleaned = cleaned.replace(/\[\/?spoiler\]/gi, ' ⚠️ [Spoiler] ');
+  cleaned = cleaned.replace(/\[?img\][\s\S]*?(?:\[\/?img\]?|$)/gi, ' 📷 [Gambar] ');
+  cleaned = cleaned.replace(/\[\/?(b|i|s)\]/gi, '');
+  return cleaned.trim();
 }
 
 // Resilient Chat Avatar with auto-fallback to colored initials on 404 or image error
@@ -69,6 +82,8 @@ const ChatAvatar = ({ profileImage, name, username, isVip, size = 28 }) => {
           source={{ uri: avatarUrl }}
           style={[styles.msgAvatarImg, { width: size, height: size, borderRadius: size / 2 }]}
           onError={() => setImgError(true)}
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
       ) : (
         <View
@@ -96,6 +111,185 @@ const ChatAvatar = ({ profileImage, name, username, isVip, size = 28 }) => {
   );
 };
 
+// Interactive Spoiler Component for React Native
+const ChatSpoilerBlock = ({ children, isMe }) => {
+  const [revealed, setRevealed] = useState(false);
+
+  if (!revealed) {
+    return (
+      <TouchableOpacity
+        style={styles.spoilerHiddenBox}
+        activeOpacity={0.8}
+        onPress={() => setRevealed(true)}
+      >
+        <Ionicons name="eye-off-outline" size={13} color="#F87171" />
+        <Text style={styles.spoilerHiddenText}>SPOILER (Ketuk untuk melihat)</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.spoilerRevealedBox}
+      activeOpacity={0.85}
+      onPress={() => setRevealed(false)}
+    >
+      <View style={styles.spoilerHeaderRow}>
+        <Ionicons name="eye-outline" size={12} color="#EF4444" />
+        <Text style={styles.spoilerRevealedNotice}>SPOILER (Ketuk untuk tutup)</Text>
+      </View>
+      <View style={styles.spoilerContentBox}>
+        {children}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// Formatted content parser for rich messages (images, bold, italic, strikethrough)
+const renderFormattedInline = (text, keyPrefix, isMe, onImagePress) => {
+  if (!text) return null;
+  // Robust regex matching [b]...[/b], [i]...[/i], [s]...[/s], and [img]...[/img] or img]...[/img
+  const regex = /\[?(img|b|i|s)\]([\s\S]*?)(?:\[?\/\1\]?|(?=\s|$|\[?(?:img|b|i|s)\]))/gi;
+  const elements = [];
+  let lastIdx = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIdx) {
+      elements.push(
+        <Text key={`${keyPrefix}-t-${lastIdx}`} style={[styles.msgBubbleText, isMe && styles.msgBubbleTextMe]}>
+          {text.slice(lastIdx, match.index)}
+        </Text>
+      );
+    }
+    const tag = match[1].toLowerCase();
+    let val = match[2] ? match[2].trim() : '';
+
+    if (tag === 'img') {
+      val = val.replace(/\[\/?img\]?/gi, '').trim();
+      if (val) {
+        const fullUrl = getImageUrl(val);
+        elements.push(
+          <TouchableOpacity
+            key={`${keyPrefix}-img-${match.index}`}
+            activeOpacity={0.9}
+            onPress={() => onImagePress && onImagePress(fullUrl)}
+            style={styles.chatImgWrapper}
+          >
+            <Image
+              source={{ uri: fullUrl }}
+              style={styles.chatUploadedImg}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          </TouchableOpacity>
+        );
+      }
+    } else if (tag === 'b') {
+      elements.push(
+        <Text key={`${keyPrefix}-b-${match.index}`} style={[styles.msgBubbleText, styles.textBold, isMe && styles.msgBubbleTextMe]}>
+          {val}
+        </Text>
+      );
+    } else if (tag === 'i') {
+      elements.push(
+        <Text key={`${keyPrefix}-i-${match.index}`} style={[styles.msgBubbleText, styles.textItalic, isMe && styles.msgBubbleTextMe]}>
+          {val}
+        </Text>
+      );
+    } else if (tag === 's') {
+      elements.push(
+        <Text key={`${keyPrefix}-s-${match.index}`} style={[styles.msgBubbleText, styles.textStrike, isMe && styles.msgBubbleTextMe]}>
+          {val}
+        </Text>
+      );
+    }
+    lastIdx = regex.lastIndex;
+  }
+
+  if (lastIdx < text.length) {
+    elements.push(
+      <Text key={`${keyPrefix}-t-end`} style={[styles.msgBubbleText, isMe && styles.msgBubbleTextMe]}>
+        {text.slice(lastIdx)}
+      </Text>
+    );
+  }
+
+  return elements;
+};
+
+// Rich Message Component supporting Stickers, Spoilers, Images, and Text Formatting
+const ChatRichMessage = ({ text, isMe, onImagePress }) => {
+  if (typeof text !== 'string') return null;
+
+  // 1. Sticker Message
+  const stickerPath = parseStickerMessage(text);
+  if (stickerPath) {
+    const fullUrl = getImageUrl(stickerPath);
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => onImagePress && onImagePress(fullUrl)}
+        style={styles.chatStickerBox}
+      >
+        <Image
+          source={{ uri: fullUrl }}
+          style={styles.chatStickerImg}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+        />
+      </TouchableOpacity>
+    );
+  }
+
+  // 2. Spoiler Message
+  const spoilerRegex = /\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi;
+  if (spoilerRegex.test(text)) {
+    const parts = [];
+    let lastIdx = 0;
+    let match;
+    const regex = /\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi;
+
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIdx) {
+        parts.push(
+          <View key={`pre-${lastIdx}`} style={styles.flowRow}>
+            {renderFormattedInline(text.slice(lastIdx, match.index), `pre-${lastIdx}`, isMe, onImagePress)}
+          </View>
+        );
+      }
+      const inner = match[1];
+      parts.push(
+        <ChatSpoilerBlock key={`sp-${match.index}`} isMe={isMe}>
+          <View style={styles.flowRow}>
+            {renderFormattedInline(inner, `sp-in-${match.index}`, isMe, onImagePress)}
+          </View>
+        </ChatSpoilerBlock>
+      );
+      lastIdx = regex.lastIndex;
+    }
+
+    if (lastIdx < text.length) {
+      parts.push(
+        <View key={`post-${lastIdx}`} style={styles.flowRow}>
+          {renderFormattedInline(text.slice(lastIdx), `post-${lastIdx}`, isMe, onImagePress)}
+        </View>
+      );
+    }
+
+    return <View style={styles.richMsgCol}>{parts}</View>;
+  }
+
+  // 3. Regular Formatted Message
+  return (
+    <View style={styles.richMsgCol}>
+      <View style={styles.flowRow}>
+        {renderFormattedInline(text, 'norm', isMe, onImagePress)}
+      </View>
+    </View>
+  );
+};
+
 export const ChatroomCard = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, user } = useAuth();
@@ -106,27 +300,62 @@ export const ChatroomCard = ({ navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalInputText, setModalInputText] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [stickers, setStickers] = useState([]);
+  const [stickersLoading, setStickersLoading] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
+
   const modalScrollRef = useRef(null);
 
+  // Keyboard avoidance listeners for Android & iOS
   useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      const rawHeight = e?.endCoordinates?.height || 0;
+      let effectiveHeight = rawHeight;
+
+      if (Platform.OS === 'android') {
+        const screenHeight = Dimensions.get('screen').height;
+        const windowHeight = Dimensions.get('window').height;
+        // On Android devices with navigation bars (3 buttons or gesture), the modal with statusBarTranslucent
+        // extends behind the navigation bar. The keyboard opens above the navigation bar, so the modal offset
+        // from screen bottom must include the navigation bar height (~48-56dp).
+        const navBarDiff = Math.max(0, screenHeight - windowHeight);
+        const navBarHeight = Math.max(insets.bottom || 0, navBarDiff, 48);
+
+        const fromScreenY = (e?.endCoordinates?.screenY && e.endCoordinates.screenY < screenHeight)
+          ? (screenHeight - e.endCoordinates.screenY)
+          : 0;
+
+        effectiveHeight = Math.max(rawHeight + navBarHeight, fromScreenY + 20, rawHeight);
+      }
+
+      setKeyboardHeight(effectiveHeight);
+      setKeyboardVisible(true);
+      setTimeout(() => {
+        modalScrollRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      setKeyboardVisible(false);
+    });
+
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [insets.bottom]);
 
   const fetchChats = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await apiClient.getLiveChats({ limit: 40 });
+      const res = await apiClient.getLiveChats({ limit: 50 });
       if (res?.status && Array.isArray(res.data)) {
         setMessages(res.data);
       }
@@ -146,6 +375,105 @@ export const ChatroomCard = ({ navigation }) => {
     return () => clearInterval(interval);
   }, [fetchChats]);
 
+  // Load stickers on demand
+  const fetchStickers = async () => {
+    if (stickers.length > 0) return;
+    setStickersLoading(true);
+    try {
+      const res = await apiClient.getStickers({ page: 1, limit: 50 });
+      let items = [];
+      if (Array.isArray(res?.data)) items = res.data;
+      else if (res?.data?.items && Array.isArray(res.data.items)) items = res.data.items;
+      setStickers(items);
+    } catch {
+      // ignore
+    } finally {
+      setStickersLoading(false);
+    }
+  };
+
+  const handleToggleStickers = () => {
+    Keyboard.dismiss();
+    setStickerPickerOpen((prev) => {
+      const next = !prev;
+      if (next) fetchStickers();
+      return next;
+    });
+  };
+
+  const handleSelectSticker = async (stickerPath) => {
+    setStickerPickerOpen(false);
+    await handleSendMessage(`KN_STICKER:${stickerPath}`, true);
+  };
+
+  // Upload image to chat
+  const handlePickImage = async () => {
+    if (uploadingImage) return;
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Izin Akses Galeri',
+          'Aplikasi membutuhkan izin akses galeri untuk mengunggah foto ke chatroom.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      setUploadingImage(true);
+
+      const formData = new FormData();
+      const filename = asset.fileName || asset.uri.split('/').pop() || `chat_${Date.now()}.jpg`;
+      const match = /\.(\w+)$/.exec(filename);
+      const mime = match ? `image/${match[1].toLowerCase()}` : (asset.mimeType || 'image/jpeg');
+
+      formData.append('image', {
+        uri: asset.uri,
+        name: filename,
+        type: mime,
+      });
+
+      const res = await apiClient.uploadImage(formData);
+      const imgPath = res?.image || res?.url || res?.path;
+
+      if (imgPath) {
+        setModalInputText((prev) => {
+          const trimmed = prev.trim();
+          return trimmed ? `${trimmed} [img]${imgPath}[/img]` : `[img]${imgPath}[/img]`;
+        });
+      } else {
+        Alert.alert('Gagal Mengunggah', 'Tidak dapat memperoleh tautan gambar.');
+      }
+    } catch (err) {
+      console.warn('Image upload error:', err);
+      Alert.alert('Gagal', err.message || 'Gagal mengunggah foto ke chat.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleInsertTag = (tag) => {
+    setModalInputText((prev) => `${prev}[${tag}]teks[/${tag}]`);
+  };
+
+  const handleInsertSpoiler = () => {
+    setModalInputText((prev) => {
+      const trimmed = prev.trim();
+      return trimmed ? `${trimmed} [spoiler]teks spoiler[/spoiler]` : `[spoiler]teks spoiler[/spoiler]`;
+    });
+  };
+
   const handleSendMessage = async (textToSend, isFromModal = false) => {
     const trimmed = textToSend.trim();
     if (!trimmed || sending) return;
@@ -159,6 +487,7 @@ export const ChatroomCard = ({ navigation }) => {
     setSending(true);
     if (isFromModal) {
       setModalInputText('');
+      setStickerPickerOpen(false);
     } else {
       setInputText('');
     }
@@ -176,11 +505,13 @@ export const ChatroomCard = ({ navigation }) => {
     };
 
     setMessages((prev) => [...prev, optimisticMsg]);
+    setTimeout(() => {
+      modalScrollRef.current?.scrollToEnd({ animated: true });
+    }, 50);
 
     try {
       const res = await apiClient.postLiveChat(trimmed);
       if (res?.status && res.data) {
-        // Replace temp with real response if provided
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId ? res.data : m))
         );
@@ -188,8 +519,8 @@ export const ChatroomCard = ({ navigation }) => {
       fetchChats(true);
     } catch (err) {
       console.warn('Chat send error:', err);
-      // Revert optimistic msg on error
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      Alert.alert('Gagal Mengirim', err.message || 'Gagal mengirim pesan chat.');
     } finally {
       setSending(false);
     }
@@ -257,7 +588,6 @@ export const ChatroomCard = ({ navigation }) => {
 
             return (
               <View key={msg.id || `msg-${idx}`} style={styles.messageRow}>
-                {/* Avatar with auto-fallback to colored initials */}
                 <ChatAvatar
                   profileImage={msg.profile_image}
                   name={msg.name}
@@ -266,7 +596,6 @@ export const ChatroomCard = ({ navigation }) => {
                   size={28}
                 />
 
-                {/* Bubble Content */}
                 <View style={styles.msgContentBox}>
                   <View style={styles.msgMetaRow}>
                     <Text numberOfLines={1} style={styles.msgAuthorName}>
@@ -335,11 +664,18 @@ export const ChatroomCard = ({ navigation }) => {
         animationType="slide"
         transparent={false}
         statusBarTranslucent
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setStickerPickerOpen(false);
+          setModalVisible(false);
+        }}
       >
-        <KeyboardAvoidingView
-          style={styles.modalContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <View
+          style={[
+            styles.modalContainer,
+            Platform.OS === 'android' && keyboardHeight > 0
+              ? { paddingBottom: keyboardHeight }
+              : null,
+          ]}
         >
           {/* Modal Header */}
           <View
@@ -355,7 +691,10 @@ export const ChatroomCard = ({ navigation }) => {
           >
             <View style={styles.modalHeaderLeft}>
               <TouchableOpacity
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setStickerPickerOpen(false);
+                  setModalVisible(false);
+                }}
                 style={styles.modalBackBtn}
               >
                 <Ionicons name="close" size={22} color="#FFF" />
@@ -387,16 +726,15 @@ export const ChatroomCard = ({ navigation }) => {
             ref={modalScrollRef}
             style={styles.modalMessageList}
             contentContainerStyle={styles.modalMessageContent}
+            keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => {
               modalScrollRef.current?.scrollToEnd({ animated: true });
             }}
           >
             {messages.map((msg, idx) => {
               const author = msg.name || msg.username || 'User';
-              const avatarUrl = msg.profile_image ? getImageUrl(msg.profile_image) : null;
               const isVip = !!msg.membership_active || msg.role === 'vip';
               const isMe = isAuthenticated && (user?.username === msg.username || user?.name === msg.name);
-              const cleanText = cleanMessageText(msg.message);
 
               return (
                 <View
@@ -409,7 +747,7 @@ export const ChatroomCard = ({ navigation }) => {
                       name={msg.name}
                       username={msg.username}
                       isVip={isVip}
-                      size={30}
+                      size={32}
                     />
                   )}
 
@@ -439,71 +777,223 @@ export const ChatroomCard = ({ navigation }) => {
                       </Text>
                     </View>
 
-                    <Text style={[styles.msgBubbleText, isMe && { color: '#FFF' }]}>
-                      {cleanText}
-                    </Text>
+                    {/* Rich Message Body (Spoilers, Images, BBCode, Stickers) */}
+                    <ChatRichMessage
+                      text={msg.message}
+                      isMe={isMe}
+                      onImagePress={(url) => setPreviewImageUrl(url)}
+                    />
                   </View>
                 </View>
               );
             })}
           </ScrollView>
 
-          {/* Modal Input Bar */}
-          {isAuthenticated ? (
-            <View
-              style={[
-                styles.modalInputBar,
-                {
-                  paddingBottom: keyboardVisible
-                    ? SPACING.sm
-                    : Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12),
-                },
-              ]}
-            >
-              <TextInput
-                placeholder="Ketik pesan chat..."
-                placeholderTextColor={COLORS.textMuted}
-                value={modalInputText}
-                onChangeText={setModalInputText}
-                style={styles.modalTextInput}
-                maxLength={250}
-              />
+          {/* Sticker Tray Panel */}
+          {stickerPickerOpen && (
+            <View style={styles.stickerTray}>
+              <View style={styles.stickerTrayHeader}>
+                <Text style={styles.stickerTrayTitle}>Pilih Stiker KomikNesia</Text>
+                <TouchableOpacity onPress={() => setStickerPickerOpen(false)}>
+                  <Ionicons name="close" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+
+              {stickersLoading ? (
+                <View style={styles.stickerLoadingBox}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.stickerLoadingText}>Memuat stiker...</Text>
+                </View>
+              ) : stickers.length === 0 ? (
+                <View style={styles.stickerEmptyBox}>
+                  <Text style={styles.stickerEmptyText}>Belum ada stiker tersedia.</Text>
+                </View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.stickerScrollList}
+                >
+                  {stickers.map((s) => (
+                    <TouchableOpacity
+                      key={s.id}
+                      style={styles.stickerPickerItem}
+                      activeOpacity={0.7}
+                      onPress={() => handleSelectSticker(s.image_path)}
+                    >
+                      <Image
+                        source={{ uri: getImageUrl(s.image_path) }}
+                        style={styles.stickerThumb}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )}
+
+          {/* Modal Bottom Area with KeyboardAvoidingView */}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          >
+            {isAuthenticated ? (
+              <View
+                style={[
+                  styles.modalBottomBox,
+                  {
+                    paddingBottom: keyboardVisible
+                      ? (Platform.OS === 'ios' ? SPACING.xs : SPACING.sm)
+                      : Math.max(
+                          insets.bottom || 0,
+                          (Dimensions.get('screen').height - Dimensions.get('window').height) || 0,
+                          Platform.OS === 'ios' ? 24 : 16
+                        ) + 6,
+                  },
+                ]}
+              >
+                {/* BBCode & Media Toolbar (Spoiler, Gambar, Bold, Italic, Stiker) */}
+                <View style={styles.toolbarRow}>
+                  <TouchableOpacity
+                    style={styles.toolBtn}
+                    onPress={() => handleInsertTag('b')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.toolBtnTextBold}>B</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.toolBtn}
+                    onPress={() => handleInsertTag('i')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.toolBtnTextItalic}>I</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.toolBtn}
+                    onPress={() => handleInsertTag('s')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.toolBtnTextStrike}>S</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.toolBtn, styles.toolBtnSpoiler]}
+                    onPress={handleInsertSpoiler}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="eye-off-outline" size={13} color="#F87171" />
+                    <Text style={styles.toolBtnSpoilerText}>Spoiler</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.toolBtn, styles.toolBtnImage]}
+                    onPress={handlePickImage}
+                    disabled={uploadingImage}
+                    activeOpacity={0.7}
+                  >
+                    {uploadingImage ? (
+                      <ActivityIndicator size="small" color="#60A5FA" />
+                    ) : (
+                      <Ionicons name="image-outline" size={14} color="#60A5FA" />
+                    )}
+                    <Text style={styles.toolBtnImageText}>
+                      {uploadingImage ? 'Upload...' : 'Gambar'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.toolBtn, styles.toolBtnSticker, stickerPickerOpen && styles.toolBtnActive]}
+                    onPress={handleToggleStickers}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={stickerPickerOpen ? 'close-circle' : 'happy-outline'}
+                      size={14}
+                      color={stickerPickerOpen ? '#EF4444' : '#F59E0B'}
+                    />
+                    <Text style={[styles.toolBtnText, stickerPickerOpen && { color: '#EF4444' }]}>
+                      Stiker
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Input & Send Button */}
+                <View style={styles.inputSendRow}>
+                  <TextInput
+                    placeholder="Ketik pesan chat..."
+                    placeholderTextColor={COLORS.textMuted}
+                    value={modalInputText}
+                    onChangeText={setModalInputText}
+                    style={styles.modalTextInput}
+                    multiline
+                    maxLength={1000}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.modalSendBtn,
+                      (!modalInputText.trim() || sending) && styles.cardSendBtnDisabled,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => handleSendMessage(modalInputText, true)}
+                    disabled={!modalInputText.trim() || sending}
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Ionicons name="send" size={17} color="#FFF" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
               <TouchableOpacity
                 style={[
-                  styles.modalSendBtn,
-                  (!modalInputText.trim() || sending) && styles.cardSendBtnDisabled,
+                  styles.modalLoginBar,
+                  {
+                    paddingBottom: Math.max(insets.bottom, SPACING.md),
+                  },
                 ]}
-                activeOpacity={0.8}
-                onPress={() => handleSendMessage(modalInputText, true)}
-                disabled={!modalInputText.trim() || sending}
+                onPress={() => {
+                  setModalVisible(false);
+                  navigation.navigate('Login');
+                }}
               >
-                {sending ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Ionicons name="send" size={17} color="#FFF" />
-                )}
+                <Text style={styles.modalLoginText}>
+                  Masuk untuk mengirim pesan di chatroom
+                </Text>
               </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.modalLoginBar,
-                {
-                  paddingBottom: Math.max(insets.bottom, SPACING.md),
-                },
-              ]}
-              onPress={() => {
-                setModalVisible(false);
-                navigation.navigate('Login');
-              }}
-            >
-              <Text style={styles.modalLoginText}>
-                Masuk untuk mengirim pesan di chatroom
-              </Text>
-            </TouchableOpacity>
-          )}
-        </KeyboardAvoidingView>
+            )}
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
+
+      {/* Fullscreen Image Preview Lightbox */}
+      {previewImageUrl && (
+        <Modal
+          visible={!!previewImageUrl}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewImageUrl(null)}
+        >
+          <View style={styles.imageLightboxOverlay}>
+            <TouchableOpacity
+              style={styles.imageLightboxCloseBtn}
+              onPress={() => setPreviewImageUrl(null)}
+            >
+              <Ionicons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Image
+              source={{ uri: previewImageUrl }}
+              style={styles.imageLightboxImg}
+              contentFit="contain"
+            />
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -599,20 +1089,16 @@ const styles = StyleSheet.create({
   openModalBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
     flexShrink: 0,
-    alignSelf: 'center',
   },
   openModalBtnText: {
     color: '#FFF',
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
   },
   messagesBox: {
@@ -621,103 +1107,106 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingBox: {
-    paddingVertical: SPACING.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
   },
   loadingText: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 12,
   },
   emptyBox: {
-    paddingVertical: SPACING.lg,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
     gap: 6,
   },
   emptyText: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11.5,
   },
   messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 9,
+    gap: 8,
   },
   msgAvatarWrapper: {
     position: 'relative',
-    marginTop: 2,
+    flexShrink: 0,
   },
   msgAvatarImg: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: '#1F2937',
   },
   msgAvatarPlaceholder: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   msgAvatarInitial: {
     color: '#FFF',
-    fontSize: 11,
     fontWeight: '800',
   },
   msgVipBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
+    bottom: -1,
+    right: -1,
     width: 11,
     height: 11,
     borderRadius: 5.5,
-    backgroundColor: '#D97706',
+    backgroundColor: '#F59E0B',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   msgContentBox: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: RADIUS.md,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   msgMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     marginBottom: 2,
+    flexWrap: 'wrap',
   },
   msgAuthorName: {
-    color: COLORS.text,
-    fontSize: 12,
+    color: '#E5E7EB',
+    fontSize: 11,
     fontWeight: '700',
     flexShrink: 1,
   },
   msgVipTag: {
-    backgroundColor: '#D97706',
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
     paddingHorizontal: 4,
     paddingVertical: 0.5,
     borderRadius: 3,
+    borderWidth: 0.5,
+    borderColor: '#F59E0B',
   },
   msgVipTagText: {
-    color: '#FFF',
+    color: '#F59E0B',
     fontSize: 8,
     fontWeight: '900',
   },
   msgTimeText: {
-    color: COLORS.textMuted,
-    fontSize: 10,
+    color: '#6B7280',
+    fontSize: 9.5,
     marginLeft: 'auto',
   },
   msgBubbleText: {
     color: '#D1D5DB',
     fontSize: 12,
-    lineHeight: 16,
+    lineHeight: 16.5,
+  },
+  msgBubbleTextMe: {
+    color: '#FFF',
   },
   cardInputRow: {
     flexDirection: 'row',
@@ -725,9 +1214,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   cardTextInput: {
     flex: 1,
@@ -843,30 +1332,249 @@ const styles = StyleSheet.create({
   modalMsgBubbleMe: {
     backgroundColor: COLORS.primary,
   },
-  modalInputBar: {
+
+  // RICH FORMATTING & SPOILER STYLES
+  richMsgCol: {
+    marginTop: 2,
+    gap: 4,
+  },
+  flowRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  textBold: {
+    fontWeight: '900',
+  },
+  textItalic: {
+    fontStyle: 'italic',
+  },
+  textStrike: {
+    textDecorationLine: 'line-through',
+  },
+  spoilerHiddenBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    backgroundColor: 'rgba(127, 29, 29, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    marginVertical: 4,
+    alignSelf: 'flex-start',
+  },
+  spoilerHiddenText: {
+    color: '#FCA5A5',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  spoilerRevealedBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderLeftWidth: 3.5,
+    borderLeftColor: '#EF4444',
+    borderRadius: RADIUS.md,
+    padding: 8,
+    marginVertical: 4,
+    minWidth: 140,
+  },
+  spoilerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  spoilerRevealedNotice: {
+    color: '#F87171',
+    fontSize: 9.5,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  spoilerContentBox: {
+    marginTop: 2,
+  },
+  chatImgWrapper: {
+    marginVertical: 4,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  chatUploadedImg: {
+    width: width * 0.52,
+    height: width * 0.42,
+    borderRadius: RADIUS.lg,
+  },
+  chatStickerBox: {
+    marginVertical: 2,
+  },
+  chatStickerImg: {
+    width: 90,
+    height: 90,
+  },
+
+  // STICKER TRAY
+  stickerTray: {
+    backgroundColor: '#111522',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 8,
+  },
+  stickerTrayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
+    marginBottom: 6,
+  },
+  stickerTrayTitle: {
+    color: '#D1D5DB',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stickerLoadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 18,
+  },
+  stickerLoadingText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
+  stickerEmptyBox: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  stickerEmptyText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
+  stickerScrollList: {
+    paddingHorizontal: SPACING.md,
+    gap: 10,
+  },
+  stickerPickerItem: {
+    width: 62,
+    height: 62,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  stickerThumb: {
+    width: 50,
+    height: 50,
+  },
+
+  // MODAL BOTTOM & TOOLBAR
+  modalBottomBox: {
     backgroundColor: '#111522',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
+  toolbarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingTop: 8,
+    paddingBottom: 6,
+    gap: 6,
+  },
+  toolBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 26,
+  },
+  toolBtnSpoiler: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderWidth: 1,
+  },
+  toolBtnSpoilerText: {
+    color: '#F87171',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  toolBtnImage: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.35)',
+    borderWidth: 1,
+  },
+  toolBtnImageText: {
+    color: '#60A5FA',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  toolBtnSticker: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderWidth: 1,
+  },
+  toolBtnActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  toolBtnText: {
+    color: '#E5E7EB',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  toolBtnTextBold: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  toolBtnTextItalic: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+    fontStyle: 'italic',
+  },
+  toolBtnTextStrike: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'line-through',
+  },
+  inputSendRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: 6,
+  },
   modalTextInput: {
     flex: 1,
-    height: 42,
+    minHeight: 40,
+    maxHeight: 100,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
+    paddingTop: 10,
+    paddingBottom: 10,
     color: '#FFF',
     fontSize: 13,
     borderWidth: 1,
     borderColor: COLORS.surfaceBorder,
   },
   modalSendBtn: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: RADIUS.lg,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
@@ -882,5 +1590,29 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // LIGHTBOX MODAL
+  imageLightboxOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageLightboxCloseBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  imageLightboxImg: {
+    width: width * 0.95,
+    height: width * 1.2,
   },
 });

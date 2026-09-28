@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -193,48 +193,119 @@ const HeroBannerSlider = React.memo(({ banners, onBannerPress }) => {
   );
 });
 
-// Isolated Popular Slider - scrolling and auto-timer will not re-render the outer HomeScreen
+// Isolated Popular Slider - Infinite seamless auto-loop carousel
 const PopularSlider = React.memo(({ items, onMangaPress }) => {
   const popularScrollRef = useRef(null);
   const isDraggingPopularRef = useRef(false);
-  const [activePopularIdx, setActivePopularIdx] = useState(0);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  const scrollPopularToIndex = useCallback((idx, animated = true) => {
-    if (!items || items.length === 0) return;
-    const clamped = Math.max(0, Math.min(idx, items.length - 1));
-    setActivePopularIdx(clamped);
-    popularScrollRef.current?.scrollTo({ x: clamped * POPULAR_SNAP_INTERVAL, animated });
-  }, [items?.length]);
+  const N = items?.length || 0;
+  const MULTIPLIER = N > 1 ? 5 : 1;
+  const middleSetStart = N > 1 ? N * 2 : 0;
 
-  useEffect(() => {
-    if (!items || items.length <= 1) return;
-    const timer = setTimeout(() => {
-      if (!isDraggingPopularRef.current) {
-        const next = (activePopularIdx + 1) % items.length;
-        scrollPopularToIndex(next);
+  const [currentIndex, setCurrentIndex] = useState(middleSetStart);
+
+  // Extended looping array
+  const extendedItems = useMemo(() => {
+    if (!items || N === 0) return [];
+    if (N === 1) return items;
+    const list = [];
+    for (let i = 0; i < MULTIPLIER; i++) {
+      list.push(...items);
+    }
+    return list;
+  }, [items, N, MULTIPLIER]);
+
+  // Initial scroll to middle set on mount
+  const handleLayout = () => {
+    if (!hasInitialized && N > 1) {
+      setHasInitialized(true);
+      setCurrentIndex(middleSetStart);
+      setTimeout(() => {
+        popularScrollRef.current?.scrollTo({
+          x: middleSetStart * POPULAR_SNAP_INTERVAL,
+          animated: false,
+        });
+      }, 50);
+    }
+  };
+
+  // Normalization logic: seamlessly reset to middle set if scrolled too far left or right
+  const normalizePosition = useCallback(
+    (targetIdx) => {
+      if (N <= 1) return targetIdx;
+      let normalized = targetIdx;
+      const minThreshold = Math.round(N * 1.5);
+      const maxThreshold = Math.round(N * 3.5);
+
+      if (targetIdx < minThreshold) {
+        normalized = targetIdx + N;
+        popularScrollRef.current?.scrollTo({
+          x: normalized * POPULAR_SNAP_INTERVAL,
+          animated: false,
+        });
+        setCurrentIndex(normalized);
+        return normalized;
+      } else if (targetIdx >= maxThreshold) {
+        normalized = targetIdx - N;
+        popularScrollRef.current?.scrollTo({
+          x: normalized * POPULAR_SNAP_INTERVAL,
+          animated: false,
+        });
+        setCurrentIndex(normalized);
+        return normalized;
       }
-    }, 8500);
-    return () => clearTimeout(timer);
-  }, [activePopularIdx, items?.length, scrollPopularToIndex]);
+
+      setCurrentIndex(targetIdx);
+      return targetIdx;
+    },
+    [N]
+  );
+
+  // Auto-scroll loop timer
+  useEffect(() => {
+    if (N <= 1) return;
+    const timer = setInterval(() => {
+      if (!isDraggingPopularRef.current) {
+        setCurrentIndex((prev) => {
+          const next = prev + 1;
+          popularScrollRef.current?.scrollTo({
+            x: next * POPULAR_SNAP_INTERVAL,
+            animated: true,
+          });
+          return next;
+        });
+      }
+    }, 4500);
+
+    return () => clearInterval(timer);
+  }, [N]);
 
   const handlePopularPrev = () => {
-    if (!items || items.length === 0) return;
-    const prev = Math.max(0, activePopularIdx - 1);
-    scrollPopularToIndex(prev);
+    if (N <= 1) return;
+    const prev = currentIndex - 1;
+    setCurrentIndex(prev);
+    popularScrollRef.current?.scrollTo({
+      x: prev * POPULAR_SNAP_INTERVAL,
+      animated: true,
+    });
   };
 
   const handlePopularNext = () => {
-    if (!items || items.length === 0) return;
-    const next = Math.min(items.length - 1, activePopularIdx + 1);
-    scrollPopularToIndex(next);
+    if (N <= 1) return;
+    const next = currentIndex + 1;
+    setCurrentIndex(next);
+    popularScrollRef.current?.scrollTo({
+      x: next * POPULAR_SNAP_INTERVAL,
+      animated: true,
+    });
   };
 
   const handlePopularScroll = (e) => {
     const offsetX = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
-    const clamped = Math.max(0, Math.min(idx, items.length - 1));
-    if (clamped !== activePopularIdx) {
-      setActivePopularIdx(clamped);
+    const rawIdx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
+    if (rawIdx !== currentIndex) {
+      setCurrentIndex(rawIdx);
     }
   };
 
@@ -245,13 +316,8 @@ const PopularSlider = React.memo(({ items, onMangaPress }) => {
   const handlePopularScrollEnd = (e) => {
     isDraggingPopularRef.current = false;
     const offsetX = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
-    const clamped = Math.max(0, Math.min(idx, items.length - 1));
-    setActivePopularIdx(clamped);
-    const targetX = clamped * POPULAR_SNAP_INTERVAL;
-    if (Math.abs(offsetX - targetX) > 1) {
-      popularScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
+    const rawIdx = Math.round(offsetX / POPULAR_SNAP_INTERVAL);
+    normalizePosition(rawIdx);
   };
 
   if (!items || items.length === 0) return null;
@@ -291,33 +357,39 @@ const PopularSlider = React.memo(({ items, onMangaPress }) => {
           decelerationRate="fast"
           disableIntervalMomentum={true}
           contentContainerStyle={styles.popularSlidesContainer}
+          onLayout={handleLayout}
           onScrollBeginDrag={handlePopularScrollBegin}
           onScroll={handlePopularScroll}
           scrollEventThrottle={32}
           onScrollEndDrag={handlePopularScrollEnd}
           onMomentumScrollEnd={handlePopularScrollEnd}
         >
-          {items.map((item, idx) => {
+          {extendedItems.map((item, idx) => {
+            const originalIdx = N > 0 ? idx % N : 0;
             const coverUrl = getImageUrl(item.cover || item.image || item.thumbnail);
             const latestCh = item?.lastChapters?.[0] || item?.latest_chapter;
             const chNum = latestCh?.number || latestCh?.chapter_number || item?.chapter || null;
-            const isCurrentActive = idx === activePopularIdx;
+            const isCurrentActive = idx === currentIndex;
 
             return (
               <TouchableOpacity
-                key={`pop-slide-${item.id || item.slug}-${idx}`}
+                key={`pop-loop-${item.id || item.slug}-${idx}`}
                 activeOpacity={0.88}
                 onPress={() => {
                   if (isCurrentActive) {
                     onMangaPress(item);
                   } else {
-                    scrollPopularToIndex(idx);
+                    setCurrentIndex(idx);
+                    popularScrollRef.current?.scrollTo({
+                      x: idx * POPULAR_SNAP_INTERVAL,
+                      animated: true,
+                    });
                   }
                 }}
                 style={[
                   styles.popularSlideCard,
                   isCurrentActive ? styles.popularSlideCardActive : styles.popularSlideCardInactive,
-                  idx < items.length - 1 && { marginRight: POPULAR_GAP },
+                  { marginRight: POPULAR_GAP },
                 ]}
               >
                 <View style={styles.popularCardCoverWrapper}>
@@ -339,11 +411,11 @@ const PopularSlider = React.memo(({ items, onMangaPress }) => {
                   <View
                     style={[
                       styles.slideRankBadge,
-                      idx === 0
+                      originalIdx === 0
                         ? styles.rankGold
-                        : idx === 1
+                        : originalIdx === 1
                         ? styles.rankSilver
-                        : idx === 2
+                        : originalIdx === 2
                         ? styles.rankBronze
                         : styles.rankDefault,
                     ]}
@@ -351,10 +423,10 @@ const PopularSlider = React.memo(({ items, onMangaPress }) => {
                     <Text
                       style={[
                         styles.slideRankText,
-                        idx <= 1 ? { color: '#000' } : { color: '#FFF' },
+                        originalIdx <= 1 ? { color: '#000' } : { color: '#FFF' },
                       ]}
                     >
-                      #{idx + 1}
+                      #{originalIdx + 1}
                     </Text>
                   </View>
 
